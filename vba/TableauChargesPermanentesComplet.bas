@@ -26,10 +26,6 @@ Public Sub CreerTableauChargesPermanentesComplet()
 
     Application.ScreenUpdating = False
 
-    ' --- Nettoyage de l'ancienne liste (colonne J réaffichée, J1:J5 effacées) ---
-    ws.Columns("J").Hidden = False
-    ws.Range("J1:J5").ClearContents
-
     ' --- Choix du niveau d'étage (liste déroulante 1 à 5) ---
     ws.Range("B" & LIGNE_NIVEAU).Value = "Niveau d'étage"
     ws.Range("B" & LIGNE_NIVEAU).Font.Bold = True
