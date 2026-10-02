@@ -28,6 +28,9 @@ Public Sub CreerTableauChargesPermanentesComplet()
 
     Application.ScreenUpdating = False
 
+    ' --- Effacement complet de la feuille (contenu, formats, fusions, listes) ---
+    ws.Cells.Clear
+
     ' --- Choix du niveau d'étage (liste déroulante 1 à 5) ---
     ws.Range("B" & LIGNE_NIVEAU).Value = "Niveau d'étage"
     ws.Range("B" & LIGNE_NIVEAU).Font.Bold = True
