@@ -6,9 +6,6 @@ Option Explicit
 ' G = n × b × (γ × h + g)
 Public Sub CreerTableauChargesPermanentes()
     With ActiveSheet
-        .Cells.Clear
-        .Columns("J").Hidden = False
-        .Range("J1:J5").ClearContents
         .Range("B1").Value = "Niveau d'étage"
         With .Range("C1")
             .Value = 1
