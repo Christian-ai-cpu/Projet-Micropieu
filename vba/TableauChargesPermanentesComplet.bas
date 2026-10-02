@@ -29,14 +29,11 @@ Public Sub CreerTableauChargesPermanentesComplet()
     ' --- Choix du niveau d'étage (liste déroulante 1 à 5) ---
     ws.Range("B" & LIGNE_NIVEAU).Value = "Niveau d'étage"
     ws.Range("B" & LIGNE_NIVEAU).Font.Bold = True
-    ' Valeurs 1 à 5 écrites dans la colonne J (masquée), source de la liste
-    ws.Range("J1:J5").Value = Application.Transpose(Array(1, 2, 3, 4, 5))
-    ws.Columns("J").Hidden = True
     With ws.Range("C" & LIGNE_NIVEAU)
         .Value = 1
         .Validation.Delete
         .Validation.Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
-            Formula1:="=$J$1:$J$5"
+            Formula1:="1,2,3,4,5"  ' en VBA, toujours la virgule
         .Validation.InCellDropdown = True
         .Validation.ErrorMessage = "Choisir un niveau d'étage entre 1 et 5."
         .Font.Bold = True

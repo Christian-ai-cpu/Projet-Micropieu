@@ -2,17 +2,15 @@ Attribute VB_Name = "TableauChargesPermanentes_CodeEnDurArray"
 Option Explicit
 ' Version codée en dur avec Array, sans variable.
 
-' Niveau d'étage (liste 1 à 5 en J1:J5, masquée) en C1, en-tête B2:H3, saisie lignes 4 à 18, total ligne 19.
+' Niveau d'étage (liste 1 à 5) en C1, en-tête B2:H3, saisie lignes 4 à 18, total ligne 19.
 ' G = n × b × (γ × h + g)
 Public Sub CreerTableauChargesPermanentes()
     With ActiveSheet
         .Range("B1").Value = "Niveau d'étage"
-        .Range("J1:J5").Value = Application.Transpose(Array(1, 2, 3, 4, 5))
-        .Columns("J").Hidden = True
         With .Range("C1")
             .Value = 1
             .Validation.Delete
-            .Validation.Add xlValidateList, xlValidAlertStop, , "=$J$1:$J$5"
+            .Validation.Add xlValidateList, xlValidAlertStop, , "1,2,3,4,5"
             .Interior.Color = RGB(255, 242, 204)
             .BorderAround xlContinuous, xlMedium
         End With
