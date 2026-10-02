@@ -1,5 +1,6 @@
-Attribute VB_Name = "TableauChargesPermanentes(codé en dure avec array sans variable)"
+Attribute VB_Name = "TableauChargesPermanentes_CodeEnDurArray"
 Option Explicit
+' Version codée en dur avec Array, sans variable.
 
 ' Niveau d'étage (1 à 5) en C1, en-tête B2:H3, saisie lignes 4 à 18, total ligne 19.
 ' G = n × b × (γ × h + g)
