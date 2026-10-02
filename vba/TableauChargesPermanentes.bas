@@ -1,10 +1,20 @@
 Attribute VB_Name = "TableauChargesPermanentes"
 Option Explicit
 
-' En-tête B2:H3, saisie lignes 4 à 18, total ligne 19.
+' Niveau d'étage (1 à 5) en C1, en-tête B2:H3, saisie lignes 4 à 18, total ligne 19.
 ' G = n × b × (γ × h + g)
 Public Sub CreerTableauChargesPermanentes()
     With ActiveSheet
+        .Range("B1").Value = "Niveau d'étage"
+        With .Range("C1")
+            .Value = 1
+            .Validation.Delete
+            .Validation.Add xlValidateList, xlValidAlertStop, , _
+                Join(Array(1, 2, 3, 4, 5), Application.International(xlListSeparator))
+            .Interior.Color = RGB(255, 242, 204)
+            .BorderAround xlContinuous, xlMedium
+        End With
+        .Range("B1:C1").Font.Bold = True
         .Range("B2:H2").Value = Array("Désignation de l'ouvrage", "Poids volumique (kN/m3)", _
             "Poids Surfacique (kN/m²)", "Dimensions", "", "", "Charges permanentes G (kN/ml)")
         .Range("E3:G3").Value = Array("Largeur b (m)", "Épaisseur h (m)", "Nombre n")

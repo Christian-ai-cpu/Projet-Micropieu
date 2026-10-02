@@ -8,7 +8,9 @@ Option Explicit
 '   E:G : Dimensions (fusionnées) -> Largeur b (m) / Épaisseur h (m) / Nombre n
 '   H : Charges permanentes G (kN/ml)
 ' Les lignes de saisie calculent G = n × (γ × b × h + g × b).
+' En ligne 1 : liste déroulante pour choisir le niveau d'étage (1 à 5).
 
+Private Const LIGNE_NIVEAU As Long = 1
 Private Const LIGNE_TITRE As Long = 2
 Private Const LIGNE_SOUS_TITRE As Long = 3
 Private Const PREMIERE_LIGNE As Long = 4
@@ -23,6 +25,21 @@ Public Sub CreerTableauChargesPermanentesComplet()
     derniereLigne = PREMIERE_LIGNE + NB_LIGNES - 1
 
     Application.ScreenUpdating = False
+
+    ' --- Choix du niveau d'étage (liste déroulante 1 à 5) ---
+    ws.Range("B" & LIGNE_NIVEAU).Value = "Niveau d'étage"
+    ws.Range("B" & LIGNE_NIVEAU).Font.Bold = True
+    With ws.Range("C" & LIGNE_NIVEAU)
+        .Value = 1
+        .Validation.Delete
+        .Validation.Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
+            Formula1:=Join(Array(1, 2, 3, 4, 5), Application.International(xlListSeparator))
+        .Validation.ErrorMessage = "Choisir un niveau d'étage entre 1 et 5."
+        .Font.Bold = True
+        .HorizontalAlignment = xlCenter
+        .Interior.Color = RGB(255, 242, 204)
+        .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
+    End With
 
     ' --- Titres principaux ---
     ws.Range("B" & LIGNE_TITRE).Value = "Désignation de l'ouvrage"
