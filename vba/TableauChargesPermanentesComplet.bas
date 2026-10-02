@@ -19,7 +19,9 @@ Private Const NB_LIGNES As Long = 15
 Public Sub CreerTableauChargesPermanentesComplet()
     Dim ws As Worksheet
     Dim derniereLigne As Long
-    Dim r As Long
+    Dim r As Long, c As Long
+    Dim Entete(1 To 2, 1 To 7) As String
+    Dim titres As Variant, sousTitres As Variant
 
     Set ws = ActiveSheet
     derniereLigne = PREMIERE_LIGNE + NB_LIGNES - 1
@@ -42,24 +44,22 @@ Public Sub CreerTableauChargesPermanentesComplet()
         .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
     End With
 
-    ' --- Titres principaux ---
-    ws.Range("B" & LIGNE_TITRE).Value = "Désignation de l'ouvrage"
-    ws.Range("C" & LIGNE_TITRE).Value = "Poids volumique (kN/m3)"
-    ws.Range("D" & LIGNE_TITRE).Value = "Poids Surfacique (kN/m²)"
-    ws.Range("E" & LIGNE_TITRE).Value = "Dimensions"
-    ws.Range("H" & LIGNE_TITRE).Value = "Charges permanentes G (kN/ml)"
+    ' --- Titres (ligne 1) et sous-titres (ligne 2) remplis par boucle ---
+    titres = Array("Désignation de l'ouvrage", "Poids volumique (kN/m3)", _
+        "Poids Surfacique (kN/m²)", "Dimensions", "", "", "Charges permanentes G (kN/ml)")
+    sousTitres = Array("", "", "", "Largeur b (m)", "Épaisseur h (m)", "Nombre n", "")
+    For r = 1 To 2
+        For c = 1 To 7
+            Entete(r, c) = IIf(r = 1, titres(c - 1), sousTitres(c - 1))
+        Next c
+    Next r
+    ws.Range("B" & LIGNE_TITRE).Resize(2, 7).Value = Entete
 
-    ' --- Sous-titres de la colonne Dimensions ---
-    ws.Range("E" & LIGNE_SOUS_TITRE).Value = "Largeur b (m)"
-    ws.Range("F" & LIGNE_SOUS_TITRE).Value = "Épaisseur h (m)"
-    ws.Range("G" & LIGNE_SOUS_TITRE).Value = "Nombre n"
-
-    ' --- Fusions ---
-    ws.Range("B" & LIGNE_TITRE & ":B" & LIGNE_SOUS_TITRE).Merge
-    ws.Range("C" & LIGNE_TITRE & ":C" & LIGNE_SOUS_TITRE).Merge
-    ws.Range("D" & LIGNE_TITRE & ":D" & LIGNE_SOUS_TITRE).Merge
+    ' --- Fusions : verticale si pas de sous-titre, sinon « Dimensions » sur E:G ---
+    For c = 1 To 7
+        If Entete(2, c) = "" Then ws.Cells(LIGNE_TITRE, c + 1).Resize(2, 1).Merge
+    Next c
     ws.Range("E" & LIGNE_TITRE & ":G" & LIGNE_TITRE).Merge
-    ws.Range("H" & LIGNE_TITRE & ":H" & LIGNE_SOUS_TITRE).Merge
 
     ' --- Mise en forme de l'en-tête ---
     With ws.Range("B" & LIGNE_TITRE & ":H" & LIGNE_SOUS_TITRE)
