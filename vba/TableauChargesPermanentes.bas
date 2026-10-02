@@ -1,4 +1,4 @@
-Attribute VB_Name = "TableauChargesPermanentes"
+Attribute VB_Name = "TableauChargesPermanentes(codé en dure avec array sans variable)"
 Option Explicit
 
 ' Niveau d'étage (1 à 5) en C1, en-tête B2:H3, saisie lignes 4 à 18, total ligne 19.
