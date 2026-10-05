@@ -2,10 +2,11 @@ Attribute VB_Name = "TableauChargesPermanentes_CodeEnDurArray"
 Option Explicit
 ' Version codée en dur avec Array, sans variable.
 
-' Niveau d'étage (liste 1 à 5) en C1, en-tête B2:H3, saisie lignes 4 à 18, total ligne 19.
+' Niveau d'étage (liste 1 à 5) en C1, catégorie du bâtiment (A, B ou F) en E1, en-tête B2:H3, saisie lignes 4 à 18, total ligne 19.
 ' G = n × b × (γ × h + g)
 Public Sub CreerTableauChargesPermanentes()
     With ActiveSheet
+        .Cells.Clear
         .Range("B1").Value = "Niveau d'étage"
         With .Range("C1")
             .Value = 1
@@ -14,7 +15,15 @@ Public Sub CreerTableauChargesPermanentes()
             .Interior.Color = RGB(255, 242, 204)
             .BorderAround xlContinuous, xlMedium
         End With
-        .Range("B1:C1").Font.Bold = True
+        .Range("D1").Value = "Catégorie du bâtiment"
+        With .Range("E1")
+            .Value = "A"
+            .Validation.Delete
+            .Validation.Add xlValidateList, xlValidAlertStop, , "A,B,F"
+            .Interior.Color = RGB(255, 242, 204)
+            .BorderAround xlContinuous, xlMedium
+        End With
+        .Range("B1:E1").Font.Bold = True
         .Range("B2:H2").Value = Array("Désignation de l'ouvrage", "Poids volumique (kN/m3)", _
             "Poids Surfacique (kN/m²)", "Dimensions", "", "", "Charges permanentes G (kN/ml)")
         .Range("E3:G3").Value = Array("Largeur b (m)", "Épaisseur h (m)", "Nombre n")

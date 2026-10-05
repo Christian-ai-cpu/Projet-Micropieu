@@ -8,7 +8,7 @@ Option Explicit
 '   E:G : Dimensions (fusionnées) -> Largeur b (m) / Épaisseur h (m) / Nombre n
 '   H : Charges permanentes G (kN/ml)
 ' Les lignes de saisie calculent G = n × (γ × b × h + g × b).
-' En ligne 1 : liste déroulante pour choisir le niveau d'étage (1 à 5).
+' En ligne 1 : listes déroulantes du niveau d'étage (1 à 5) et de la catégorie du bâtiment (A, B ou F).
 
 Private Const LIGNE_NIVEAU As Long = 1
 Private Const LIGNE_TITRE As Long = 2
@@ -41,6 +41,22 @@ Public Sub CreerTableauChargesPermanentesComplet()
             Formula1:="1,2,3,4,5"  ' en VBA, toujours la virgule
         .Validation.InCellDropdown = True
         .Validation.ErrorMessage = "Choisir un niveau d'étage entre 1 et 5."
+        .Font.Bold = True
+        .HorizontalAlignment = xlCenter
+        .Interior.Color = RGB(255, 242, 204)
+        .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
+    End With
+
+    ' --- Choix de la catégorie du bâtiment (liste déroulante A, B ou F) ---
+    ws.Range("D" & LIGNE_NIVEAU).Value = "Catégorie du bâtiment"
+    ws.Range("D" & LIGNE_NIVEAU).Font.Bold = True
+    With ws.Range("E" & LIGNE_NIVEAU)
+        .Value = "A"
+        .Validation.Delete
+        .Validation.Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
+            Formula1:="A,B,F"
+        .Validation.InCellDropdown = True
+        .Validation.ErrorMessage = "Choisir une catégorie de bâtiment : A, B ou F."
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
         .Interior.Color = RGB(255, 242, 204)
