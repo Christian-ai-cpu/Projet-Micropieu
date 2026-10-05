@@ -12,7 +12,6 @@ Public Sub CreerTableauChargesPermanentes()
             .Value = 1
             .Validation.Delete
             .Validation.Add xlValidateList, xlValidAlertStop, , "1,2,3,4,5"
-            .Interior.Color = RGB(255, 242, 204)
             .BorderAround xlContinuous, xlMedium
         End With
         .Range("D1").Value = "Catégorie du bâtiment"
@@ -20,7 +19,6 @@ Public Sub CreerTableauChargesPermanentes()
             .Value = "A"
             .Validation.Delete
             .Validation.Add xlValidateList, xlValidAlertStop, , "A,B,F"
-            .Interior.Color = RGB(255, 242, 204)
             .BorderAround xlContinuous, xlMedium
         End With
         .Range("B1:E1").Font.Bold = True
@@ -30,8 +28,6 @@ Public Sub CreerTableauChargesPermanentes()
         .Range("B2:B3,C2:C3,D2:D3,E2:G2,H2:H3").Merge
         With .Range("B2:H3")
             .Font.Bold = True
-            .Font.Color = vbWhite
-            .Interior.Color = RGB(31, 78, 121)
             .WrapText = True
             .RowHeight = 30
             .HorizontalAlignment = xlCenter
@@ -42,7 +38,6 @@ Public Sub CreerTableauChargesPermanentes()
         .Range("B19").Value = "TOTAL G"
         .Range("H19").Formula = "=SUM(H4:H18)"
         .Range("B19:H19").Font.Bold = True
-        .Range("B19:H19").Interior.Color = RGB(221, 235, 247)
         .Range("C4:H19").NumberFormat = "0.00"
         .Range("G4:G18").NumberFormat = "0"
         .Range("C2:H19").HorizontalAlignment = xlCenter

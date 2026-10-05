@@ -43,7 +43,6 @@ Public Sub CreerTableauChargesPermanentesComplet()
         .Validation.ErrorMessage = "Choisir un niveau d'étage entre 1 et 5."
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
-        .Interior.Color = RGB(255, 242, 204)
         .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
     End With
 
@@ -59,7 +58,6 @@ Public Sub CreerTableauChargesPermanentesComplet()
         .Validation.ErrorMessage = "Choisir une catégorie de bâtiment : A, B ou F."
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
-        .Interior.Color = RGB(255, 242, 204)
         .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
     End With
 
@@ -86,8 +84,6 @@ Public Sub CreerTableauChargesPermanentesComplet()
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
         .WrapText = True
-        .Interior.Color = RGB(31, 78, 121)
-        .Font.Color = RGB(255, 255, 255)
     End With
 
     ' --- Lignes de saisie et formule de G ---
@@ -103,7 +99,6 @@ Public Sub CreerTableauChargesPermanentesComplet()
         "=SUM(H" & PREMIERE_LIGNE & ":H" & derniereLigne & ")"
     With ws.Range("B" & derniereLigne + 1 & ":H" & derniereLigne + 1)
         .Font.Bold = True
-        .Interior.Color = RGB(221, 235, 247)
     End With
 
     ' --- Formats numériques ---
