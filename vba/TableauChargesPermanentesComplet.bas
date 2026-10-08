@@ -1,4 +1,3 @@
-Attribute VB_Name = "TableauChargesPermanentesComplet"
 Option Explicit
 
 ' Crée l'en-tête du tableau de descente de charges (colonnes B à H) :
@@ -7,13 +6,13 @@ Option Explicit
 '   D : Poids Surfacique (kN/m²)
 '   E:G : Dimensions (fusionnées) -> Largeur b (m) / Épaisseur h (m) / Nombre n
 '   H : Charges permanentes G (kN/ml)
-' Les lignes de saisie calculent G = n × (γ × b × h + g × b).
-' En ligne 1 : listes déroulantes du niveau d'étage (1 à 5) et de la catégorie du bâtiment (A, B ou F).
+' Les lignes de saisie calculent G = n × (? × b × h + g × b).
+' En ligne 1 : liste déroulante pour choisir le niveau d'étage (1 à 5).
 
 Private Const LIGNE_NIVEAU As Long = 1
-Private Const LIGNE_TITRE As Long = 2
-Private Const LIGNE_SOUS_TITRE As Long = 3
-Private Const PREMIERE_LIGNE As Long = 4
+Private Const LIGNE_TITRE As Long = 3
+Private Const LIGNE_SOUS_TITRE As Long = 4
+Private Const PREMIERE_LIGNE As Long = 5
 Private Const NB_LIGNES As Long = 15
 
 Public Sub CreerTableauChargesPermanentesComplet()
@@ -35,10 +34,10 @@ Public Sub CreerTableauChargesPermanentesComplet()
     ws.Range("B" & LIGNE_NIVEAU).Value = "Niveau d'étage"
     ws.Range("B" & LIGNE_NIVEAU).Font.Bold = True
     With ws.Range("C" & LIGNE_NIVEAU)
-        .Value = 1
+        .Value = "RDC"
         .Validation.Delete
         .Validation.Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
-            Formula1:="1,2,3,4,5"  ' en VBA, toujours la virgule
+            Formula1:="RDC,1,2,3,4,5"  ' en VBA, toujours la virgule
         .Validation.InCellDropdown = True
         .Validation.ErrorMessage = "Choisir un niveau d'étage entre 1 et 5."
         .Font.Bold = True
@@ -53,9 +52,9 @@ Public Sub CreerTableauChargesPermanentesComplet()
         .Value = "A"
         .Validation.Delete
         .Validation.Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
-            Formula1:="A,B,F"
+            Formula1:="A,B,C,D,E,F,G"
         .Validation.InCellDropdown = True
-        .Validation.ErrorMessage = "Choisir une catégorie de bâtiment : A, B ou F."
+        .Validation.ErrorMessage = "Choisir une catégorie de bâtiment : A,B,C,D,E,F ou G."
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
         .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
@@ -101,12 +100,6 @@ Public Sub CreerTableauChargesPermanentesComplet()
         .Font.Bold = True
     End With
 
-    ' --- Formats numériques ---
-    ws.Range("C" & PREMIERE_LIGNE & ":F" & derniereLigne).NumberFormat = "0.00"
-    ws.Range("G" & PREMIERE_LIGNE & ":G" & derniereLigne).NumberFormat = "0"
-    ws.Range("H" & PREMIERE_LIGNE & ":H" & derniereLigne + 1).NumberFormat = "0.00"
-    ws.Range("C" & PREMIERE_LIGNE & ":H" & derniereLigne + 1).HorizontalAlignment = xlCenter
-
     ' --- Bordures ---
     With ws.Range("B" & LIGNE_TITRE & ":H" & derniereLigne + 1).Borders
         .LineStyle = xlContinuous
@@ -120,7 +113,7 @@ Public Sub CreerTableauChargesPermanentesComplet()
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 35
     ws.Columns("C:D").ColumnWidth = 16
-    ws.Columns("E:G").ColumnWidth = 13
+    ws.Columns("E:G").ColumnWidth = 20
     ws.Columns("H").ColumnWidth = 20
     ws.Rows(LIGNE_TITRE).RowHeight = 30
     ws.Rows(LIGNE_SOUS_TITRE).RowHeight = 30
@@ -128,3 +121,4 @@ Public Sub CreerTableauChargesPermanentesComplet()
     Application.ScreenUpdating = True
     MsgBox "Tableau des charges permanentes créé.", vbInformation
 End Sub
+
