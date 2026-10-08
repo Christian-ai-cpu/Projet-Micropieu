@@ -2,47 +2,47 @@ Attribute VB_Name = "TableauChargesPermanentes_CodeEnDurArray"
 Option Explicit
 ' Version codée en dur avec Array, sans variable.
 
-' Niveau d'étage (liste 1 à 5) en C1, catégorie du bâtiment (A, B ou F) en E1, en-tête B2:H3, saisie lignes 4 à 18, total ligne 19.
+' Niveau d'étage (RDC à 5) en C1, catégorie du bâtiment (A à G) en E1, en-tête B3:H4, saisie lignes 5 à 22, total ligne 23.
 ' G = n × b × (γ × h + g)
 Public Sub CreerTableauChargesPermanentes()
     With ActiveSheet
         .Cells.Clear
         .Range("B1").Value = "Niveau d'étage"
         With .Range("C1")
-            .Value = 1
+            .Value = "RDC"
             .Validation.Delete
-            .Validation.Add xlValidateList, xlValidAlertStop, , "1,2,3,4,5"
+            .Validation.Add xlValidateList, xlValidAlertStop, , "RDC,1,2,3,4,5"
             .BorderAround xlContinuous, xlMedium
         End With
         .Range("D1").Value = "Catégorie du bâtiment"
         With .Range("E1")
             .Value = "A"
             .Validation.Delete
-            .Validation.Add xlValidateList, xlValidAlertStop, , "A,B,F"
+            .Validation.Add xlValidateList, xlValidAlertStop, , "A,B,C,D,E,F,G"
             .BorderAround xlContinuous, xlMedium
         End With
         .Range("B1:E1").Font.Bold = True
-        .Range("B2:H2").Value = Array("Désignation de l'ouvrage", "Poids volumique (kN/m3)", _
+        .Range("B3:H3").Value = Array("Désignation de l'ouvrage", "Poids volumique (kN/m3)", _
             "Poids Surfacique (kN/m²)", "Dimensions", "", "", "Charges permanentes G (kN/ml)")
-        .Range("E3:G3").Value = Array("Largeur b (m)", "Épaisseur h (m)", "Nombre n")
-        .Range("B2:B3,C2:C3,D2:D3,E2:G2,H2:H3").Merge
-        With .Range("B2:H3")
+        .Range("E4:G4").Value = Array("Largeur b (m)", "Épaisseur h (m)", "Nombre n")
+        .Range("B3:B4,C3:C4,D3:D4,E3:G3,H3:H4").Merge
+        With .Range("B3:H4")
             .Font.Bold = True
             .WrapText = True
             .RowHeight = 30
             .HorizontalAlignment = xlCenter
             .VerticalAlignment = xlCenter
         End With
-        .Range("G4:G18").Value = 1
-        .Range("H4:H18").FormulaR1C1 = "=IF(RC2="""","""",RC7*RC5*(RC3*RC6+RC4))"
-        .Range("B19").Value = "TOTAL G"
-        .Range("H19").Formula = "=SUM(H4:H18)"
-        .Range("B19:H19").Font.Bold = True
-        .Range("C4:H19").NumberFormat = "0.00"
-        .Range("G4:G18").NumberFormat = "0"
-        .Range("C2:H19").HorizontalAlignment = xlCenter
-        .Range("B2:H19").Borders.LineStyle = xlContinuous
-        .Range("B2:H19").BorderAround xlContinuous, xlMedium
+        .Range("G5:G22").Value = 1
+        .Range("H5:H22").FormulaR1C1 = "=IF(RC2="""","""",RC7*RC5*(RC3*RC6+RC4))"
+        .Range("B23").Value = "TOTAL G"
+        .Range("H23").Formula = "=SUM(H5:H22)"
+        .Range("B23:H23").Font.Bold = True
+        .Range("C5:H23").NumberFormat = "0.00"
+        .Range("G5:G22").NumberFormat = "0"
+        .Range("C3:H23").HorizontalAlignment = xlCenter
+        .Range("B3:H23").Borders.LineStyle = xlContinuous
+        .Range("B3:H23").BorderAround xlContinuous, xlMedium
         .Columns("B").ColumnWidth = 35
         .Columns("C:H").ColumnWidth = 16
     End With

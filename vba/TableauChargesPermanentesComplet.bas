@@ -1,3 +1,4 @@
+Attribute VB_Name = "TableauChargesPermanentesComplet"
 Option Explicit
 
 ' Crée l'en-tête du tableau de descente de charges (colonnes B à H) :
@@ -6,14 +7,14 @@ Option Explicit
 '   D : Poids Surfacique (kN/m²)
 '   E:G : Dimensions (fusionnées) -> Largeur b (m) / Épaisseur h (m) / Nombre n
 '   H : Charges permanentes G (kN/ml)
-' Les lignes de saisie calculent G = n × (? × b × h + g × b).
-' En ligne 1 : liste déroulante pour choisir le niveau d'étage (1 à 5).
+' Les lignes de saisie calculent G = n × (γ × b × h + g × b).
+' En ligne 1 : listes déroulantes du niveau d'étage (RDC à 5) et de la catégorie du bâtiment (A à G).
 
 Private Const LIGNE_NIVEAU As Long = 1
 Private Const LIGNE_TITRE As Long = 3
 Private Const LIGNE_SOUS_TITRE As Long = 4
 Private Const PREMIERE_LIGNE As Long = 5
-Private Const NB_LIGNES As Long = 15
+Private Const NB_LIGNES As Long = 18
 
 Public Sub CreerTableauChargesPermanentesComplet()
     Dim ws As Worksheet
@@ -30,7 +31,7 @@ Public Sub CreerTableauChargesPermanentesComplet()
     ' --- Effacement complet de la feuille (contenu, formats, fusions, listes) ---
     ws.Cells.Clear
 
-    ' --- Choix du niveau d'étage (liste déroulante 1 à 5) ---
+    ' --- Choix du niveau d'étage (liste déroulante RDC à 5) ---
     ws.Range("B" & LIGNE_NIVEAU).Value = "Niveau d'étage"
     ws.Range("B" & LIGNE_NIVEAU).Font.Bold = True
     With ws.Range("C" & LIGNE_NIVEAU)
@@ -39,13 +40,13 @@ Public Sub CreerTableauChargesPermanentesComplet()
         .Validation.Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
             Formula1:="RDC,1,2,3,4,5"  ' en VBA, toujours la virgule
         .Validation.InCellDropdown = True
-        .Validation.ErrorMessage = "Choisir un niveau d'étage entre 1 et 5."
+        .Validation.ErrorMessage = "Choisir un niveau d'étage : RDC, 1, 2, 3, 4 ou 5."
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
         .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
     End With
 
-    ' --- Choix de la catégorie du bâtiment (liste déroulante A, B ou F) ---
+    ' --- Choix de la catégorie du bâtiment (liste déroulante A à G) ---
     ws.Range("D" & LIGNE_NIVEAU).Value = "Catégorie du bâtiment"
     ws.Range("D" & LIGNE_NIVEAU).Font.Bold = True
     With ws.Range("E" & LIGNE_NIVEAU)
@@ -54,7 +55,7 @@ Public Sub CreerTableauChargesPermanentesComplet()
         .Validation.Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
             Formula1:="A,B,C,D,E,F,G"
         .Validation.InCellDropdown = True
-        .Validation.ErrorMessage = "Choisir une catégorie de bâtiment : A,B,C,D,E,F ou G."
+        .Validation.ErrorMessage = "Choisir une catégorie de bâtiment : A, B, C, D, E, F ou G."
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
         .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium

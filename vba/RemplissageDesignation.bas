@@ -3,17 +3,17 @@ Option Explicit
 
 ' Listes déroulantes sous « Désignation de l'ouvrage », à partir de B5 :
 '   B5 à B7   : Toiture / Toiture terrasse, puis Poutre et Poteau
-'   B8 à B10  : Étage 1, puis Poutre et Poteau
+'   B8 à B10  : Étage 5, puis Poutre et Poteau
 '   ...
-'   B20 à B22 : Étage 5, puis Poutre et Poteau
+'   B20 à B22 : Étage 1, puis Poutre et Poteau
 Public Sub RemplirDesignationOuvrage()
     Const POUTRES As String = "Poutre BA,Poutre bois,Poutre métallique"
     Const POTEAUX As String = "Poteau BA,Poteau bois,Poteau métallique"
     Dim listes As Variant, i As Long, e As Long, r As Long
 
     r = 5
-    For e = 0 To 5
-        If e = 0 Then
+    For e = 6 To 1 Step -1             ' 6 = toiture, puis étages 5 à 1
+        If e = 6 Then
             listes = Array("Toiture,Toiture terrasse", POUTRES, POTEAUX)
         Else
             listes = Array("Étage " & e, POUTRES, POTEAUX)
