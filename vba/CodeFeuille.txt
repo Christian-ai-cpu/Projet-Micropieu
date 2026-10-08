@@ -8,10 +8,10 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     Dim c As Range
 
     If Not Intersect(Target, Me.Range("C1")) Is Nothing Then AfficherEtages Me
-    If Intersect(Target, Me.Range("B5:B33,F5:F33")) Is Nothing Then Exit Sub
+    If Intersect(Target, Me.Range("B5:B37,F5:F37")) Is Nothing Then Exit Sub
 
     Application.EnableEvents = False
-    For Each c In Intersect(Target, Me.Range("B5:B33,F5:F33")).Cells
+    For Each c In Intersect(Target, Me.Range("B5:B37,F5:F37")).Cells
         If EpaisseursMur(CStr(Me.Range("B" & c.Row).Value)) <> "" Then
             If c.Column = 2 Then
                 MajEpaisseurMur Me, c.Row

@@ -6,6 +6,7 @@ Option Explicit
 '   B9 à B13  : Étage 5, puis Plancher, Poutre, Poteau et Mur
 '   ...
 '   B29 à B33 : Étage 1, puis Plancher, Poutre, Poteau et Mur
+'   B34 à B37 : Soubassement, puis Poutre, Poteau et Mur (toujours affiché)
 ' Pour un mur : le type se choisit en B, l'épaisseur en F (liste adaptée au type).
 ' Seuls les étages jusqu'au niveau choisi en C1 sont affichés (voir AfficherEtages).
 
@@ -19,9 +20,11 @@ Public Sub RemplirDesignationOuvrage()
     Dim listes As Variant, i As Long, e As Long, r As Long
 
     r = 5
-    For e = 6 To 1 Step -1             ' 6 = toiture, puis étages 5 à 1
+    For e = 6 To 0 Step -1             ' 6 = toiture, étages 5 à 1, 0 = soubassement
         If e = 6 Then
             listes = Array("Toiture,Toiture terrasse", POUTRES, POTEAUX, MURS)
+        ElseIf e = 0 Then
+            listes = Array("Soubassement", POUTRES, POTEAUX, MURS)
         Else
             listes = Array("Étage " & e, PLANCHERS, POUTRES, POTEAUX, MURS)
         End If
@@ -34,7 +37,7 @@ Public Sub RemplirDesignationOuvrage()
                     .Validation.Add xlValidateList, xlValidAlertStop, , listes(i)
                 End If
                 .Value = Split(listes(i), ",")(0)
-                .Font.Bold = (i = 0)          ' Toiture et Étage n en gras
+                .Font.Bold = (i = 0)          ' Toiture, Étage n et Soubassement en gras
             End With
             If listes(i) = MURS Then MajEpaisseurMur ActiveSheet, r
             r = r + 1
