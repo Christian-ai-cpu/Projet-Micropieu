@@ -6,6 +6,7 @@ Option Explicit
 '   B8 à B10  : Étage 5, puis Poutre et Poteau
 '   ...
 '   B20 à B22 : Étage 1, puis Poutre et Poteau
+' Seuls les étages jusqu'au niveau choisi en C1 sont affichés (voir AfficherEtages).
 Public Sub RemplirDesignationOuvrage()
     Const POUTRES As String = "Poutre BA,Poutre bois,Poutre métallique"
     Const POTEAUX As String = "Poteau BA,Poteau bois,Poteau métallique"
@@ -27,8 +28,24 @@ Public Sub RemplirDesignationOuvrage()
                     .Validation.Add xlValidateList, xlValidAlertStop, , listes(i)
                 End If
                 .Value = Split(listes(i), ",")(0)
+                .Font.Bold = (i = 0)          ' Toiture et Étage n en gras
             End With
             r = r + 1
         Next i
+    Next e
+
+    AfficherEtages ActiveSheet
+End Sub
+
+' Affiche la toiture et les étages 1 à niveau (C1), masque les autres.
+' RDC -> toiture seule ; 1 -> toiture + étage 1 ; ... ; 5 -> tout.
+' Appelée aussi automatiquement quand C1 change (voir CodeFeuille.txt).
+Public Sub AfficherEtages(ws As Worksheet)
+    Dim niveau As Long, e As Long
+
+    niveau = Val(ws.Range("C1").Value)     ' "RDC" donne 0
+    For e = 1 To 5
+        ' Bloc de l'étage e : 3 lignes à partir de la ligne 5 + 3 × (6 - e)
+        ws.Rows(5 + 3 * (6 - e)).Resize(3).Hidden = (e > niveau)
     Next e
 End Sub

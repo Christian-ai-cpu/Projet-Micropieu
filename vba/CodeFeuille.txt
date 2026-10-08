@@ -1,0 +1,7 @@
+' À COLLER DANS LE MODULE DE LA FEUILLE (pas dans un module standard) :
+' clic droit sur l'onglet de la feuille > Visualiser le code, puis coller.
+' Dès que le niveau d'étage (C1) change, les étages affichés sont mis à jour.
+
+Private Sub Worksheet_Change(ByVal Target As Range)
+    If Not Intersect(Target, Me.Range("C1")) Is Nothing Then AfficherEtages Me
+End Sub

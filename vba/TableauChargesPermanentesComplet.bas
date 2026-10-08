@@ -96,7 +96,7 @@ Public Sub CreerTableauChargesPermanentesComplet()
     ' --- Ligne de total ---
     ws.Range("B" & derniereLigne + 1).Value = "TOTAL G"
     ws.Range("H" & derniereLigne + 1).Formula = _
-        "=SUM(H" & PREMIERE_LIGNE & ":H" & derniereLigne & ")"
+        "=SUBTOTAL(109,H" & PREMIERE_LIGNE & ":H" & derniereLigne & ")"  ' ignore les lignes masquées
     With ws.Range("B" & derniereLigne + 1 & ":H" & derniereLigne + 1)
         .Font.Bold = True
     End With

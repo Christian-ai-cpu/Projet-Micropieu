@@ -36,7 +36,7 @@ Public Sub CreerTableauChargesPermanentes()
         .Range("G5:G22").Value = 1
         .Range("H5:H22").FormulaR1C1 = "=IF(RC2="""","""",RC7*RC5*(RC3*RC6+RC4))"
         .Range("B23").Value = "TOTAL G"
-        .Range("H23").Formula = "=SUM(H5:H22)"
+        .Range("H23").Formula = "=SUBTOTAL(109,H5:H22)"  ' ignore les lignes masquées
         .Range("B23:H23").Font.Bold = True
         .Range("C5:H23").NumberFormat = "0.00"
         .Range("G5:G22").NumberFormat = "0"
