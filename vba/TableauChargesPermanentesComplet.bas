@@ -110,14 +110,11 @@ Public Sub CreerTableauChargesPermanentesComplet()
     ws.Range("B" & LIGNE_TITRE & ":H" & derniereLigne + 1).BorderAround _
         LineStyle:=xlContinuous, Weight:=xlMedium
 
-    ' --- Largeurs de colonnes et hauteurs d'en-tête ---
-    ws.Columns("A").ColumnWidth = 3
-    ws.Columns("B").ColumnWidth = 35
-    ws.Columns("C:D").ColumnWidth = 16
-    ws.Columns("E:G").ColumnWidth = 20
-    ws.Columns("H").ColumnWidth = 20
-    ws.Rows(LIGNE_TITRE).RowHeight = 30
-    ws.Rows(LIGNE_SOUS_TITRE).RowHeight = 30
+    ' --- Renvoi à la ligne automatique (hauteur des lignes ajustée au texte) ---
+    With ws.Range("B" & LIGNE_TITRE & ":H" & derniereLigne + 1)
+        .WrapText = True
+        .Rows.AutoFit
+    End With
 
     Application.ScreenUpdating = True
     MsgBox "Tableau des charges permanentes créé.", vbInformation
