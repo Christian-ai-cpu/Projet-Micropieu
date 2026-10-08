@@ -6,17 +6,20 @@ Option Explicit
 '   B6 : Poutre BA / Poutre bois / Poutre métallique
 '   B7 : Poteau BA / Poteau bois / Poteau métallique
 Public Sub RemplirDesignationOuvrage()
-    Dim listes As Variant, i As Long
 
-    listes = Array("Toiture,Toiture terrasse", _
-        "Poutre BA,Poutre bois,Poutre métallique", _
-        "Poteau BA,Poteau bois,Poteau métallique")
-
-    For i = 0 To UBound(listes)
-        With ActiveSheet.Range("B" & 5 + i)
+        With ActiveSheet.Range("B" & 5)
             .Validation.Delete
-            .Validation.Add xlValidateList, xlValidAlertStop, , listes(i)
-            .Value = Split(listes(i), ",")(0)
+            .Validation.Add xlValidateList, xlValidAlertStop, , "Toiture,Toiture terrasse"
+            .Value = "Toiture"
         End With
-    Next i
+        With ActiveSheet.Range("B" & 6)
+            .Validation.Delete
+            .Validation.Add xlValidateList, xlValidAlertStop, , "Poutre BA,Poutre bois,Poutre métallique"
+            .Value = "Poutre BA"
+        End With
+        With ActiveSheet.Range("B" & 7)
+            .Validation.Delete
+            .Validation.Add xlValidateList, xlValidAlertStop, , "Poteau BA,Poteau bois,Poteau métallique"
+            .Value = "Poteau BA"
+        End With
 End Sub
