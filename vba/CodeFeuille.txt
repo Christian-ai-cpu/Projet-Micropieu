@@ -1,24 +1,33 @@
 ' À COLLER DANS LE MODULE DE LA FEUILLE (pas dans un module standard) :
-' clic droit sur l'onglet de la feuille > Visualiser le code, puis coller.
+' clic droit sur l'onglet de la feuille > Visualiser le code, puis coller
+' (remplacer entièrement l'ancien code).
 ' - Niveau d'étage (C1) modifié : les étages affichés sont mis à jour.
 ' - Type de mur modifié en B : la liste des épaisseurs en F est mise à jour.
 ' - Épaisseur choisie en F (ex. "20 cm") : convertie en mètres (0.20).
+' Toutes les lignes à partir de la ligne 5 sont surveillées : rien à modifier
+' ici si on ajoute des blocs (étages, soubassement...).
 
 Private Sub Worksheet_Change(ByVal Target As Range)
-    Dim c As Range
+    Dim c As Range, zone As Range
 
     If Not Intersect(Target, Me.Range("C1")) Is Nothing Then AfficherEtages Me
-    If Intersect(Target, Me.Range("B5:B37,F5:F37")) Is Nothing Then Exit Sub
+    If Target.CountLarge > 1000 Then Exit Sub      ' ex. effacement de la feuille
 
+    Set zone = Intersect(Target, Me.Range("B5:B" & Me.Rows.Count & ",F5:F" & Me.Rows.Count))
+    If zone Is Nothing Then Exit Sub
+
+    On Error GoTo Fin
     Application.EnableEvents = False
-    For Each c In Intersect(Target, Me.Range("B5:B37,F5:F37")).Cells
+    For Each c In zone.Cells
         If EpaisseursMur(CStr(Me.Range("B" & c.Row).Value)) <> "" Then
             If c.Column = 2 Then
                 MajEpaisseurMur Me, c.Row
             ElseIf VarType(c.Value) = vbString Then
-                c.Value = Val(c.Value) / 100
+                c.Value = Val(c.Value) / 100     ' "15 cm" -> 0.15
+                c.NumberFormat = "0.000"
             End If
         End If
     Next c
-    Application.EnableEvents = True
+Fin:
+    Application.EnableEvents = True       ' toujours réactiver, même après une erreur
 End Sub
