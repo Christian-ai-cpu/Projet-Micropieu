@@ -9,21 +9,24 @@ Option Explicit
 '   B32 à B35 : RDC, puis Poutre, Poteau et Mur (pas de plancher, toujours affiché)
 '   B36 à B39 : Soubassement, puis Poutre, Poteau et Mur (toujours affiché)
 ' Pour un mur : le type se choisit en B, l'épaisseur en F (liste adaptée au type),
-' et le poids surfacique D est calculé : D = poids volumique apparent × épaisseur F.
-' Pour une poutre ou un poteau : le poids volumique C est rempli selon le type.
-' Les valeurs sont des ordres de grandeur à vérifier (normes, fabricants) :
-' elles se modifient dans PoidsVolumique et PoidsVolumiqueMur.
+' et le poids surfacique D est calculé : D = poids volumique × épaisseur F.
+' Pour une poutre ou un poteau : le poids volumique C est lu selon le type.
+' Les poids volumiques sont dans la feuille « Poids matériaux » (créée si absente) :
+' on les modifie directement dans cette feuille, le tableau se met à jour.
 ' Seuls les étages jusqu'au niveau choisi en C1 sont affichés (voir AfficherEtages).
 
 Private Const PLANCHERS As String = "Plancher dalle pleine,Plancher à poutrelles,Plancher bois traditionnel"
 Private Const POUTRES As String = "Poutre BA,Poutre bois,Poutre métallique"
 Private Const POTEAUX As String = "Poteau BA,Poteau bois,Poteau métallique"
 Private Const MURS As String = "Agglos béton creux,Agglos béton plein,Béton banché," & _
-    "Briques creuses,Briques Monomur,Briques pleines,Briques taillées"
+    "Briques creuses,Briques Monomur,Briques pleines,Pierre de taille"
+
+Private Const FEUILLE_POIDS As String = "Poids matériaux"
 
 Public Sub RemplirDesignationOuvrage()
     Dim listes As Variant, i As Long, e As Long, r As Long
 
+    CreerFeuillePoids ActiveSheet.Parent
     r = 5
     For e = 6 To -1 Step -1            ' 6 = toiture, étages 5 à 1, 0 = RDC, -1 = soubassement
         If e = 6 Then
@@ -62,31 +65,46 @@ Public Function EpaisseursMur(typeMur As String) As String
         Case "Briques creuses": EpaisseursMur = "15 cm,20 cm,25 cm"
         Case "Briques Monomur": EpaisseursMur = "30 cm,37 cm"
         Case "Briques pleines": EpaisseursMur = "10 cm,21.5 cm,33 cm"
-        Case "Briques taillées": EpaisseursMur = "30 cm,40 cm,50 cm,60 cm"
+        Case "Pierre de taille": EpaisseursMur = "30 cm,40 cm,50 cm,60 cm"
     End Select
 End Function
 
-' Poids volumique (kN/m³) d'une poutre ou d'un poteau selon son type ; 0 sinon.
-Public Function PoidsVolumique(typeElement As String) As Double
-    Select Case typeElement
-        Case "Poutre BA", "Poteau BA":                 PoidsVolumique = 25
-        Case "Poutre bois", "Poteau bois":             PoidsVolumique = 6
-        Case "Poutre métallique", "Poteau métallique": PoidsVolumique = 78.5
-    End Select
-End Function
+' Crée la feuille « Poids matériaux » avec les poids volumiques par défaut,
+' seulement si elle n'existe pas encore (les valeurs modifiées sont conservées).
+' Valeurs indicatives à vérifier (normes, fabricants). Pour les murs creux,
+' c'est un poids volumique apparent (vides compris).
+Public Sub CreerFeuillePoids(classeur As Workbook)
+    Dim ws As Worksheet, actif As Worksheet
+    Dim donnees As Variant, i As Long
 
-' Poids volumique apparent (kN/m³) d'un mur, vides des blocs creux compris.
-' Poids surfacique du mur = cette valeur × épaisseur (m).
-Public Function PoidsVolumiqueMur(typeMur As String) As Double
-    Select Case typeMur
-        Case "Agglos béton creux": PoidsVolumiqueMur = 9      ' 15 cm -> 1,35 kN/m²
-        Case "Agglos béton plein": PoidsVolumiqueMur = 20     ' 20 cm -> 4,00 kN/m²
-        Case "Béton banché":       PoidsVolumiqueMur = 25     ' 20 cm -> 5,00 kN/m²
-        Case "Briques creuses":    PoidsVolumiqueMur = 9      ' 20 cm -> 1,80 kN/m²
-        Case "Briques Monomur":    PoidsVolumiqueMur = 8      ' 30 cm -> 2,40 kN/m²
-        Case "Briques pleines":    PoidsVolumiqueMur = 18     ' 21,5 cm -> 3,87 kN/m²
-        Case "Briques taillées":   PoidsVolumiqueMur = 22     ' pierre de taille, à préciser
-    End Select
+    On Error Resume Next
+    Set ws = classeur.Worksheets(FEUILLE_POIDS)
+    On Error GoTo 0
+    If Not ws Is Nothing Then Exit Sub
+
+    Set actif = ActiveSheet
+    Set ws = classeur.Worksheets.Add(After:=classeur.Worksheets(classeur.Worksheets.Count))
+    ws.Name = FEUILLE_POIDS
+    ws.Range("A1:B1").Value = Array("Élément", "Poids volumique (kN/m3)")
+    donnees = Array("Poutre BA", 25, "Poteau BA", 25, _
+        "Poutre bois", 6, "Poteau bois", 6, _
+        "Poutre métallique", 78.5, "Poteau métallique", 78.5, _
+        "Agglos béton creux", 9, "Agglos béton plein", 20, _
+        "Béton banché", 25, "Briques creuses", 9, _
+        "Briques Monomur", 8, "Briques pleines", 18, _
+        "Pierre de taille", 22)
+    For i = 0 To UBound(donnees) Step 2
+        ws.Cells(2 + i / 2, 1).Value = donnees(i)
+        ws.Cells(2 + i / 2, 2).Value = donnees(i + 1)
+    Next i
+    ws.Range("A1:B1").Font.Bold = True
+    ws.Columns("A:B").AutoFit
+    actif.Activate
+End Sub
+
+' Formule qui lit le poids volumique de l'élément en B dans « Poids matériaux ».
+Private Function FormulePoids(ligne As Long) As String
+    FormulePoids = "IFERROR(VLOOKUP(B" & ligne & ",'" & FEUILLE_POIDS & "'!$A:$B,2,FALSE),0)"
 End Function
 
 ' Remplit les poids de la ligne selon l'élément choisi en B :
@@ -97,8 +115,8 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long)
     typeElement = CStr(ws.Range("B" & ligne).Value)
     If EpaisseursMur(typeElement) <> "" Then
         MajEpaisseurMur ws, ligne
-    ElseIf PoidsVolumique(typeElement) > 0 Then
-        ws.Range("C" & ligne).Value = PoidsVolumique(typeElement)
+    ElseIf Left(typeElement, 6) = "Poutre" Or Left(typeElement, 6) = "Poteau" Then
+        ws.Range("C" & ligne).Formula = "=" & FormulePoids(ligne)
         ws.Range("D" & ligne).ClearContents
     End If
 End Sub
@@ -118,9 +136,7 @@ Public Sub MajEpaisseurMur(ws As Worksheet, ligne As Long)
         .NumberFormat = "0.000"
     End With
     ws.Range("C" & ligne).ClearContents
-    ws.Range("D" & ligne).Formula = "=" & _
-        Replace(CStr(PoidsVolumiqueMur(CStr(ws.Range("B" & ligne).Value))), ",", ".") & _
-        "*F" & ligne
+    ws.Range("D" & ligne).Formula = "=" & FormulePoids(ligne) & "*F" & ligne
 End Sub
 
 ' Affiche la toiture et les étages 1 à niveau (C1), masque les autres.
