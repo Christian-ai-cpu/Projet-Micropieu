@@ -2,11 +2,12 @@ Attribute VB_Name = "RemplissageDesignation"
 Option Explicit
 
 ' Listes déroulantes sous « Désignation de l'ouvrage », à partir de B5 :
-'   B5 à B8   : Toiture / Toiture terrasse, puis Poutre, Poteau et Mur
-'   B9 à B13  : Étage 5, puis Plancher, Poutre, Poteau et Mur
+'   B5 à B7   : Toiture / Toiture terrasse, puis Poutre et Mur
+'   B8 à B12  : Étage 5, puis Plancher, Poutre, Poteau et Mur
 '   ...
-'   B29 à B33 : Étage 1, puis Plancher, Poutre, Poteau et Mur
-'   B34 à B37 : Soubassement, puis Poutre, Poteau et Mur (toujours affiché)
+'   B28 à B32 : Étage 1, puis Plancher, Poutre, Poteau et Mur
+'   B33 à B36 : RDC, puis Poutre, Poteau et Mur (pas de plancher, toujours affiché)
+'   B37 à B40 : Soubassement, puis Poutre, Poteau et Mur (toujours affiché)
 ' Pour un mur : le type se choisit en B, l'épaisseur en F (liste adaptée au type),
 ' et le poids surfacique D est calculé : D = poids volumique apparent × épaisseur F.
 ' Pour une poutre ou un poteau : le poids volumique C est rempli selon le type.
@@ -24,10 +25,12 @@ Public Sub RemplirDesignationOuvrage()
     Dim listes As Variant, i As Long, e As Long, r As Long
 
     r = 5
-    For e = 6 To 0 Step -1             ' 6 = toiture, étages 5 à 1, 0 = soubassement
+    For e = 6 To -1 Step -1            ' 6 = toiture, étages 5 à 1, 0 = RDC, -1 = soubassement
         If e = 6 Then
-            listes = Array("Toiture,Toiture terrasse", POUTRES, POTEAUX, MURS)
+            listes = Array("Toiture,Toiture terrasse", POUTRES, MURS)
         ElseIf e = 0 Then
+            listes = Array("RDC", POUTRES, POTEAUX, MURS)
+        ElseIf e = -1 Then
             listes = Array("Soubassement", POUTRES, POTEAUX, MURS)
         Else
             listes = Array("Étage " & e, PLANCHERS, POUTRES, POTEAUX, MURS)
@@ -41,7 +44,7 @@ Public Sub RemplirDesignationOuvrage()
                     .Validation.Add xlValidateList, xlValidAlertStop, , listes(i)
                 End If
                 .Value = Split(listes(i), ",")(0)
-                .Font.Bold = (i = 0)          ' Toiture, Étage n et Soubassement en gras
+                .Font.Bold = (i = 0)          ' Toiture, Étage n, RDC et Soubassement en gras
             End With
             MajLigne ActiveSheet, r              ' poids volumique / surfacique
             r = r + 1
@@ -121,14 +124,14 @@ Public Sub MajEpaisseurMur(ws As Worksheet, ligne As Long)
 End Sub
 
 ' Affiche la toiture et les étages 1 à niveau (C1), masque les autres.
-' RDC -> toiture seule (lignes 5 à 8) ; 1 -> toiture + étage 1 ; ... ; 5 -> tout.
+' RDC -> toiture seule (lignes 5 à 7) ; 1 -> toiture + étage 1 ; ... ; 5 -> tout.
 ' Appelée aussi automatiquement quand C1 change (voir CodeFeuille.txt).
 Public Sub AfficherEtages(ws As Worksheet)
     Dim niveau As Long, e As Long
 
     niveau = Val(ws.Range("C1").Value)     ' "RDC" donne 0
     For e = 1 To 5
-        ' Bloc de l'étage e : 5 lignes à partir de la ligne 9 + 5 × (5 - e)
-        ws.Rows(9 + 5 * (5 - e)).Resize(5).Hidden = (e > niveau)
+        ' Bloc de l'étage e : 5 lignes à partir de la ligne 8 + 5 × (5 - e)
+        ws.Rows(8 + 5 * (5 - e)).Resize(5).Hidden = (e > niveau)
     Next e
 End Sub
