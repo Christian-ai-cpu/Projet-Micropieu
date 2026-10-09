@@ -115,6 +115,12 @@ Public Sub CreerTableauChargesPermanentesComplet()
         .WrapText = True
         .Rows.AutoFit
     End With
+    ' Ligne 1 : « Niveau d'étage » et « Catégorie du bâtiment » avec leurs listes
+    With ws.Range("B" & LIGNE_NIVEAU & ":E" & LIGNE_NIVEAU)
+        .WrapText = True
+        .VerticalAlignment = xlCenter
+        .Rows.AutoFit
+    End With
 
     Application.ScreenUpdating = True
     MsgBox "Tableau des charges permanentes créé.", vbInformation
