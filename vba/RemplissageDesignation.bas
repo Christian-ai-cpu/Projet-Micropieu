@@ -7,7 +7,11 @@ Option Explicit
 '   ...
 '   B29 à B33 : Étage 1, puis Plancher, Poutre, Poteau et Mur
 '   B34 à B37 : Soubassement, puis Poutre, Poteau et Mur (toujours affiché)
-' Pour un mur : le type se choisit en B, l'épaisseur en F (liste adaptée au type).
+' Pour un mur : le type se choisit en B, l'épaisseur en F (liste adaptée au type),
+' et le poids surfacique D est calculé : D = poids volumique apparent × épaisseur F.
+' Pour une poutre ou un poteau : le poids volumique C est rempli selon le type.
+' Les valeurs sont des ordres de grandeur à vérifier (normes, fabricants) :
+' elles se modifient dans PoidsVolumique et PoidsVolumiqueMur.
 ' Seuls les étages jusqu'au niveau choisi en C1 sont affichés (voir AfficherEtages).
 
 Private Const PLANCHERS As String = "Plancher dalle pleine,Plancher à poutrelles,Plancher bois traditionnel"
@@ -39,7 +43,7 @@ Public Sub RemplirDesignationOuvrage()
                 .Value = Split(listes(i), ",")(0)
                 .Font.Bold = (i = 0)          ' Toiture, Étage n et Soubassement en gras
             End With
-            If listes(i) = MURS Then MajEpaisseurMur ActiveSheet, r
+            MajLigne ActiveSheet, r              ' poids volumique / surfacique
             r = r + 1
         Next i
     Next e
@@ -59,7 +63,46 @@ Public Function EpaisseursMur(typeMur As String) As String
     End Select
 End Function
 
+' Poids volumique (kN/m³) d'une poutre ou d'un poteau selon son type ; 0 sinon.
+Public Function PoidsVolumique(typeElement As String) As Double
+    Select Case typeElement
+        Case "Poutre BA", "Poteau BA":                 PoidsVolumique = 25
+        Case "Poutre bois", "Poteau bois":             PoidsVolumique = 6
+        Case "Poutre métallique", "Poteau métallique": PoidsVolumique = 78.5
+    End Select
+End Function
+
+' Poids volumique apparent (kN/m³) d'un mur, vides des blocs creux compris.
+' Poids surfacique du mur = cette valeur × épaisseur (m).
+Public Function PoidsVolumiqueMur(typeMur As String) As Double
+    Select Case typeMur
+        Case "Agglos béton creux": PoidsVolumiqueMur = 9      ' 15 cm -> 1,35 kN/m²
+        Case "Agglos béton plein": PoidsVolumiqueMur = 20     ' 20 cm -> 4,00 kN/m²
+        Case "Béton banché":       PoidsVolumiqueMur = 25     ' 20 cm -> 5,00 kN/m²
+        Case "Briques creuses":    PoidsVolumiqueMur = 9      ' 20 cm -> 1,80 kN/m²
+        Case "Briques Monomur":    PoidsVolumiqueMur = 8      ' 30 cm -> 2,40 kN/m²
+        Case "Briques pleines":    PoidsVolumiqueMur = 18     ' 21,5 cm -> 3,87 kN/m²
+        Case "Briques taillées":   PoidsVolumiqueMur = 22     ' pierre de taille, à préciser
+    End Select
+End Function
+
+' Remplit les poids de la ligne selon l'élément choisi en B :
+'   poutre / poteau -> poids volumique en C ; mur -> épaisseur F et poids surfacique D.
+Public Sub MajLigne(ws As Worksheet, ligne As Long)
+    Dim typeElement As String
+
+    typeElement = CStr(ws.Range("B" & ligne).Value)
+    If EpaisseursMur(typeElement) <> "" Then
+        MajEpaisseurMur ws, ligne
+    ElseIf PoidsVolumique(typeElement) > 0 Then
+        ws.Range("C" & ligne).Value = PoidsVolumique(typeElement)
+        ws.Range("D" & ligne).ClearContents
+    End If
+End Sub
+
 ' Met en F la liste des épaisseurs du mur choisi en B, et la première en mètres.
+' Le poids surfacique D suit l'épaisseur F par formule ; C est vidé pour ne pas
+' compter le poids du mur deux fois.
 Public Sub MajEpaisseurMur(ws As Worksheet, ligne As Long)
     Dim liste As String
 
@@ -71,6 +114,10 @@ Public Sub MajEpaisseurMur(ws As Worksheet, ligne As Long)
         .Value = Val(liste) / 100           ' "15 cm" -> 0.15 m
         .NumberFormat = "0.000"
     End With
+    ws.Range("C" & ligne).ClearContents
+    ws.Range("D" & ligne).Formula = "=" & _
+        Replace(CStr(PoidsVolumiqueMur(CStr(ws.Range("B" & ligne).Value))), ",", ".") & _
+        "*F" & ligne
 End Sub
 
 ' Affiche la toiture et les étages 1 à niveau (C1), masque les autres.

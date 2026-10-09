@@ -2,7 +2,8 @@
 ' clic droit sur l'onglet de la feuille > Visualiser le code, puis coller
 ' (remplacer entièrement l'ancien code).
 ' - Niveau d'étage (C1) modifié : les étages affichés sont mis à jour.
-' - Type de mur modifié en B : la liste des épaisseurs en F est mise à jour.
+' - Élément modifié en B : poids volumique (poutre, poteau) ou épaisseurs et
+'   poids surfacique (mur) mis à jour.
 ' - Épaisseur choisie en F (ex. "20 cm") : convertie en mètres (0.20).
 ' Toutes les lignes à partir de la ligne 5 sont surveillées : rien à modifier
 ' ici si on ajoute des blocs (étages, soubassement...).
@@ -19,13 +20,12 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     On Error GoTo Fin
     Application.EnableEvents = False
     For Each c In zone.Cells
-        If EpaisseursMur(CStr(Me.Range("B" & c.Row).Value)) <> "" Then
-            If c.Column = 2 Then
-                MajEpaisseurMur Me, c.Row
-            ElseIf VarType(c.Value) = vbString Then
-                c.Value = Val(c.Value) / 100     ' "15 cm" -> 0.15
-                c.NumberFormat = "0.000"
-            End If
+        If c.Column = 2 Then
+            MajLigne Me, c.Row
+        ElseIf EpaisseursMur(CStr(Me.Range("B" & c.Row).Value)) <> "" _
+            And VarType(c.Value) = vbString Then
+            c.Value = Val(c.Value) / 100         ' "15 cm" -> 0.15
+            c.NumberFormat = "0.000"
         End If
     Next c
 Fin:
