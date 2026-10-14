@@ -12,6 +12,10 @@ Option Explicit
 '   B50 à B54 : Soubassement, Poutre, Poteau, Mur, Sous-total (toujours affiché)
 ' Revêtement (sous chaque plancher) : charge permanente du revêtement de sol, sa
 ' valeur en kN/m² est mise en D (poids surfacique), voir ChargeRevetement.
+' Plancher (épaisseur e à saisir en F) : poids surfacique selon le type
+'   dalle pleine      : 25 × e                    (C = 25, D vide)
+'   à poutrelles      : 25 × e + (e - 0,05) × 11  (C = 25, D = (e - 0,05) × 11)
+'   bois traditionnel : 1,5 kN/m²                 (C vide, D = 1,5)
 ' Ligne 55 : TOTAL G = somme des sous-totaux (I9 + I16 + ... + I54). Le sous-total
 ' d'un étage masqué vaut 0 (SOUS.TOTAL ignore les lignes masquées).
 ' Pour un mur : le type se choisit en B, l'épaisseur en F (liste adaptée au type),
@@ -24,7 +28,7 @@ Option Explicit
 Private Const PLANCHERS As String = "Plancher dalle pleine,Plancher à poutrelles,Plancher bois traditionnel"
 Private Const POUTRES As String = "Poutre BA,Poutre bois,Poutre métallique"
 Private Const POTEAUX As String = "Poteau BA,Poteau bois,Poteau métallique"
-Private Const REVETEMENTS As String = "Carrelage grès cérame,Dalles épaisses (marbre),Parquet traditionnel"
+Private Const REVETEMENTS As String = "Carrelage grès cérame,Dalles épaisses (marbre),Parquet traditionnel,Sols minces"
 Private Const MURS As String = "Agglos béton creux,Agglos béton plein,Béton banché," & _
     "Briques creuses,Briques Monomur,Briques pleines,Pierre de taille"
 
@@ -108,6 +112,7 @@ Public Function ChargeRevetement(typeRevetement As String) As Double
         Case "Carrelage grès cérame":    ChargeRevetement = 0.5   ' valeur donnée : 50, à vérifier
         Case "Dalles épaisses (marbre)": ChargeRevetement = 1
         Case "Parquet traditionnel":     ChargeRevetement = 0.25
+        Case "Sols minces":              ChargeRevetement = 0.1
     End Select
 End Function
 
@@ -115,6 +120,7 @@ End Function
 Public Function PoidsVolumique(typeElement As String) As Double
     Select Case typeElement
         Case "Poutre BA", "Poteau BA":                 PoidsVolumique = 25
+        Case "Plancher dalle pleine", "Plancher à poutrelles": PoidsVolumique = 25
         Case "Poutre bois", "Poteau bois":             PoidsVolumique = 6
         Case "Poutre métallique", "Poteau métallique": PoidsVolumique = 78.5
     End Select
@@ -144,6 +150,8 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long)
         AfficherEtages ws                    ' plancher de toiture affiché ou non
     ElseIf EpaisseursMur(typeElement) <> "" Then
         MajEpaisseurMur ws, ligne
+    ElseIf Left(typeElement, 8) = "Plancher" Then
+        MajPlancher ws, ligne, typeElement
     ElseIf ChargeRevetement(typeElement) > 0 Then
         ws.Range("C" & ligne).ClearContents
         ws.Range("D" & ligne).Value = ChargeRevetement(typeElement)
@@ -159,6 +167,21 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long)
                 "(retombée seule), pour ne pas compter deux fois le béton de la dalle."
         End If
     End If
+End Sub
+
+' Poids du plancher selon son type ; la charge se calcule avec C × F + D (F = épaisseur).
+Public Sub MajPlancher(ws As Worksheet, ligne As Long, typePlancher As String)
+    Select Case typePlancher
+        Case "Plancher dalle pleine"            ' 25 × e
+            ws.Range("C" & ligne).Value = PoidsVolumique(typePlancher)
+            ws.Range("D" & ligne).ClearContents
+        Case "Plancher à poutrelles"            ' 25 × e + (e - 0,05) × 11
+            ws.Range("C" & ligne).Value = PoidsVolumique(typePlancher)
+            ws.Range("D" & ligne).Formula = "=IF(F" & ligne & "="""",0,(F" & ligne & "-0.05)*11)"
+        Case "Plancher bois traditionnel"       ' 1,5 kN/m²
+            ws.Range("C" & ligne).ClearContents
+            ws.Range("D" & ligne).Value = 1.5
+    End Select
 End Sub
 
 ' Met en F la liste des épaisseurs du mur choisi en B, et la première en mètres.
