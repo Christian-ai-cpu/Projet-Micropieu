@@ -12,7 +12,7 @@ Option Explicit
 '   B50 à B54 : Soubassement, Poutre, Poteau, Mur, Sous-total (toujours affiché)
 ' Revêtement (au-dessus de chaque plancher) : charge permanente du revêtement de sol,
 ' sa valeur en kN/m² est mise en D (poids surfacique), voir ChargeRevetement.
-' Sa charge se calcule par G = linéaire L × poids surfacique D.
+' Sa charge se calcule par G = (linéaire L / 2) × poids surfacique D × largeur b.
 ' Plancher (épaisseur e à saisir en F) : poids surfacique selon le type
 '   dalle pleine      : 25 × e                    (C = 25, D vide)
 '   à poutrelles      : 0,05 × 25 + (e - 0,05) × 11  (C vide, D = cette formule)
@@ -156,8 +156,8 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long)
     ElseIf ChargeRevetement(typeElement) > 0 Then
         ws.Range("C" & ligne).ClearContents
         ws.Range("D" & ligne).Value = ChargeRevetement(typeElement)
-        ' Charge du revêtement : linéaire L × poids surfacique D
-        ws.Range("I" & ligne).Formula = "=H" & ligne & "*D" & ligne
+        ' Charge du revêtement : (linéaire L / 2) × poids surfacique D × largeur b
+        ws.Range("I" & ligne).Formula = "=H" & ligne & "/2*D" & ligne & "*E" & ligne
     ElseIf PoidsVolumique(typeElement) > 0 Then
         ws.Range("C" & ligne).Value = PoidsVolumique(typeElement)
         ws.Range("D" & ligne).ClearContents
