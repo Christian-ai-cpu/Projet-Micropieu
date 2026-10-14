@@ -3,18 +3,19 @@ Option Explicit
 
 ' Listes déroulantes sous « Désignation de l'ouvrage », à partir de B5.
 ' Chaque bloc se termine par une ligne « Sous-total » (somme du bloc en I) :
-'   B5 à B9   : Toiture / Toiture terrasse, Plancher, Revêtement, Poutre, Sous-total
-'               (Plancher et Revêtement affichés seulement pour une toiture terrasse)
-'   B10 à B16 : Étage 5, Plancher, Revêtement, Poutre, Poteau, Mur, Sous-total
+'   B5 à B9   : Toiture / Toiture terrasse, Revêtement, Plancher, Poutre, Sous-total
+'               (Revêtement et Plancher affichés seulement pour une toiture terrasse)
+'   B10 à B16 : Étage 5, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
 '   ...
-'   B38 à B44 : Étage 1, Plancher, Revêtement, Poutre, Poteau, Mur, Sous-total
+'   B38 à B44 : Étage 1, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
 '   B45 à B49 : RDC, Poutre, Poteau, Mur, Sous-total (toujours affiché)
 '   B50 à B54 : Soubassement, Poutre, Poteau, Mur, Sous-total (toujours affiché)
-' Revêtement (sous chaque plancher) : charge permanente du revêtement de sol, sa
-' valeur en kN/m² est mise en D (poids surfacique), voir ChargeRevetement.
+' Revêtement (au-dessus de chaque plancher) : charge permanente du revêtement de sol,
+' sa valeur en kN/m² est mise en D (poids surfacique), voir ChargeRevetement.
+' Sa charge se calcule par G = linéaire L × poids surfacique D.
 ' Plancher (épaisseur e à saisir en F) : poids surfacique selon le type
 '   dalle pleine      : 25 × e                    (C = 25, D vide)
-'   à poutrelles      : 25 × e + (e - 0,05) × 11  (C = 25, D = (e - 0,05) × 11)
+'   à poutrelles      : 0,05 × 25 + (e - 0,05) × 11  (C vide, D = cette formule)
 '   bois traditionnel : 1,5 kN/m²                 (C vide, D = 1,5)
 ' Ligne 55 : TOTAL G = somme des sous-totaux (I9 + I16 + ... + I54). Le sous-total
 ' d'un étage masqué vaut 0 (SOUS.TOTAL ignore les lignes masquées).
@@ -39,7 +40,7 @@ Public Sub RemplirDesignationOuvrage()
     r = 5
     For e = 6 To -1 Step -1            ' 6 = toiture, étages 5 à 1, 0 = RDC, -1 = soubassement
         If e = 6 Then
-            listes = Array("Toiture,Toiture terrasse", PLANCHERS, REVETEMENTS, POUTRES)
+            listes = Array("Toiture,Toiture terrasse", REVETEMENTS, PLANCHERS, POUTRES)
             nomBloc = "toiture"
         ElseIf e = 0 Then
             listes = Array("RDC", POUTRES, POTEAUX, MURS)
@@ -48,7 +49,7 @@ Public Sub RemplirDesignationOuvrage()
             listes = Array("Soubassement", POUTRES, POTEAUX, MURS)
             nomBloc = "soubassement"
         Else
-            listes = Array("Étage " & e, PLANCHERS, REVETEMENTS, POUTRES, POTEAUX, MURS)
+            listes = Array("Étage " & e, REVETEMENTS, PLANCHERS, POUTRES, POTEAUX, MURS)
             nomBloc = "étage " & e
         End If
 
@@ -62,7 +63,7 @@ Public Sub RemplirDesignationOuvrage()
                 End If
                 .Value = Split(listes(i), ",")(0)
                 .Font.Bold = (i = 0)          ' Toiture, Étage n, RDC et Soubassement en gras
-                .IndentLevel = IIf(listes(i) = REVETEMENTS, 1, 0)   ' revêtement sous le plancher
+                .IndentLevel = IIf(listes(i) = REVETEMENTS, 1, 0)   ' revêtement rattaché au plancher
             End With
             MajLigne ActiveSheet, r              ' poids volumique / surfacique
             ' Nombre n laissé vide pour les titres et les poteaux (à saisir)
@@ -155,6 +156,8 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long)
     ElseIf ChargeRevetement(typeElement) > 0 Then
         ws.Range("C" & ligne).ClearContents
         ws.Range("D" & ligne).Value = ChargeRevetement(typeElement)
+        ' Charge du revêtement : linéaire L × poids surfacique D
+        ws.Range("I" & ligne).Formula = "=H" & ligne & "*D" & ligne
     ElseIf PoidsVolumique(typeElement) > 0 Then
         ws.Range("C" & ligne).Value = PoidsVolumique(typeElement)
         ws.Range("D" & ligne).ClearContents
@@ -175,9 +178,10 @@ Public Sub MajPlancher(ws As Worksheet, ligne As Long, typePlancher As String)
         Case "Plancher dalle pleine"            ' 25 × e
             ws.Range("C" & ligne).Value = PoidsVolumique(typePlancher)
             ws.Range("D" & ligne).ClearContents
-        Case "Plancher à poutrelles"            ' 25 × e + (e - 0,05) × 11
-            ws.Range("C" & ligne).Value = PoidsVolumique(typePlancher)
-            ws.Range("D" & ligne).Formula = "=IF(F" & ligne & "="""",0,(F" & ligne & "-0.05)*11)"
+        Case "Plancher à poutrelles"            ' 0,05 × 25 + (e - 0,05) × 11
+            ws.Range("C" & ligne).ClearContents
+            ws.Range("D" & ligne).Formula = "=IF(F" & ligne & "="""",0,0.05*" & _
+                PoidsVolumique(typePlancher) & "+(F" & ligne & "-0.05)*11)"
         Case "Plancher bois traditionnel"       ' 1,5 kN/m²
             ws.Range("C" & ligne).ClearContents
             ws.Range("D" & ligne).Value = 1.5
@@ -206,7 +210,7 @@ End Sub
 
 ' Affiche la toiture et les étages 1 à niveau (C1), masque les autres.
 ' RDC -> toiture seule ; 1 -> toiture + étage 1 ; ... ; 5 -> tout.
-' Les lignes Plancher et Revêtement de la toiture (6 et 7) ne sont affichées que
+' Les lignes Revêtement et Plancher de la toiture (6 et 7) ne sont affichées que
 ' pour une toiture terrasse.
 ' Appelée aussi automatiquement quand C1 change (voir CodeFeuille.txt).
 Public Sub AfficherEtages(ws As Worksheet)
