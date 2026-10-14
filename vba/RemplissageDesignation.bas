@@ -55,12 +55,13 @@ Public Sub RemplirDesignationOuvrage()
                 .Font.Bold = (i = 0)          ' Toiture, Étage n, RDC et Soubassement en gras
             End With
             MajLigne ActiveSheet, r              ' poids volumique / surfacique
+            ' Nombre n laissé vide pour les titres et les poteaux (à saisir)
+            If i = 0 Or listes(i) = POTEAUX Then ActiveSheet.Range("G" & r).ClearContents
             r = r + 1
         Next i
 
-        ' Sous-total du bloc sur la ligne de titre (G vidé : pas de nombre à saisir)
+        ' Sous-total du bloc sur la ligne de titre
         With ActiveSheet
-            .Range("G" & debut).ClearContents
             .Range("H" & debut).Formula = "=SUBTOTAL(109,H" & debut + 1 & ":H" & r - 1 & ")"
             .Range("H" & debut).Font.Bold = True
         End With
