@@ -10,7 +10,8 @@ Option Explicit
 '   B33 à B38 : Étage 1, Plancher, Poutre, Poteau, Mur, Sous-total
 '   B39 à B43 : RDC, Poutre, Poteau, Mur, Sous-total (toujours affiché)
 '   B44 à B48 : Soubassement, Poutre, Poteau, Mur, Sous-total (toujours affiché)
-' Le TOTAL G (SOUS.TOTAL) ignore les sous-totaux : pas de double compte.
+' Ligne 49 : TOTAL G = somme des sous-totaux (H8 + H14 + ... + H48). Le sous-total
+' d'un étage masqué vaut 0 (SOUS.TOTAL ignore les lignes masquées).
 ' Pour un mur : le type se choisit en B, l'épaisseur en F (liste adaptée au type),
 ' et le poids surfacique D est calculé : D = poids volumique × épaisseur F.
 ' Pour une poutre ou un poteau : le poids volumique C est rempli selon le type.
@@ -26,7 +27,7 @@ Private Const MURS As String = "Agglos béton creux,Agglos béton plein,Béton b
 
 Public Sub RemplirDesignationOuvrage()
     Dim listes As Variant, i As Long, e As Long, r As Long, debut As Long
-    Dim nomBloc As String
+    Dim nomBloc As String, sousTotaux As String
 
     r = 5
     For e = 6 To -1 Step -1            ' 6 = toiture, étages 5 à 1, 0 = RDC, -1 = soubassement
@@ -71,8 +72,16 @@ Public Sub RemplirDesignationOuvrage()
             .Range("B" & r & ":H" & r).Font.Bold = True
             .Range("B" & r).Font.Italic = True
         End With
+        sousTotaux = sousTotaux & ",H" & r
         r = r + 1
     Next e
+
+    ' TOTAL G = somme des sous-totaux de tous les blocs
+    With ActiveSheet
+        .Range("B" & r).Value = "TOTAL G (somme des sous-totaux)"
+        .Range("H" & r).Formula = "=SUM(" & Mid(sousTotaux, 2) & ")"
+        .Range("B" & r & ":H" & r).Font.Bold = True
+    End With
 
     AfficherEtages ActiveSheet
 End Sub
