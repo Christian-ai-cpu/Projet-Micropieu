@@ -1,23 +1,22 @@
 Attribute VB_Name = "RemplissageDesignation"
 Option Explicit
 
-' Listes déroulantes sous « Désignation de l'ouvrage », à partir de B5 :
-'   B5 à B7   : Toiture / Toiture terrasse, puis Plancher et Poutre
+' Listes déroulantes sous « Désignation de l'ouvrage », à partir de B5.
+' Chaque bloc se termine par une ligne « Sous-total » (somme du bloc en H) :
+'   B5 à B8   : Toiture / Toiture terrasse, Plancher, Poutre, Sous-total
 '               (la ligne Plancher n'est affichée que pour une toiture terrasse)
-'   B8 à B12  : Étage 5, puis Plancher, Poutre, Poteau et Mur
+'   B9 à B14  : Étage 5, Plancher, Poutre, Poteau, Mur, Sous-total
 '   ...
-'   B28 à B32 : Étage 1, puis Plancher, Poutre, Poteau et Mur
-'   B33 à B36 : RDC, puis Poutre, Poteau et Mur (pas de plancher, toujours affiché)
-'   B37 à B40 : Soubassement, puis Poutre, Poteau et Mur (toujours affiché)
+'   B33 à B38 : Étage 1, Plancher, Poutre, Poteau, Mur, Sous-total
+'   B39 à B43 : RDC, Poutre, Poteau, Mur, Sous-total (toujours affiché)
+'   B44 à B48 : Soubassement, Poutre, Poteau, Mur, Sous-total (toujours affiché)
+' Le TOTAL G (SOUS.TOTAL) ignore les sous-totaux : pas de double compte.
 ' Pour un mur : le type se choisit en B, l'épaisseur en F (liste adaptée au type),
 ' et le poids surfacique D est calculé : D = poids volumique × épaisseur F.
-' Pour une poutre ou un poteau : le poids volumique C est lu selon le type.
-' Les poids volumiques sont dans la feuille « Poids matériaux » (créée si absente) :
-' on les modifie directement dans cette feuille, le tableau se met à jour.
+' Pour une poutre ou un poteau : le poids volumique C est rempli selon le type.
+' Les valeurs sont des ordres de grandeur à vérifier (normes, fabricants) :
+' elles se modifient dans PoidsVolumique et PoidsVolumiqueMur.
 ' Seuls les étages jusqu'au niveau choisi en C1 sont affichés (voir AfficherEtages).
-' Sous-total par étage : sur la ligne de titre (Toiture, Étage n, RDC, Soubassement),
-' la colonne H fait la somme des éléments du bloc. Le TOTAL G (SOUS.TOTAL) ignore
-' ces sous-totaux, il n'y a donc pas de double compte.
 
 Private Const PLANCHERS As String = "Plancher dalle pleine,Plancher à poutrelles,Plancher bois traditionnel"
 Private Const POUTRES As String = "Poutre BA,Poutre bois,Poutre métallique"
@@ -25,22 +24,24 @@ Private Const POTEAUX As String = "Poteau BA,Poteau bois,Poteau métallique"
 Private Const MURS As String = "Agglos béton creux,Agglos béton plein,Béton banché," & _
     "Briques creuses,Briques Monomur,Briques pleines,Pierre de taille"
 
-Private Const FEUILLE_POIDS As String = "Poids matériaux"
-
 Public Sub RemplirDesignationOuvrage()
     Dim listes As Variant, i As Long, e As Long, r As Long, debut As Long
+    Dim nomBloc As String
 
-    CreerFeuillePoids ActiveSheet.Parent
     r = 5
     For e = 6 To -1 Step -1            ' 6 = toiture, étages 5 à 1, 0 = RDC, -1 = soubassement
         If e = 6 Then
             listes = Array("Toiture,Toiture terrasse", PLANCHERS, POUTRES)
+            nomBloc = "toiture"
         ElseIf e = 0 Then
             listes = Array("RDC", POUTRES, POTEAUX, MURS)
+            nomBloc = "RDC"
         ElseIf e = -1 Then
             listes = Array("Soubassement", POUTRES, POTEAUX, MURS)
+            nomBloc = "soubassement"
         Else
             listes = Array("Étage " & e, PLANCHERS, POUTRES, POTEAUX, MURS)
+            nomBloc = "étage " & e
         End If
 
         debut = r                            ' ligne de titre du bloc
@@ -59,12 +60,18 @@ Public Sub RemplirDesignationOuvrage()
             If i = 0 Or listes(i) = POTEAUX Then ActiveSheet.Range("G" & r).ClearContents
             r = r + 1
         Next i
+        ActiveSheet.Range("H" & debut).ClearContents   ' pas de charge sur le titre
 
-        ' Sous-total du bloc sur la ligne de titre
+        ' Ligne de sous-total sous le dernier élément du bloc
         With ActiveSheet
-            .Range("H" & debut).Formula = "=SUBTOTAL(109,H" & debut + 1 & ":H" & r - 1 & ")"
-            .Range("H" & debut).Font.Bold = True
+            .Range("B" & r).Validation.Delete
+            .Range("B" & r).Value = "Sous-total " & nomBloc
+            .Range("G" & r).ClearContents
+            .Range("H" & r).Formula = "=SUBTOTAL(109,H" & debut + 1 & ":H" & r - 1 & ")"
+            .Range("B" & r & ":H" & r).Font.Bold = True
+            .Range("B" & r).Font.Italic = True
         End With
+        r = r + 1
     Next e
 
     AfficherEtages ActiveSheet
@@ -82,42 +89,27 @@ Public Function EpaisseursMur(typeMur As String) As String
     End Select
 End Function
 
-' Crée la feuille « Poids matériaux » avec les poids volumiques par défaut,
-' seulement si elle n'existe pas encore (les valeurs modifiées sont conservées).
-' Valeurs indicatives à vérifier (normes, fabricants). Pour les murs creux,
-' c'est un poids volumique apparent (vides compris).
-Public Sub CreerFeuillePoids(classeur As Workbook)
-    Dim ws As Worksheet, actif As Worksheet
-    Dim donnees As Variant, i As Long
+' Poids volumique (kN/m³) d'une poutre ou d'un poteau selon son type ; 0 sinon.
+Public Function PoidsVolumique(typeElement As String) As Double
+    Select Case typeElement
+        Case "Poutre BA", "Poteau BA":                 PoidsVolumique = 25
+        Case "Poutre bois", "Poteau bois":             PoidsVolumique = 6
+        Case "Poutre métallique", "Poteau métallique": PoidsVolumique = 78.5
+    End Select
+End Function
 
-    On Error Resume Next
-    Set ws = classeur.Worksheets(FEUILLE_POIDS)
-    On Error GoTo 0
-    If Not ws Is Nothing Then Exit Sub
-
-    Set actif = ActiveSheet
-    Set ws = classeur.Worksheets.Add(After:=classeur.Worksheets(classeur.Worksheets.Count))
-    ws.Name = FEUILLE_POIDS
-    ws.Range("A1:B1").Value = Array("Élément", "Poids volumique (kN/m3)")
-    donnees = Array("Poutre BA", 25, "Poteau BA", 25, _
-        "Poutre bois", 6, "Poteau bois", 6, _
-        "Poutre métallique", 78.5, "Poteau métallique", 78.5, _
-        "Agglos béton creux", 9, "Agglos béton plein", 20, _
-        "Béton banché", 25, "Briques creuses", 9, _
-        "Briques Monomur", 8, "Briques pleines", 18, _
-        "Pierre de taille", 22)
-    For i = 0 To UBound(donnees) Step 2
-        ws.Cells(2 + i / 2, 1).Value = donnees(i)
-        ws.Cells(2 + i / 2, 2).Value = donnees(i + 1)
-    Next i
-    ws.Range("A1:B1").Font.Bold = True
-    ws.Columns("A:B").AutoFit
-    actif.Activate
-End Sub
-
-' Formule qui lit le poids volumique de l'élément en B dans « Poids matériaux ».
-Private Function FormulePoids(ligne As Long) As String
-    FormulePoids = "IFERROR(VLOOKUP(B" & ligne & ",'" & FEUILLE_POIDS & "'!$A:$B,2,FALSE),0)"
+' Poids volumique apparent (kN/m³) d'un mur, vides des blocs creux compris.
+' Poids surfacique du mur = cette valeur × épaisseur (m).
+Public Function PoidsVolumiqueMur(typeMur As String) As Double
+    Select Case typeMur
+        Case "Agglos béton creux": PoidsVolumiqueMur = 9      ' 15 cm -> 1,35 kN/m²
+        Case "Agglos béton plein": PoidsVolumiqueMur = 20     ' 20 cm -> 4,00 kN/m²
+        Case "Béton banché":       PoidsVolumiqueMur = 25     ' 20 cm -> 5,00 kN/m²
+        Case "Briques creuses":    PoidsVolumiqueMur = 9      ' 20 cm -> 1,80 kN/m²
+        Case "Briques Monomur":    PoidsVolumiqueMur = 8      ' 30 cm -> 2,40 kN/m²
+        Case "Briques pleines":    PoidsVolumiqueMur = 18     ' 21,5 cm -> 3,87 kN/m²
+        Case "Pierre de taille":   PoidsVolumiqueMur = 22     ' 30 cm -> 6,60 kN/m²
+    End Select
 End Function
 
 ' Remplit les poids de la ligne selon l'élément choisi en B :
@@ -130,8 +122,8 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long)
         AfficherEtages ws                    ' plancher de toiture affiché ou non
     ElseIf EpaisseursMur(typeElement) <> "" Then
         MajEpaisseurMur ws, ligne
-    ElseIf Left(typeElement, 6) = "Poutre" Or Left(typeElement, 6) = "Poteau" Then
-        ws.Range("C" & ligne).Formula = "=" & FormulePoids(ligne)
+    ElseIf PoidsVolumique(typeElement) > 0 Then
+        ws.Range("C" & ligne).Value = PoidsVolumique(typeElement)
         ws.Range("D" & ligne).ClearContents
         ' Rappel sur l'épaisseur h d'une poutre (commentaire sur la cellule F)
         If Left(typeElement, 6) = "Poutre" Then
@@ -159,11 +151,13 @@ Public Sub MajEpaisseurMur(ws As Worksheet, ligne As Long)
         .NumberFormat = "0.000"
     End With
     ws.Range("C" & ligne).ClearContents
-    ws.Range("D" & ligne).Formula = "=" & FormulePoids(ligne) & "*F" & ligne
+    ws.Range("D" & ligne).Formula = "=" & _
+        Replace(CStr(PoidsVolumiqueMur(CStr(ws.Range("B" & ligne).Value))), ",", ".") & _
+        "*F" & ligne
 End Sub
 
 ' Affiche la toiture et les étages 1 à niveau (C1), masque les autres.
-' RDC -> toiture seule (lignes 5 à 7) ; 1 -> toiture + étage 1 ; ... ; 5 -> tout.
+' RDC -> toiture seule ; 1 -> toiture + étage 1 ; ... ; 5 -> tout.
 ' La ligne Plancher de la toiture (6) n'est affichée que pour une toiture terrasse.
 ' Appelée aussi automatiquement quand C1 change (voir CodeFeuille.txt).
 Public Sub AfficherEtages(ws As Worksheet)
@@ -172,7 +166,7 @@ Public Sub AfficherEtages(ws As Worksheet)
     ws.Rows(6).Hidden = (ws.Range("B5").Value <> "Toiture terrasse")
     niveau = Val(ws.Range("C1").Value)     ' "RDC" donne 0
     For e = 1 To 5
-        ' Bloc de l'étage e : 5 lignes à partir de la ligne 8 + 5 × (5 - e)
-        ws.Rows(8 + 5 * (5 - e)).Resize(5).Hidden = (e > niveau)
+        ' Bloc de l'étage e (sous-total compris) : 6 lignes à partir de 9 + 6 × (5 - e)
+        ws.Rows(9 + 6 * (5 - e)).Resize(6).Hidden = (e > niveau)
     Next e
 End Sub

@@ -2,7 +2,7 @@ Attribute VB_Name = "TableauChargesPermanentes_CodeEnDurArray"
 Option Explicit
 ' Version codée en dur avec Array, sans variable.
 
-' Niveau d'étage (RDC à 5) en C1, catégorie du bâtiment (A à G) en E1, en-tête B3:H4, saisie lignes 5 à 40, total ligne 41.
+' Niveau d'étage (RDC à 5) en C1, catégorie du bâtiment (A à G) en E1, en-tête B3:H4, saisie lignes 5 à 48, total ligne 49.
 ' G = n × b × (γ × h + g)
 Public Sub CreerTableauChargesPermanentes()
     With ActiveSheet
@@ -33,16 +33,16 @@ Public Sub CreerTableauChargesPermanentes()
             .HorizontalAlignment = xlCenter
             .VerticalAlignment = xlCenter
         End With
-        .Range("G5:G40").Value = 1
-        .Range("H5:H40").FormulaR1C1 = "=IF(RC2="""","""",RC7*RC5*(RC3*RC6+RC4))"
-        .Range("B41").Value = "TOTAL G"
-        .Range("H41").Formula = "=SUBTOTAL(109,H5:H40)"  ' ignore les lignes masquées
-        .Range("B41:H41").Font.Bold = True
-        .Range("C5:H41").NumberFormat = "0.00"
-        .Range("G5:G40").NumberFormat = "0"
-        .Range("C3:H41").HorizontalAlignment = xlCenter
-        .Range("B3:H41").Borders.LineStyle = xlContinuous
-        .Range("B3:H41").BorderAround xlContinuous, xlMedium
+        .Range("G5:G48").Value = 1
+        .Range("H5:H48").FormulaR1C1 = "=IF(RC2="""","""",RC7*RC5*(RC3*RC6+RC4))"
+        .Range("B49").Value = "TOTAL G"
+        .Range("H49").Formula = "=SUBTOTAL(109,H5:H48)"  ' ignore les lignes masquées
+        .Range("B49:H49").Font.Bold = True
+        .Range("C5:H49").NumberFormat = "0.00"
+        .Range("G5:G48").NumberFormat = "0"
+        .Range("C3:H49").HorizontalAlignment = xlCenter
+        .Range("B3:H49").Borders.LineStyle = xlContinuous
+        .Range("B3:H49").BorderAround xlContinuous, xlMedium
         .Columns("B").ColumnWidth = 35
         .Columns("C:H").ColumnWidth = 16
     End With
