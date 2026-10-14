@@ -8,7 +8,7 @@ Option Explicit
 '   E:G : Dimensions (fusionnées) -> Largeur b (m) / Épaisseur h (m) / Nombre n
 '   H : Linéaire L (m)
 '   I : Charges permanentes G (kN)
-' Les lignes de saisie calculent G = n × L × (γ × b × h + g × b).
+' Les lignes de saisie calculent G = n × (L / 2) × (γ × b × h + g × b).
 ' En ligne 1 : listes déroulantes du niveau d'étage (RDC à 5) et de la catégorie du bâtiment (A à G).
 
 Private Const LIGNE_NIVEAU As Long = 1
@@ -90,7 +90,7 @@ Public Sub CreerTableauChargesPermanentesComplet()
     ' --- Lignes de saisie et formule de G ---
     For r = PREMIERE_LIGNE To derniereLigne
         ws.Range("G" & r).Value = 1
-        ws.Range("I" & r).Formula = "=IF(B" & r & "="""","""",G" & r & "*H" & r & _
+        ws.Range("I" & r).Formula = "=IF(B" & r & "="""","""",G" & r & "*H" & r & "/2" & _
             "*(C" & r & "*E" & r & "*F" & r & "+D" & r & "*E" & r & "))"
     Next r
 

@@ -3,7 +3,7 @@ Option Explicit
 ' Version codée en dur avec Array, sans variable.
 
 ' Niveau d'étage (RDC à 5) en C1, catégorie du bâtiment (A à G) en E1, en-tête B3:I4 (H = Linéaire, I = Charges G), saisie lignes 5 à 48, total ligne 49.
-' G = n × L × b × (γ × h + g)   (L = linéaire en H)
+' G = n × (L / 2) × b × (γ × h + g)   (L = linéaire en H, pris à moitié)
 Public Sub CreerTableauChargesPermanentes()
     With ActiveSheet
         .Cells.Clear
@@ -34,7 +34,7 @@ Public Sub CreerTableauChargesPermanentes()
             .VerticalAlignment = xlCenter
         End With
         .Range("G5:G48").Value = 1
-        .Range("I5:I48").FormulaR1C1 = "=IF(RC2="""","""",RC7*RC8*RC5*(RC3*RC6+RC4))"
+        .Range("I5:I48").FormulaR1C1 = "=IF(RC2="""","""",RC7*RC8/2*RC5*(RC3*RC6+RC4))"
         .Range("B49").Value = "TOTAL G"
         .Range("I49").Formula = "=SUBTOTAL(109,I5:I48)"  ' ignore les lignes masquées
         .Range("B49:I49").Font.Bold = True
