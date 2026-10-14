@@ -14,6 +14,9 @@ Option Explicit
 ' Les poids volumiques sont dans la feuille « Poids matériaux » (créée si absente) :
 ' on les modifie directement dans cette feuille, le tableau se met à jour.
 ' Seuls les étages jusqu'au niveau choisi en C1 sont affichés (voir AfficherEtages).
+' Sous-total par étage : sur la ligne de titre (Toiture, Étage n, RDC, Soubassement),
+' la colonne H fait la somme des éléments du bloc. Le TOTAL G (SOUS.TOTAL) ignore
+' ces sous-totaux, il n'y a donc pas de double compte.
 
 Private Const PLANCHERS As String = "Plancher dalle pleine,Plancher à poutrelles,Plancher bois traditionnel"
 Private Const POUTRES As String = "Poutre BA,Poutre bois,Poutre métallique"
@@ -24,7 +27,7 @@ Private Const MURS As String = "Agglos béton creux,Agglos béton plein,Béton b
 Private Const FEUILLE_POIDS As String = "Poids matériaux"
 
 Public Sub RemplirDesignationOuvrage()
-    Dim listes As Variant, i As Long, e As Long, r As Long
+    Dim listes As Variant, i As Long, e As Long, r As Long, debut As Long
 
     CreerFeuillePoids ActiveSheet.Parent
     r = 5
@@ -39,6 +42,7 @@ Public Sub RemplirDesignationOuvrage()
             listes = Array("Étage " & e, PLANCHERS, POUTRES, POTEAUX, MURS)
         End If
 
+        debut = r                            ' ligne de titre du bloc
         For i = 0 To UBound(listes)
             With ActiveSheet.Range("B" & r)
                 .Validation.Delete
@@ -52,6 +56,13 @@ Public Sub RemplirDesignationOuvrage()
             MajLigne ActiveSheet, r              ' poids volumique / surfacique
             r = r + 1
         Next i
+
+        ' Sous-total du bloc sur la ligne de titre (G vidé : pas de nombre à saisir)
+        With ActiveSheet
+            .Range("G" & debut).ClearContents
+            .Range("H" & debut).Formula = "=SUBTOTAL(109,H" & debut + 1 & ":H" & r - 1 & ")"
+            .Range("H" & debut).Font.Bold = True
+        End With
     Next e
 
     AfficherEtages ActiveSheet
@@ -118,6 +129,14 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long)
     ElseIf Left(typeElement, 6) = "Poutre" Or Left(typeElement, 6) = "Poteau" Then
         ws.Range("C" & ligne).Formula = "=" & FormulePoids(ligne)
         ws.Range("D" & ligne).ClearContents
+        ' Rappel sur l'épaisseur h d'une poutre (commentaire sur la cellule F)
+        If Left(typeElement, 6) = "Poutre" Then
+            ws.Range("F" & ligne).ClearComments
+            ws.Range("F" & ligne).AddComment _
+                "Hauteur h de la poutre : si une dalle est présente, prendre " & _
+                "h = hauteur totale de la poutre - épaisseur de la dalle " & _
+                "(retombée seule), pour ne pas compter deux fois le béton de la dalle."
+        End If
     End If
 End Sub
 
