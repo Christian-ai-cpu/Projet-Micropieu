@@ -3,14 +3,16 @@ Option Explicit
 
 ' Listes déroulantes sous « Désignation de l'ouvrage », à partir de B5.
 ' Chaque bloc se termine par une ligne « Sous-total » (somme du bloc en I) :
-'   B5 à B8   : Toiture / Toiture terrasse, Plancher, Poutre, Sous-total
-'               (la ligne Plancher n'est affichée que pour une toiture terrasse)
-'   B9 à B14  : Étage 5, Plancher, Poutre, Poteau, Mur, Sous-total
+'   B5 à B9   : Toiture / Toiture terrasse, Plancher, Revêtement, Poutre, Sous-total
+'               (Plancher et Revêtement affichés seulement pour une toiture terrasse)
+'   B10 à B16 : Étage 5, Plancher, Revêtement, Poutre, Poteau, Mur, Sous-total
 '   ...
-'   B33 à B38 : Étage 1, Plancher, Poutre, Poteau, Mur, Sous-total
-'   B39 à B43 : RDC, Poutre, Poteau, Mur, Sous-total (toujours affiché)
-'   B44 à B48 : Soubassement, Poutre, Poteau, Mur, Sous-total (toujours affiché)
-' Ligne 49 : TOTAL G = somme des sous-totaux (I8 + I14 + ... + I48). Le sous-total
+'   B38 à B44 : Étage 1, Plancher, Revêtement, Poutre, Poteau, Mur, Sous-total
+'   B45 à B49 : RDC, Poutre, Poteau, Mur, Sous-total (toujours affiché)
+'   B50 à B54 : Soubassement, Poutre, Poteau, Mur, Sous-total (toujours affiché)
+' Revêtement (sous chaque plancher) : charge permanente du revêtement de sol, sa
+' valeur en kN/m² est mise en D (poids surfacique), voir ChargeRevetement.
+' Ligne 55 : TOTAL G = somme des sous-totaux (I9 + I16 + ... + I54). Le sous-total
 ' d'un étage masqué vaut 0 (SOUS.TOTAL ignore les lignes masquées).
 ' Pour un mur : le type se choisit en B, l'épaisseur en F (liste adaptée au type),
 ' et le poids surfacique D est calculé : D = poids volumique × épaisseur F.
@@ -22,6 +24,7 @@ Option Explicit
 Private Const PLANCHERS As String = "Plancher dalle pleine,Plancher à poutrelles,Plancher bois traditionnel"
 Private Const POUTRES As String = "Poutre BA,Poutre bois,Poutre métallique"
 Private Const POTEAUX As String = "Poteau BA,Poteau bois,Poteau métallique"
+Private Const REVETEMENTS As String = "Carrelage grès cérame,Dalles épaisses (marbre),Parquet traditionnel"
 Private Const MURS As String = "Agglos béton creux,Agglos béton plein,Béton banché," & _
     "Briques creuses,Briques Monomur,Briques pleines,Pierre de taille"
 
@@ -32,7 +35,7 @@ Public Sub RemplirDesignationOuvrage()
     r = 5
     For e = 6 To -1 Step -1            ' 6 = toiture, étages 5 à 1, 0 = RDC, -1 = soubassement
         If e = 6 Then
-            listes = Array("Toiture,Toiture terrasse", PLANCHERS, POUTRES)
+            listes = Array("Toiture,Toiture terrasse", PLANCHERS, REVETEMENTS, POUTRES)
             nomBloc = "toiture"
         ElseIf e = 0 Then
             listes = Array("RDC", POUTRES, POTEAUX, MURS)
@@ -41,7 +44,7 @@ Public Sub RemplirDesignationOuvrage()
             listes = Array("Soubassement", POUTRES, POTEAUX, MURS)
             nomBloc = "soubassement"
         Else
-            listes = Array("Étage " & e, PLANCHERS, POUTRES, POTEAUX, MURS)
+            listes = Array("Étage " & e, PLANCHERS, REVETEMENTS, POUTRES, POTEAUX, MURS)
             nomBloc = "étage " & e
         End If
 
@@ -55,6 +58,7 @@ Public Sub RemplirDesignationOuvrage()
                 End If
                 .Value = Split(listes(i), ",")(0)
                 .Font.Bold = (i = 0)          ' Toiture, Étage n, RDC et Soubassement en gras
+                .IndentLevel = IIf(listes(i) = REVETEMENTS, 1, 0)   ' revêtement sous le plancher
             End With
             MajLigne ActiveSheet, r              ' poids volumique / surfacique
             ' Nombre n laissé vide pour les titres et les poteaux (à saisir)
@@ -98,6 +102,15 @@ Public Function EpaisseursMur(typeMur As String) As String
     End Select
 End Function
 
+' Charge permanente (kN/m²) du revêtement de sol posé sur le plancher ; 0 sinon.
+Public Function ChargeRevetement(typeRevetement As String) As Double
+    Select Case typeRevetement
+        Case "Carrelage grès cérame":    ChargeRevetement = 0.5   ' valeur donnée : 50, à vérifier
+        Case "Dalles épaisses (marbre)": ChargeRevetement = 1
+        Case "Parquet traditionnel":     ChargeRevetement = 0.25
+    End Select
+End Function
+
 ' Poids volumique (kN/m³) d'une poutre ou d'un poteau selon son type ; 0 sinon.
 Public Function PoidsVolumique(typeElement As String) As Double
     Select Case typeElement
@@ -131,6 +144,9 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long)
         AfficherEtages ws                    ' plancher de toiture affiché ou non
     ElseIf EpaisseursMur(typeElement) <> "" Then
         MajEpaisseurMur ws, ligne
+    ElseIf ChargeRevetement(typeElement) > 0 Then
+        ws.Range("C" & ligne).ClearContents
+        ws.Range("D" & ligne).Value = ChargeRevetement(typeElement)
     ElseIf PoidsVolumique(typeElement) > 0 Then
         ws.Range("C" & ligne).Value = PoidsVolumique(typeElement)
         ws.Range("D" & ligne).ClearContents
@@ -167,15 +183,16 @@ End Sub
 
 ' Affiche la toiture et les étages 1 à niveau (C1), masque les autres.
 ' RDC -> toiture seule ; 1 -> toiture + étage 1 ; ... ; 5 -> tout.
-' La ligne Plancher de la toiture (6) n'est affichée que pour une toiture terrasse.
+' Les lignes Plancher et Revêtement de la toiture (6 et 7) ne sont affichées que
+' pour une toiture terrasse.
 ' Appelée aussi automatiquement quand C1 change (voir CodeFeuille.txt).
 Public Sub AfficherEtages(ws As Worksheet)
     Dim niveau As Long, e As Long
 
-    ws.Rows(6).Hidden = (ws.Range("B5").Value <> "Toiture terrasse")
+    ws.Rows("6:7").Hidden = (ws.Range("B5").Value <> "Toiture terrasse")
     niveau = Val(ws.Range("C1").Value)     ' "RDC" donne 0
     For e = 1 To 5
-        ' Bloc de l'étage e (sous-total compris) : 6 lignes à partir de 9 + 6 × (5 - e)
-        ws.Rows(9 + 6 * (5 - e)).Resize(6).Hidden = (e > niveau)
+        ' Bloc de l'étage e (sous-total compris) : 7 lignes à partir de 10 + 7 × (5 - e)
+        ws.Rows(10 + 7 * (5 - e)).Resize(7).Hidden = (e > niveau)
     Next e
 End Sub

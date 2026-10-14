@@ -2,7 +2,7 @@ Attribute VB_Name = "TableauChargesPermanentes_CodeEnDurArray"
 Option Explicit
 ' Version codée en dur avec Array, sans variable.
 
-' Niveau d'étage (RDC à 5) en C1, catégorie du bâtiment (A à G) en E1, en-tête B3:I4 (H = Linéaire, I = Charges G), saisie lignes 5 à 48, total ligne 49.
+' Niveau d'étage (RDC à 5) en C1, catégorie du bâtiment (A à G) en E1, en-tête B3:I4 (H = Linéaire, I = Charges G), saisie lignes 5 à 54, total ligne 55.
 ' G = n × (L / 2) × b × (γ × h + g)   (L = linéaire en H, pris à moitié sauf pour les poteaux)
 Public Sub CreerTableauChargesPermanentes()
     With ActiveSheet
@@ -33,16 +33,16 @@ Public Sub CreerTableauChargesPermanentes()
             .HorizontalAlignment = xlCenter
             .VerticalAlignment = xlCenter
         End With
-        .Range("G5:G48").Value = 1
-        .Range("I5:I48").FormulaR1C1 = "=IF(RC2="""","""",RC7*RC8/IF(LEFT(RC2,6)=""Poteau"",1,2)*RC5*(RC3*RC6+RC4))"
-        .Range("B49").Value = "TOTAL G"
-        .Range("I49").Formula = "=SUBTOTAL(109,I5:I48)"  ' ignore les lignes masquées
-        .Range("B49:I49").Font.Bold = True
-        .Range("C5:I49").NumberFormat = "0.00"
-        .Range("G5:G48").NumberFormat = "0"
-        .Range("C3:I49").HorizontalAlignment = xlCenter
-        .Range("B3:I49").Borders.LineStyle = xlContinuous
-        .Range("B3:I49").BorderAround xlContinuous, xlMedium
+        .Range("G5:G54").Value = 1
+        .Range("I5:I54").FormulaR1C1 = "=IF(RC2="""","""",RC7*RC8/IF(LEFT(RC2,6)=""Poteau"",1,2)*RC5*(RC3*RC6+RC4))"
+        .Range("B55").Value = "TOTAL G"
+        .Range("I55").Formula = "=SUBTOTAL(109,I5:I54)"  ' ignore les lignes masquées
+        .Range("B55:I55").Font.Bold = True
+        .Range("C5:I55").NumberFormat = "0.00"
+        .Range("G5:G54").NumberFormat = "0"
+        .Range("C3:I55").HorizontalAlignment = xlCenter
+        .Range("B3:I55").Borders.LineStyle = xlContinuous
+        .Range("B3:I55").BorderAround xlContinuous, xlMedium
         .Columns("B").ColumnWidth = 35
         .Columns("C:I").ColumnWidth = 16
     End With
