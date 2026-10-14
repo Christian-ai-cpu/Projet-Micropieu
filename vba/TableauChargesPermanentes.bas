@@ -23,7 +23,7 @@ Public Sub CreerTableauChargesPermanentes()
         End With
         .Range("B1:E1").Font.Bold = True
         .Range("B3:I3").Value = Array("Désignation de l'ouvrage", "Poids volumique (kN/m3)", _
-            "Poids Surfacique (kN/m²)", "Dimensions", "", "", "Linéaire L (m)", "Charges permanentes G (kN/ml)")
+            "Poids Surfacique (kN/m²)", "Dimensions", "", "", "Linéaire L (m)", "Charges permanentes G (kN)")
         .Range("E4:G4").Value = Array("Largeur b (m)", "Épaisseur h (m)", "Nombre n")
         .Range("B3:B4,C3:C4,D3:D4,E3:G3,H3:H4,I3:I4").Merge
         With .Range("B3:I4")
@@ -45,5 +45,7 @@ Public Sub CreerTableauChargesPermanentes()
         .Range("B3:I55").BorderAround xlContinuous, xlMedium
         .Columns("B").ColumnWidth = 35
         .Columns("C:I").ColumnWidth = 16
+        .Columns("I").AutoFit                        ' colonne des charges ajustée au contenu
+        If .Columns("I").ColumnWidth < 12 Then .Columns("I").ColumnWidth = 12   ' place pour le titre
     End With
 End Sub

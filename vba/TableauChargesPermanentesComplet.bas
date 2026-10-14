@@ -7,7 +7,7 @@ Option Explicit
 '   D : Poids Surfacique (kN/m²)
 '   E:G : Dimensions (fusionnées) -> Largeur b (m) / Épaisseur h (m) / Nombre n
 '   H : Linéaire L (m)
-'   I : Charges permanentes G (kN/ml)
+'   I : Charges permanentes G (kN)
 ' Les lignes de saisie calculent G = n × (L / 2) × (γ × b × h + g × b),
 ' sauf pour les poteaux où le linéaire L est pris entier.
 ' En ligne 1 : listes déroulantes du niveau d'étage (RDC à 5) et de la catégorie du bâtiment (A à G).
@@ -65,7 +65,7 @@ Public Sub CreerTableauChargesPermanentesComplet()
 
     ' --- Titres (ligne 1) et sous-titres (ligne 2) remplis par boucle ---
     titres = Array("Désignation de l'ouvrage", "Poids volumique (kN/m3)", _
-        "Poids Surfacique (kN/m²)", "Dimensions", "", "", "Linéaire L (m)", "Charges permanentes G (kN/ml)")
+        "Poids Surfacique (kN/m²)", "Dimensions", "", "", "Linéaire L (m)", "Charges permanentes G (kN)")
     sousTitres = Array("", "", "", "Largeur b (m)", "Épaisseur h (m)", "Nombre n", "", "")
     For r = 1 To 2
         For c = 1 To 8
@@ -117,6 +117,11 @@ Public Sub CreerTableauChargesPermanentesComplet()
         .WrapText = True
         .Rows.AutoFit
     End With
+    ' Colonne I (charges G) ajustée à son contenu, puis hauteurs réajustées
+    ws.Range("I" & PREMIERE_LIGNE & ":I" & derniereLigne + 1).WrapText = False
+    ws.Columns("I").AutoFit
+    If ws.Columns("I").ColumnWidth < 12 Then ws.Columns("I").ColumnWidth = 12   ' place pour le titre
+    ws.Range("B" & LIGNE_TITRE & ":I" & derniereLigne + 1).Rows.AutoFit
     ' Ligne 1 : « Niveau d'étage » et « Catégorie du bâtiment » avec leurs listes
     With ws.Range("B" & LIGNE_NIVEAU & ":E" & LIGNE_NIVEAU)
         .WrapText = True

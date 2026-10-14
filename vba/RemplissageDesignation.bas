@@ -93,6 +93,12 @@ Public Sub RemplirDesignationOuvrage()
     End With
 
     AfficherEtages ActiveSheet
+
+    ' Colonne I (charges G) ajustée à son contenu, avec un minimum pour le titre
+    With ActiveSheet.Columns("I")
+        .AutoFit
+        If .ColumnWidth < 12 Then .ColumnWidth = 12
+    End With
 End Sub
 
 ' Épaisseurs possibles (en cm) selon le type de mur ; "" si ce n'est pas un mur.
