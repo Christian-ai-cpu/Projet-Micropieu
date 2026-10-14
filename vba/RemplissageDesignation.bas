@@ -2,7 +2,7 @@ Attribute VB_Name = "RemplissageDesignation"
 Option Explicit
 
 ' Listes déroulantes sous « Désignation de l'ouvrage », à partir de B5.
-' Chaque bloc se termine par une ligne « Sous-total » (somme du bloc en H) :
+' Chaque bloc se termine par une ligne « Sous-total » (somme du bloc en I) :
 '   B5 à B8   : Toiture / Toiture terrasse, Plancher, Poutre, Sous-total
 '               (la ligne Plancher n'est affichée que pour une toiture terrasse)
 '   B9 à B14  : Étage 5, Plancher, Poutre, Poteau, Mur, Sous-total
@@ -10,7 +10,7 @@ Option Explicit
 '   B33 à B38 : Étage 1, Plancher, Poutre, Poteau, Mur, Sous-total
 '   B39 à B43 : RDC, Poutre, Poteau, Mur, Sous-total (toujours affiché)
 '   B44 à B48 : Soubassement, Poutre, Poteau, Mur, Sous-total (toujours affiché)
-' Ligne 49 : TOTAL G = somme des sous-totaux (H8 + H14 + ... + H48). Le sous-total
+' Ligne 49 : TOTAL G = somme des sous-totaux (I8 + I14 + ... + I48). Le sous-total
 ' d'un étage masqué vaut 0 (SOUS.TOTAL ignore les lignes masquées).
 ' Pour un mur : le type se choisit en B, l'épaisseur en F (liste adaptée au type),
 ' et le poids surfacique D est calculé : D = poids volumique × épaisseur F.
@@ -61,25 +61,25 @@ Public Sub RemplirDesignationOuvrage()
             If i = 0 Or listes(i) = POTEAUX Then ActiveSheet.Range("G" & r).ClearContents
             r = r + 1
         Next i
-        ActiveSheet.Range("H" & debut).ClearContents   ' pas de charge sur le titre
+        ActiveSheet.Range("I" & debut).ClearContents   ' pas de charge sur le titre
 
         ' Ligne de sous-total sous le dernier élément du bloc
         With ActiveSheet
             .Range("B" & r).Validation.Delete
             .Range("B" & r).Value = "Sous-total " & nomBloc
             .Range("G" & r).ClearContents
-            .Range("H" & r).Formula = "=SUBTOTAL(109,H" & debut + 1 & ":H" & r - 1 & ")"
+            .Range("I" & r).Formula = "=SUBTOTAL(109,I" & debut + 1 & ":I" & r - 1 & ")"
             .Range("B" & r & ":I" & r).Font.Bold = True
             .Range("B" & r).Font.Italic = True
         End With
-        sousTotaux = sousTotaux & ",H" & r
+        sousTotaux = sousTotaux & ",I" & r
         r = r + 1
     Next e
 
     ' TOTAL G = somme des sous-totaux de tous les blocs
     With ActiveSheet
         .Range("B" & r).Value = "TOTAL G (somme des sous-totaux)"
-        .Range("H" & r).Formula = "=SUM(" & Mid(sousTotaux, 2) & ")"
+        .Range("I" & r).Formula = "=SUM(" & Mid(sousTotaux, 2) & ")"
         .Range("B" & r & ":I" & r).Font.Bold = True
     End With
 

@@ -6,8 +6,9 @@ Option Explicit
 '   C : Poids volumique (kN/m3)
 '   D : Poids Surfacique (kN/m²)
 '   E:G : Dimensions (fusionnées) -> Largeur b (m) / Épaisseur h (m) / Nombre n
-'   H : Charges permanentes G (kN/ml)
-' Les lignes de saisie calculent G = n × (γ × b × h + g × b).
+'   H : Linéaire L (m)
+'   I : Charges permanentes G (kN)
+' Les lignes de saisie calculent G = n × L × (γ × b × h + g × b).
 ' En ligne 1 : listes déroulantes du niveau d'étage (RDC à 5) et de la catégorie du bâtiment (A à G).
 
 Private Const LIGNE_NIVEAU As Long = 1
@@ -63,7 +64,7 @@ Public Sub CreerTableauChargesPermanentesComplet()
 
     ' --- Titres (ligne 1) et sous-titres (ligne 2) remplis par boucle ---
     titres = Array("Désignation de l'ouvrage", "Poids volumique (kN/m3)", _
-        "Poids Surfacique (kN/m²)", "Dimensions", "", "", "Charges permanentes G (kN/ml)", "Linéaire (m)")
+        "Poids Surfacique (kN/m²)", "Dimensions", "", "", "Linéaire L (m)", "Charges permanentes G (kN)")
     sousTitres = Array("", "", "", "Largeur b (m)", "Épaisseur h (m)", "Nombre n", "", "")
     For r = 1 To 2
         For c = 1 To 8
@@ -89,14 +90,14 @@ Public Sub CreerTableauChargesPermanentesComplet()
     ' --- Lignes de saisie et formule de G ---
     For r = PREMIERE_LIGNE To derniereLigne
         ws.Range("G" & r).Value = 1
-        ws.Range("H" & r).Formula = "=IF(B" & r & "="""","""",G" & r & _
+        ws.Range("I" & r).Formula = "=IF(B" & r & "="""","""",G" & r & "*H" & r & _
             "*(C" & r & "*E" & r & "*F" & r & "+D" & r & "*E" & r & "))"
     Next r
 
     ' --- Ligne de total ---
     ws.Range("B" & derniereLigne + 1).Value = "TOTAL G"
-    ws.Range("H" & derniereLigne + 1).Formula = _
-        "=SUBTOTAL(109,H" & PREMIERE_LIGNE & ":H" & derniereLigne & ")"  ' ignore les lignes masquées
+    ws.Range("I" & derniereLigne + 1).Formula = _
+        "=SUBTOTAL(109,I" & PREMIERE_LIGNE & ":I" & derniereLigne & ")"  ' ignore les lignes masquées
     With ws.Range("B" & derniereLigne + 1 & ":I" & derniereLigne + 1)
         .Font.Bold = True
     End With
