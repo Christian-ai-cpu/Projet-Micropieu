@@ -20,7 +20,7 @@ Public Sub CreerTableauChargesPermanentesComplet()
     Dim ws As Worksheet
     Dim derniereLigne As Long
     Dim r As Long, c As Long
-    Dim Entete(1 To 2, 1 To 7) As String
+    Dim Entete(1 To 2, 1 To 8) As String
     Dim titres As Variant, sousTitres As Variant
 
     Set ws = ActiveSheet
@@ -63,23 +63,23 @@ Public Sub CreerTableauChargesPermanentesComplet()
 
     ' --- Titres (ligne 1) et sous-titres (ligne 2) remplis par boucle ---
     titres = Array("Désignation de l'ouvrage", "Poids volumique (kN/m3)", _
-        "Poids Surfacique (kN/m²)", "Dimensions", "", "", "Charges permanentes G (kN/ml)")
-    sousTitres = Array("", "", "", "Largeur b (m)", "Épaisseur h (m)", "Nombre n", "")
+        "Poids Surfacique (kN/m²)", "Dimensions", "", "", "Charges permanentes G (kN/ml)", "Linéaire (m)")
+    sousTitres = Array("", "", "", "Largeur b (m)", "Épaisseur h (m)", "Nombre n", "", "")
     For r = 1 To 2
-        For c = 1 To 7
+        For c = 1 To 8
             Entete(r, c) = IIf(r = 1, titres(c - 1), sousTitres(c - 1))
         Next c
     Next r
-    ws.Range("B" & LIGNE_TITRE).Resize(2, 7).Value = Entete
+    ws.Range("B" & LIGNE_TITRE).Resize(2, 8).Value = Entete
 
     ' --- Fusions : verticale si pas de sous-titre, sinon « Dimensions » sur E:G ---
-    For c = 1 To 7
+    For c = 1 To 8
         If Entete(2, c) = "" Then ws.Cells(LIGNE_TITRE, c + 1).Resize(2, 1).Merge
     Next c
     ws.Range("E" & LIGNE_TITRE & ":G" & LIGNE_TITRE).Merge
 
     ' --- Mise en forme de l'en-tête ---
-    With ws.Range("B" & LIGNE_TITRE & ":H" & LIGNE_SOUS_TITRE)
+    With ws.Range("B" & LIGNE_TITRE & ":I" & LIGNE_SOUS_TITRE)
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
@@ -97,21 +97,21 @@ Public Sub CreerTableauChargesPermanentesComplet()
     ws.Range("B" & derniereLigne + 1).Value = "TOTAL G"
     ws.Range("H" & derniereLigne + 1).Formula = _
         "=SUBTOTAL(109,H" & PREMIERE_LIGNE & ":H" & derniereLigne & ")"  ' ignore les lignes masquées
-    With ws.Range("B" & derniereLigne + 1 & ":H" & derniereLigne + 1)
+    With ws.Range("B" & derniereLigne + 1 & ":I" & derniereLigne + 1)
         .Font.Bold = True
     End With
 
     ' --- Bordures ---
-    With ws.Range("B" & LIGNE_TITRE & ":H" & derniereLigne + 1).Borders
+    With ws.Range("B" & LIGNE_TITRE & ":I" & derniereLigne + 1).Borders
         .LineStyle = xlContinuous
         .Weight = xlThin
         .Color = RGB(0, 0, 0)
     End With
-    ws.Range("B" & LIGNE_TITRE & ":H" & derniereLigne + 1).BorderAround _
+    ws.Range("B" & LIGNE_TITRE & ":I" & derniereLigne + 1).BorderAround _
         LineStyle:=xlContinuous, Weight:=xlMedium
 
     ' --- Renvoi à la ligne automatique (hauteur des lignes ajustée au texte) ---
-    With ws.Range("B" & LIGNE_TITRE & ":H" & derniereLigne + 1)
+    With ws.Range("B" & LIGNE_TITRE & ":I" & derniereLigne + 1)
         .WrapText = True
         .Rows.AutoFit
     End With

@@ -69,7 +69,7 @@ Public Sub RemplirDesignationOuvrage()
             .Range("B" & r).Value = "Sous-total " & nomBloc
             .Range("G" & r).ClearContents
             .Range("H" & r).Formula = "=SUBTOTAL(109,H" & debut + 1 & ":H" & r - 1 & ")"
-            .Range("B" & r & ":H" & r).Font.Bold = True
+            .Range("B" & r & ":I" & r).Font.Bold = True
             .Range("B" & r).Font.Italic = True
         End With
         sousTotaux = sousTotaux & ",H" & r
@@ -80,7 +80,7 @@ Public Sub RemplirDesignationOuvrage()
     With ActiveSheet
         .Range("B" & r).Value = "TOTAL G (somme des sous-totaux)"
         .Range("H" & r).Formula = "=SUM(" & Mid(sousTotaux, 2) & ")"
-        .Range("B" & r & ":H" & r).Font.Bold = True
+        .Range("B" & r & ":I" & r).Font.Bold = True
     End With
 
     AfficherEtages ActiveSheet
