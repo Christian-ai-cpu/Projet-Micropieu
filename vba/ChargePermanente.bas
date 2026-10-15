@@ -4,6 +4,9 @@ Option Explicit
 ' Module « Charge permanente » : remplissage du tableau des charges permanentes G.
 ' Listes déroulantes sous « Désignation de l'ouvrage », à partir de B5.
 ' Chaque bloc se termine par une ligne « Sous-total » (somme du bloc en I) :
+' sur cette ligne, la colonne J donne la charge d'exploitation du niveau quand il a
+' un plancher : Q = q × (L / 2) × b × n (L, b, n de la ligne Plancher), q selon la
+' catégorie du bâtiment choisie en E1 (fonction ChargeQ).
 '   B5 à B9   : Toiture / Toiture terrasse, Revêtement, Plancher, Poutre, Sous-total
 '               (Revêtement et Plancher affichés seulement pour une toiture terrasse)
 '   B10 à B16 : Étage 5, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
@@ -36,7 +39,8 @@ Private Const MURS As String = "Agglos béton creux,Agglos béton plein,Béton b
 
 Public Sub RemplirChargePermanente()
     Dim listes As Variant, i As Long, e As Long, r As Long, debut As Long
-    Dim nomBloc As String, sousTotaux As String
+    Dim nomBloc As String, sousTotaux As String, sousTotauxQ As String
+    Dim ligPlancher As Long
 
     r = 5
     For e = 6 To -1 Step -1            ' 6 = toiture, étages 5 à 1, 0 = RDC, -1 = soubassement
@@ -55,6 +59,7 @@ Public Sub RemplirChargePermanente()
         End If
 
         debut = r                            ' ligne de titre du bloc
+        ligPlancher = 0
         For i = 0 To UBound(listes)
             With ActiveSheet.Range("B" & r)
                 .Validation.Delete
@@ -67,6 +72,7 @@ Public Sub RemplirChargePermanente()
                 .IndentLevel = IIf(listes(i) = REVETEMENTS, 1, 0)   ' revêtement rattaché au plancher
             End With
             MajLigne ActiveSheet, r              ' poids volumique / surfacique
+            If listes(i) = PLANCHERS Then ligPlancher = r
             ' Nombre n laissé vide pour les titres et les poteaux (à saisir)
             If i = 0 Or listes(i) = POTEAUX Then ActiveSheet.Range("G" & r).ClearContents
             r = r + 1
@@ -79,8 +85,18 @@ Public Sub RemplirChargePermanente()
             .Range("B" & r).Value = "Sous-total " & nomBloc
             .Range("G" & r).ClearContents
             .Range("I" & r).Formula = "=SUBTOTAL(109,I" & debut + 1 & ":I" & r - 1 & ")"
-            .Range("B" & r & ":I" & r).Font.Bold = True
+            .Range("B" & r & ":J" & r).Font.Bold = True
             .Range("B" & r).Font.Italic = True
+            ' Charge d'exploitation du niveau (seulement s'il a un plancher)
+            If ligPlancher > 0 Then
+                .Range("J" & r).Formula = "=ChargeQ($E$1)*H" & ligPlancher & "/2*E" & ligPlancher & _
+                    "*G" & ligPlancher
+                If e = 6 Then                ' toiture : plancher seulement pour une terrasse
+                    .Range("J" & r).Formula = "=IF($B$5=""Toiture terrasse""," & _
+                        Mid(.Range("J" & r).Formula, 2) & ",0)"
+                End If
+                sousTotauxQ = sousTotauxQ & ",J" & r
+            End If
         End With
         sousTotaux = sousTotaux & ",I" & r
         r = r + 1
@@ -88,19 +104,36 @@ Public Sub RemplirChargePermanente()
 
     ' TOTAL G = somme des sous-totaux de tous les blocs
     With ActiveSheet
-        .Range("B" & r).Value = "TOTAL G (somme des sous-totaux)"
+        .Range("B" & r).Value = "TOTAL (somme des sous-totaux)"
         .Range("I" & r).Formula = "=SUM(" & Mid(sousTotaux, 2) & ")"
-        .Range("B" & r & ":I" & r).Font.Bold = True
+        ' TOTAL Q : SOUS.TOTAL ignore les étages masqués
+        .Range("J" & r).Formula = "=SUBTOTAL(109," & Mid(sousTotauxQ, 2) & ")"
+        .Range("B" & r & ":J" & r).Font.Bold = True
     End With
 
     AfficherEtages ActiveSheet
 
-    ' Colonne I (charges G) ajustée à son contenu, avec un minimum pour le titre
-    With ActiveSheet.Columns("I")
+    ' Colonnes I (G) et J (Q) ajustées à leur contenu, avec un minimum pour le titre
+    With ActiveSheet.Columns("I:J")
         .AutoFit
-        If .ColumnWidth < 12 Then .ColumnWidth = 12
+        If .Columns(1).ColumnWidth < 12 Then .Columns(1).ColumnWidth = 12
+        If .Columns(2).ColumnWidth < 12 Then .Columns(2).ColumnWidth = 12
     End With
 End Sub
+
+' Charge d'exploitation q (kN/m²) selon la catégorie d'usage (Eurocode 1, NF EN 1991-1-1).
+' Utilisée dans les formules de la colonne J. Valeurs indicatives, à vérifier.
+Public Function ChargeQ(ByVal categorie As Variant) As Double
+    Select Case UCase(Left(CStr(categorie), 1))
+        Case "A": ChargeQ = 1.5    ' habitation
+        Case "B": ChargeQ = 2.5    ' bureaux
+        Case "C": ChargeQ = 4      ' lieux de réunion (C1 2,5 à C5 5,0)
+        Case "D": ChargeQ = 5      ' commerces
+        Case "E": ChargeQ = 7.5    ' stockage
+        Case "F": ChargeQ = 2.3    ' circulation véhicules légers
+        Case "G": ChargeQ = 5      ' circulation véhicules moyens
+    End Select
+End Function
 
 ' Épaisseurs possibles (en cm) selon le type de mur ; "" si ce n'est pas un mur.
 Public Function EpaisseursMur(typeMur As String) As String
