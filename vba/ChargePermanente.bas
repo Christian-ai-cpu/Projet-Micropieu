@@ -11,7 +11,7 @@ Option Explicit
 '   ...
 '   B38 à B44 : Étage 1, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
 '   B45 à B49 : RDC, Poutre, Poteau, Mur, Sous-total (toujours affiché)
-'   B50 à B54 : Soubassement, Poutre, Poteau, Mur, Sous-total (toujours affiché)
+'   B50 à B53 : Soubassement, Poteau, Mur, Sous-total (toujours affiché)
 ' Revêtement (au-dessus de chaque plancher) : charge permanente du revêtement de sol,
 ' sa valeur en kN/m² est mise en D (poids surfacique), voir ChargeRevetement.
 ' Sa charge se calcule par G = (linéaire L / 2) × poids surfacique D × largeur b.
@@ -19,7 +19,7 @@ Option Explicit
 '   dalle pleine      : 25 × e                    (C = 25, D vide)
 '   à poutrelles      : 0,05 × 25 + (e - 0,05) × 11  (C vide, D = cette formule)
 '   bois traditionnel : 1,5 kN/m²                 (C vide, D = 1,5)
-' Ligne 55 : TOTAL G = somme des sous-totaux (I9 + I16 + ... + I54). Le sous-total
+' Ligne 54 : TOTAL G = somme des sous-totaux (I9 + I16 + ... + I53). Le sous-total
 ' d'un étage masqué vaut 0 (SOUS.TOTAL ignore les lignes masquées).
 ' Pour un mur : le type se choisit en B, l'épaisseur en F (liste adaptée au type),
 ' et le poids surfacique D est calculé : D = poids volumique × épaisseur F.
@@ -48,7 +48,7 @@ Public Sub RemplirChargePermanente()
             listes = Array("RDC", POUTRES, POTEAUX, MURS)
             nomBloc = "RDC"
         ElseIf e = -1 Then
-            listes = Array("Soubassement", POUTRES, POTEAUX, MURS)
+            listes = Array("Soubassement", POTEAUX, MURS)
             nomBloc = "soubassement"
         Else
             listes = Array("Étage " & e, REVETEMENTS, PLANCHERS, POUTRES, POTEAUX, MURS)
