@@ -10,6 +10,7 @@ Option Explicit
 '   I : Charges permanentes G (kN)
 '   J : Charge d'exploitation Q (kN), calculée sur les lignes de sous-total
 '   K : ΣQ (kN) (Σ écrit ChrW(931)), cumul des Q de la toiture jusqu'au niveau
+'   L : αn (α écrit ChrW(945)), coefficient de réduction selon le nombre d'étages
 ' Les lignes de saisie calculent G = n × (L / 2) × (γ × b × h + g × b),
 ' sauf pour les poteaux où le linéaire L est pris entier.
 ' En ligne 1 : listes déroulantes du niveau d'étage (RDC à 5) et de la catégorie du bâtiment (A à G).
@@ -24,7 +25,7 @@ Public Sub CreerTableauChargesPermanentesComplet()
     Dim ws As Worksheet
     Dim derniereLigne As Long
     Dim r As Long, c As Long
-    Dim Entete(1 To 2, 1 To 10) As String
+    Dim Entete(1 To 2, 1 To 11) As String
     Dim titres As Variant, sousTitres As Variant
 
     Set ws = ActiveSheet
@@ -68,23 +69,23 @@ Public Sub CreerTableauChargesPermanentesComplet()
     ' --- Titres (ligne 1) et sous-titres (ligne 2) remplis par boucle ---
     titres = Array("Désignation de l'ouvrage", "Poids volumique (kN/m3)", _
         "Poids Surfacique (kN/m²)", "Dimensions", "", "", "Linéaire L (m)", "Charges permanentes G (kN)", _
-        "Charge d'exploitation Q (kN)", ChrW(931) & "Q (kN)")
-    sousTitres = Array("", "", "", "Largeur b (m)", "Épaisseur h (m)", "Nombre n", "", "", "", "")
+        "Charge d'exploitation Q (kN)", ChrW(931) & "Q (kN)", ChrW(945) & "n")
+    sousTitres = Array("", "", "", "Largeur b (m)", "Épaisseur h (m)", "Nombre n", "", "", "", "", "")
     For r = 1 To 2
-        For c = 1 To 10
+        For c = 1 To 11
             Entete(r, c) = IIf(r = 1, titres(c - 1), sousTitres(c - 1))
         Next c
     Next r
-    ws.Range("B" & LIGNE_TITRE).Resize(2, 10).Value = Entete
+    ws.Range("B" & LIGNE_TITRE).Resize(2, 11).Value = Entete
 
     ' --- Fusions : verticale si pas de sous-titre, sinon « Dimensions » sur E:G ---
-    For c = 1 To 10
+    For c = 1 To 11
         If Entete(2, c) = "" Then ws.Cells(LIGNE_TITRE, c + 1).Resize(2, 1).Merge
     Next c
     ws.Range("E" & LIGNE_TITRE & ":G" & LIGNE_TITRE).Merge
 
     ' --- Mise en forme de l'en-tête ---
-    With ws.Range("B" & LIGNE_TITRE & ":K" & LIGNE_SOUS_TITRE)
+    With ws.Range("B" & LIGNE_TITRE & ":L" & LIGNE_SOUS_TITRE)
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
@@ -102,21 +103,21 @@ Public Sub CreerTableauChargesPermanentesComplet()
     ws.Range("B" & derniereLigne + 1).Value = "TOTAL G"
     ws.Range("I" & derniereLigne + 1).Formula = _
         "=SUBTOTAL(109,I" & PREMIERE_LIGNE & ":I" & derniereLigne & ")"  ' ignore les lignes masquées
-    With ws.Range("B" & derniereLigne + 1 & ":K" & derniereLigne + 1)
+    With ws.Range("B" & derniereLigne + 1 & ":L" & derniereLigne + 1)
         .Font.Bold = True
     End With
 
     ' --- Bordures ---
-    With ws.Range("B" & LIGNE_TITRE & ":K" & derniereLigne + 1).Borders
+    With ws.Range("B" & LIGNE_TITRE & ":L" & derniereLigne + 1).Borders
         .LineStyle = xlContinuous
         .Weight = xlThin
         .Color = RGB(0, 0, 0)
     End With
-    ws.Range("B" & LIGNE_TITRE & ":K" & derniereLigne + 1).BorderAround _
+    ws.Range("B" & LIGNE_TITRE & ":L" & derniereLigne + 1).BorderAround _
         LineStyle:=xlContinuous, Weight:=xlMedium
 
     ' --- Renvoi à la ligne automatique (hauteur des lignes ajustée au texte) ---
-    With ws.Range("B" & LIGNE_TITRE & ":K" & derniereLigne + 1)
+    With ws.Range("B" & LIGNE_TITRE & ":L" & derniereLigne + 1)
         .WrapText = True
         .Rows.AutoFit
     End With
@@ -124,7 +125,7 @@ Public Sub CreerTableauChargesPermanentesComplet()
     ws.Range("I" & PREMIERE_LIGNE & ":I" & derniereLigne + 1).WrapText = False
     ws.Columns("I").AutoFit
     If ws.Columns("I").ColumnWidth < 12 Then ws.Columns("I").ColumnWidth = 12   ' place pour le titre
-    ws.Range("B" & LIGNE_TITRE & ":K" & derniereLigne + 1).Rows.AutoFit
+    ws.Range("B" & LIGNE_TITRE & ":L" & derniereLigne + 1).Rows.AutoFit
     ' Ligne 1 : « Niveau d'étage » et « Catégorie du bâtiment » avec leurs listes
     With ws.Range("B" & LIGNE_NIVEAU & ":E" & LIGNE_NIVEAU)
         .WrapText = True

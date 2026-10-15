@@ -80,7 +80,7 @@ Public Sub RemplirChargePermanente()
             .Range("B" & r).Value = "Sous-total " & nomBloc
             .Range("G" & r).ClearContents
             .Range("I" & r).Formula = "=SUBTOTAL(109,I" & debut + 1 & ":I" & r - 1 & ")"
-            .Range("B" & r & ":K" & r).Font.Bold = True
+            .Range("B" & r & ":L" & r).Font.Bold = True
             .Range("B" & r).Font.Italic = True
         End With
         sousTotaux = sousTotaux & ",I" & r
@@ -91,7 +91,7 @@ Public Sub RemplirChargePermanente()
     With ActiveSheet
         .Range("B" & r).Value = "TOTAL (somme des sous-totaux)"
         .Range("I" & r).Formula = "=SUM(" & Mid(sousTotaux, 2) & ")"
-        .Range("B" & r & ":K" & r).Font.Bold = True
+        .Range("B" & r & ":L" & r).Font.Bold = True
     End With
 
     AfficherEtages ActiveSheet
