@@ -2,7 +2,7 @@ Attribute VB_Name = "TableauChargesPermanentes_CodeEnDurArray"
 Option Explicit
 ' Version codée en dur avec Array, sans variable.
 
-' Niveau d'étage (RDC à 5) en C1, catégorie du bâtiment (A à G) en E1, en-tête B3:J4 (H = Linéaire, I = Charges G, J = Charges Q, K = Somme Q), saisie lignes 5 à 54, total ligne 55.
+' Niveau d'étage (RDC à 5) en C1, catégorie du bâtiment (A à G) en E1, en-tête B3:J4 (H = Linéaire, I = Charges G, J = Charges Q, K = ΣQ, écrit ChrW(931)), saisie lignes 5 à 54, total ligne 55.
 ' G = n × (L / 2) × b × (γ × h + g)   (L = linéaire en H, pris à moitié sauf pour les poteaux)
 Public Sub CreerTableauChargesPermanentes()
     With ActiveSheet
@@ -24,7 +24,7 @@ Public Sub CreerTableauChargesPermanentes()
         .Range("B1:E1").Font.Bold = True
         .Range("B3:K3").Value = Array("Désignation de l'ouvrage", "Poids volumique (kN/m3)", _
             "Poids Surfacique (kN/m²)", "Dimensions", "", "", "Linéaire L (m)", "Charges permanentes G (kN)", _
-            "Charge d'exploitation Q (kN)", "Somme Q (kN)")
+            "Charge d'exploitation Q (kN)", ChrW(931) & "Q (kN)")
         .Range("E4:G4").Value = Array("Largeur b (m)", "Épaisseur h (m)", "Nombre n")
         .Range("B3:B4,C3:C4,D3:D4,E3:G3,H3:H4,I3:I4,J3:J4,K3:K4").Merge
         With .Range("B3:K4")
