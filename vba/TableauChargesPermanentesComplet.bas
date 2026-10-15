@@ -67,6 +67,20 @@ Public Sub CreerTableauChargesPermanentesComplet()
         .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
     End With
 
+    ' --- Nombre de murs (G1) : le tableau est dupliqué vers la droite (DuplicationMurs) ---
+    ws.Range("F" & LIGNE_NIVEAU).Value = "Entrez le nombre de murs"
+    ws.Range("F" & LIGNE_NIVEAU).Font.Bold = True
+    With ws.Range("G" & LIGNE_NIVEAU)
+        .Value = 1
+        .Validation.Delete
+        .Validation.Add Type:=xlValidateWholeNumber, AlertStyle:=xlValidAlertStop, _
+            Operator:=xlBetween, Formula1:="1", Formula2:="50"
+        .Validation.ErrorMessage = "Entrer un nombre entier de murs (1 à 50)."
+        .Font.Bold = True
+        .HorizontalAlignment = xlCenter
+        .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
+    End With
+
     ' --- Titres (ligne 1) et sous-titres (ligne 2) remplis par boucle ---
     titres = Array("Désignation de l'ouvrage", "Poids volumique (kN/m3)", _
         "Poids Surfacique (kN/m²)", "Dimensions", "", "", "Linéaire L (m)", "Charges permanentes G (kN)", _
@@ -127,8 +141,8 @@ Public Sub CreerTableauChargesPermanentesComplet()
     ws.Columns("I").AutoFit
     If ws.Columns("I").ColumnWidth < 12 Then ws.Columns("I").ColumnWidth = 12   ' place pour le titre
     ws.Range("B" & LIGNE_TITRE & ":M" & derniereLigne + 1).Rows.AutoFit
-    ' Ligne 1 : « Niveau d'étage » et « Catégorie du bâtiment » avec leurs listes
-    With ws.Range("B" & LIGNE_NIVEAU & ":E" & LIGNE_NIVEAU)
+    ' Ligne 1 : niveau d'étage, catégorie du bâtiment et nombre de murs
+    With ws.Range("B" & LIGNE_NIVEAU & ":G" & LIGNE_NIVEAU)
         .WrapText = True
         .VerticalAlignment = xlCenter
         .Rows.AutoFit

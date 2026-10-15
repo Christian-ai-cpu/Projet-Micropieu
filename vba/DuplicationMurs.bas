@@ -1,14 +1,15 @@
 Attribute VB_Name = "DuplicationMurs"
 Option Explicit
 
-' Module « Duplication des murs » : le nombre de murs se saisit en A1.
+' Module « Duplication des murs » : le nombre de murs se saisit en G1
+' (« Entrez le nombre de murs », créé par la macro du tableau).
 ' Le tableau de descente de charges (colonnes B à M, de la ligne 2 jusqu'au
 ' récapitulatif G / Q) est recopié vers la droite pour atteindre ce nombre de
 ' tableaux, avec une colonne vide entre deux tableaux (pas de 13 colonnes) :
 '   mur 1 : B à M (tableau d'origine), mur 2 : O à Z, mur 3 : AB à AM, ...
 ' Le titre « Mur k » est écrit en ligne 2 au-dessus de chaque tableau.
 ' Niveau d'étage (C1) et catégorie (E1) restent communs à tous les murs.
-' Appelé automatiquement quand A1 change (voir CodeFeuille.txt), ou à la main.
+' Appelé automatiquement quand G1 change (voir CodeFeuille.txt), ou à la main.
 ' À lancer après RemplirChargePermanente et RemplirChargeExploitation.
 
 Public Const PAS_MUR As Long = 13          ' 12 colonnes (B à M) + 1 colonne vide
@@ -18,7 +19,7 @@ Public Sub DupliquerMurs(Optional ws As Worksheet)
     Dim source As Range, colB As String
 
     If ws Is Nothing Then Set ws = ActiveSheet
-    nbMurs = Val(ws.Range("A1").Value)
+    nbMurs = Val(ws.Range("G1").Value)
     If nbMurs < 1 Then nbMurs = 1
 
     Application.ScreenUpdating = False
