@@ -1,6 +1,7 @@
-Attribute VB_Name = "RemplissageDesignation"
+Attribute VB_Name = "ChargePermanente"
 Option Explicit
 
+' Module « Charge permanente » : remplissage du tableau des charges permanentes G.
 ' Listes déroulantes sous « Désignation de l'ouvrage », à partir de B5.
 ' Chaque bloc se termine par une ligne « Sous-total » (somme du bloc en I) :
 '   B5 à B9   : Toiture / Toiture terrasse, Revêtement, Plancher, Poutre, Sous-total
@@ -33,7 +34,7 @@ Private Const REVETEMENTS As String = "Carrelage grès cérame,Dalles épaisses 
 Private Const MURS As String = "Agglos béton creux,Agglos béton plein,Béton banché," & _
     "Briques creuses,Briques Monomur,Briques pleines,Pierre de taille"
 
-Public Sub RemplirDesignationOuvrage()
+Public Sub RemplirChargePermanente()
     Dim listes As Variant, i As Long, e As Long, r As Long, debut As Long
     Dim nomBloc As String, sousTotaux As String
 
