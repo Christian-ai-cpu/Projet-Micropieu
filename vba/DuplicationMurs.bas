@@ -40,8 +40,9 @@ Public Sub DupliquerMurs(Optional ws As Worksheet)
 
         ' La toiture de chaque copie dépend de son propre titre (B5 -> O5, AB5, ...)
         colB = Split(ws.Cells(1, 2 + k * PAS_MUR).Address(True, True), "$")(1)
+        ' (Replace agit directement sur les formules ; pas d'argument LookIn ici)
         source.Offset(0, k * PAS_MUR).Replace What:="$B$5", Replacement:="$" & colB & "$5", _
-            LookAt:=xlPart, LookIn:=xlFormulas
+            LookAt:=xlPart, MatchCase:=False
 
         ' Mêmes largeurs de colonnes que le tableau d'origine
         For c = 2 To 13
