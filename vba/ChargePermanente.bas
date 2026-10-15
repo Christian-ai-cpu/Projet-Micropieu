@@ -151,28 +151,31 @@ End Function
 
 ' Remplit les poids de la ligne selon l'élément choisi en B :
 '   poutre / poteau -> poids volumique en C ; mur -> épaisseur F et poids surfacique D.
-Public Sub MajLigne(ws As Worksheet, ligne As Long)
+' dc : décalage de colonnes du tableau (0 pour le tableau d'origine, 13 × k pour la
+' copie du mur k + 1, voir le module DuplicationMurs). Les formules sont écrites en
+' références relatives (R1C1) pour rester justes dans les copies.
+Public Sub MajLigne(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
     Dim typeElement As String
 
-    typeElement = CStr(ws.Range("B" & ligne).Value)
+    typeElement = CStr(ws.Cells(ligne, 2 + dc).Value)
     If Left(typeElement, 7) = "Toiture" Then
         AfficherEtages ws                    ' plancher de toiture affiché ou non
     ElseIf EpaisseursMur(typeElement) <> "" Then
-        MajEpaisseurMur ws, ligne
+        MajEpaisseurMur ws, ligne, dc
     ElseIf Left(typeElement, 8) = "Plancher" Then
-        MajPlancher ws, ligne, typeElement
+        MajPlancher ws, ligne, typeElement, dc
     ElseIf ChargeRevetement(typeElement) > 0 Then
-        ws.Range("C" & ligne).ClearContents
-        ws.Range("D" & ligne).Value = ChargeRevetement(typeElement)
+        ws.Cells(ligne, 3 + dc).ClearContents
+        ws.Cells(ligne, 4 + dc).Value = ChargeRevetement(typeElement)
         ' Charge du revêtement : (linéaire L / 2) × poids surfacique D × largeur b
-        ws.Range("I" & ligne).Formula = "=H" & ligne & "/2*D" & ligne & "*E" & ligne
+        ws.Cells(ligne, 9 + dc).FormulaR1C1 = "=RC[-1]/2*RC[-5]*RC[-4]"
     ElseIf PoidsVolumique(typeElement) > 0 Then
-        ws.Range("C" & ligne).Value = PoidsVolumique(typeElement)
-        ws.Range("D" & ligne).ClearContents
+        ws.Cells(ligne, 3 + dc).Value = PoidsVolumique(typeElement)
+        ws.Cells(ligne, 4 + dc).ClearContents
         ' Rappel sur l'épaisseur h d'une poutre (commentaire sur la cellule F)
         If Left(typeElement, 6) = "Poutre" Then
-            ws.Range("F" & ligne).ClearComments
-            ws.Range("F" & ligne).AddComment _
+            ws.Cells(ligne, 6 + dc).ClearComments
+            ws.Cells(ligne, 6 + dc).AddComment _
                 "Hauteur h de la poutre : si une dalle est présente, prendre " & _
                 "h = hauteur totale de la poutre - épaisseur de la dalle " & _
                 "(retombée seule), pour ne pas compter deux fois le béton de la dalle."
@@ -181,39 +184,40 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long)
 End Sub
 
 ' Poids du plancher selon son type ; la charge se calcule avec C × F + D (F = épaisseur).
-Public Sub MajPlancher(ws As Worksheet, ligne As Long, typePlancher As String)
+Public Sub MajPlancher(ws As Worksheet, ligne As Long, typePlancher As String, _
+        Optional dc As Long = 0)
     Select Case typePlancher
         Case "Plancher dalle pleine"            ' 25 × e
-            ws.Range("C" & ligne).Value = PoidsVolumique(typePlancher)
-            ws.Range("D" & ligne).ClearContents
+            ws.Cells(ligne, 3 + dc).Value = PoidsVolumique(typePlancher)
+            ws.Cells(ligne, 4 + dc).ClearContents
         Case "Plancher à poutrelles"            ' 0,05 × 25 + (e - 0,05) × 11
-            ws.Range("C" & ligne).ClearContents
-            ws.Range("D" & ligne).Formula = "=IF(F" & ligne & "="""",0,0.05*" & _
-                PoidsVolumique(typePlancher) & "+(F" & ligne & "-0.05)*11)"
+            ws.Cells(ligne, 3 + dc).ClearContents
+            ws.Cells(ligne, 4 + dc).FormulaR1C1 = "=IF(RC[2]="""",0,0.05*" & _
+                PoidsVolumique(typePlancher) & "+(RC[2]-0.05)*11)"
         Case "Plancher bois traditionnel"       ' 1,5 kN/m²
-            ws.Range("C" & ligne).ClearContents
-            ws.Range("D" & ligne).Value = 1.5
+            ws.Cells(ligne, 3 + dc).ClearContents
+            ws.Cells(ligne, 4 + dc).Value = 1.5
     End Select
 End Sub
 
 ' Met en F la liste des épaisseurs du mur choisi en B, et la première en mètres.
 ' Le poids surfacique D suit l'épaisseur F par formule ; C est vidé pour ne pas
 ' compter le poids du mur deux fois.
-Public Sub MajEpaisseurMur(ws As Worksheet, ligne As Long)
-    Dim liste As String
+Public Sub MajEpaisseurMur(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
+    Dim liste As String, typeMur As String
 
-    liste = EpaisseursMur(CStr(ws.Range("B" & ligne).Value))
+    typeMur = CStr(ws.Cells(ligne, 2 + dc).Value)
+    liste = EpaisseursMur(typeMur)
     If liste = "" Then Exit Sub
-    With ws.Range("F" & ligne)
+    With ws.Cells(ligne, 6 + dc)
         .Validation.Delete
         .Validation.Add xlValidateList, xlValidAlertStop, , liste
         .Value = Val(liste) / 100           ' "15 cm" -> 0.15 m
         .NumberFormat = "0.000"
     End With
-    ws.Range("C" & ligne).ClearContents
-    ws.Range("D" & ligne).Formula = "=" & _
-        Replace(CStr(PoidsVolumiqueMur(CStr(ws.Range("B" & ligne).Value))), ",", ".") & _
-        "*F" & ligne
+    ws.Cells(ligne, 3 + dc).ClearContents
+    ws.Cells(ligne, 4 + dc).FormulaR1C1 = "=" & _
+        Replace(CStr(PoidsVolumiqueMur(typeMur)), ",", ".") & "*RC[2]"
 End Sub
 
 ' Affiche la toiture et les étages 1 à niveau (C1), masque les autres.
