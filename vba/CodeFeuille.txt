@@ -3,10 +3,10 @@
 ' (remplacer entièrement l'ancien code).
 ' - Niveau d'étage (C1) modifié : les étages affichés sont mis à jour.
 ' - Nombre de murs (G1) modifié : le tableau est recopié vers la droite.
-' - Élément modifié en colonne Désignation (B, O, AB...) : poids volumique (poutre,
+' - Élément modifié en colonne Désignation (B, N, Z...) : poids volumique (poutre,
 '   poteau) ou épaisseurs et poids surfacique (mur) mis à jour.
-' - Épaisseur choisie en colonne F (F, S, AF...) : "20 cm" converti en mètres (0.20).
-' Fonctionne pour le tableau d'origine et pour toutes ses copies (pas de 13 colonnes).
+' - Épaisseur choisie en colonne F (F, R, AD...) : "20 cm" converti en mètres (0.20).
+' Fonctionne pour le tableau d'origine et pour toutes ses copies (pas de 12 colonnes).
 
 Private Sub Worksheet_Change(ByVal Target As Range)
     Dim c As Range, m As Long, dc As Long
