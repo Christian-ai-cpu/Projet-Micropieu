@@ -11,11 +11,16 @@ Option Explicit
 '   B10 à B16 : Étage 5, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
 '   ...
 '   B38 à B44 : Étage 1, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
-'   B45 à B51 : RDC / RDC_Sous-sol, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
-'               (toujours affiché ; Revêtement et Plancher seulement pour RDC_Sous-sol)
-'   B52 à B56 : Sous-sol, Poutre, Poteau, Mur, Sous-total
-'               (affiché seulement si RDC_Sous-sol est choisi en B45)
-'   B57 à B61 : Soubassement, Poteau, Semelle (liste par matériau), Mur, Sous-total
+'   B45 à B51 : RDC (liste), Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
+'               (toujours affiché). Liste en B45 : RDC, RDC+1SS (1 sous-sol),
+'               RDC+2SS (2 sous-sols), RDC+VS (vide sanitaire). Revêtement et
+'               Plancher du RDC affichés sauf pour « RDC » seul.
+'   B52 à B58 : Sous-sol 1, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
+'               (affiché pour RDC+1SS et RDC+2SS ; Revêtement et Plancher
+'               seulement pour RDC+2SS)
+'   B59 à B63 : Sous-sol 2, Poutre, Poteau, Mur, Sous-total (RDC+2SS seulement)
+'   B64 à B67 : Vide sanitaire, Poteau, Mur, Sous-total (RDC+VS seulement)
+'   B68 à B72 : Soubassement, Poteau, Semelle (liste par matériau), Mur, Sous-total
 '               (toujours affiché)
 ' Revêtement (au-dessus de chaque plancher) : charge permanente du revêtement de sol,
 ' sa valeur en kN/m² est mise en D (poids surfacique), voir ChargeRevetement.
@@ -24,7 +29,7 @@ Option Explicit
 '   dalle pleine      : 25 × e                    (C = 25, D vide)
 '   à poutrelles      : 0,05 × 25 + (e - 0,05) × 11  (C vide, D = cette formule)
 '   bois traditionnel : 1,5 kN/m²                 (C vide, D = 1,5)
-' Ligne 62 : TOTAL G = somme des sous-totaux (G9 + G16 + ... + G61). Le sous-total
+' Ligne 73 : TOTAL G = somme des sous-totaux (G9 + G16 + ... + G72). Le sous-total
 ' d'un étage masqué vaut 0 (SOUS.TOTAL ignore les lignes masquées).
 ' Pour un mur : le type se choisit en B, l'épaisseur en E (liste adaptée au type),
 ' la hauteur h du mur se saisit en F, et :
@@ -37,6 +42,7 @@ Option Explicit
 ' elles se modifient dans PoidsVolumique et PoidsVolumiqueMur.
 ' Seuls les étages jusqu'au niveau choisi en C1 sont affichés (voir AfficherEtages).
 
+Private Const NIVEAUX_RDC As String = "RDC,RDC+1SS,RDC+2SS,RDC+VS"   ' liste en B45
 Private Const PLANCHERS As String = "Plancher dalle pleine,Plancher à poutrelles,Plancher bois traditionnel"
 Private Const POUTRES As String = "Poutre BA,Poutre bois,Poutre métallique"
 Private Const POTEAUX As String = "Poteau BA,Poteau bois,Poteau métallique"
@@ -57,17 +63,25 @@ Public Sub RemplirChargePermanente()
     Dim nomBloc As String, sousTotaux As String
 
     r = 5
-    For e = 6 To -2 Step -1            ' 6 = toiture, étages 5 à 1, 0 = RDC, -1 = sous-sol, -2 = soubassement
+    ' 6 = toiture, étages 5 à 1, 0 = RDC, -1 = sous-sol 1, -2 = sous-sol 2,
+    ' -3 = vide sanitaire, -4 = soubassement
+    For e = 6 To -4 Step -1
         If e = 6 Then
             listes = Array("Toiture,Toiture terrasse", REVETEMENTS, PLANCHERS, POUTRES)
             nomBloc = "toiture"
         ElseIf e = 0 Then
-            listes = Array("RDC,RDC_Sous-sol", REVETEMENTS, PLANCHERS, POUTRES, POTEAUX, MURS)
+            listes = Array(NIVEAUX_RDC, REVETEMENTS, PLANCHERS, POUTRES, POTEAUX, MURS)
             nomBloc = "RDC"
         ElseIf e = -1 Then
-            listes = Array("Sous-sol", POUTRES, POTEAUX, MURS)
-            nomBloc = "sous-sol"
+            listes = Array("Sous-sol 1", REVETEMENTS, PLANCHERS, POUTRES, POTEAUX, MURS)
+            nomBloc = "sous-sol 1"
         ElseIf e = -2 Then
+            listes = Array("Sous-sol 2", POUTRES, POTEAUX, MURS)
+            nomBloc = "sous-sol 2"
+        ElseIf e = -3 Then
+            listes = Array("Vide sanitaire", POTEAUX, MURS)
+            nomBloc = "vide sanitaire"
+        ElseIf e = -4 Then
             listes = Array("Soubassement", POTEAUX, SEMELLES, MURS)
             nomBloc = "soubassement"
         Else
@@ -250,15 +264,22 @@ End Sub
 ' Affiche la toiture et les étages 1 à niveau (C1), masque les autres.
 ' RDC -> toiture seule ; 1 -> toiture + étage 1 ; ... ; 5 -> tout.
 ' Les lignes Revêtement et Plancher de la toiture (6 et 7) ne sont affichées que
-' pour une toiture terrasse. Revêtement et plancher du RDC (46 et 47) et le bloc
-' Sous-sol (52 à 56) ne sont affichés que si RDC_Sous-sol est choisi en B45.
+' pour une toiture terrasse. Selon le choix en B45 :
+'   RDC     : ni plancher du RDC, ni sous-sol, ni vide sanitaire
+'   RDC+1SS : revêtement et plancher du RDC (46-47) + sous-sol 1 (52-58, sans 53-54)
+'   RDC+2SS : idem + revêtement et plancher du sous-sol 1 (53-54) + sous-sol 2 (59-63)
+'   RDC+VS  : revêtement et plancher du RDC (46-47) + vide sanitaire (64-67)
 ' Appelée aussi automatiquement quand C1 change (voir CodeFeuille.txt).
 Public Sub AfficherEtages(ws As Worksheet)
-    Dim niveau As Long, e As Long
+    Dim niveau As Long, e As Long, rdc As String
 
     ws.Rows("6:7").Hidden = (ws.Range("B5").Value <> "Toiture terrasse")
-    ws.Rows("46:47").Hidden = (ws.Range("B45").Value <> "RDC_Sous-sol")
-    ws.Rows("52:56").Hidden = (ws.Range("B45").Value <> "RDC_Sous-sol")
+    rdc = CStr(ws.Range("B45").Value)
+    ws.Rows("46:47").Hidden = (rdc = "RDC")
+    ws.Rows("52:58").Hidden = (rdc <> "RDC+1SS" And rdc <> "RDC+2SS")   ' sous-sol 1
+    ws.Rows("53:54").Hidden = (rdc <> "RDC+2SS")   ' plancher du sous-sol 1
+    ws.Rows("59:63").Hidden = (rdc <> "RDC+2SS")   ' sous-sol 2
+    ws.Rows("64:67").Hidden = (rdc <> "RDC+VS")    ' vide sanitaire
     niveau = Val(ws.Range("C1").Value)     ' "RDC" donne 0
     For e = 1 To 5
         ' Bloc de l'étage e (sous-total compris) : 7 lignes à partir de 10 + 7 × (5 - e)
