@@ -2,8 +2,8 @@ Attribute VB_Name = "TableauChargesPermanentes_CodeEnDurArray"
 Option Explicit
 ' Version codée en dur avec Array, sans variable.
 
-' Niveau d'étage (RDC à 5) en C1, catégorie du bâtiment (A à G) en E1, nombre de murs en G1, en-tête B3:L4 (H = Charges G, I = Charges Q, J = ΣQ, écrit ChrW(931), K = αn, écrit ChrW(945), L = αn × ΣQ, tout en kN/ml), saisie lignes 5 à 54, total ligne 55.
-' G = n × b × (γ × h + g)  en kN/ml (b = largeur reprise en m)
+' Niveau d'étage (RDC à 5) en C1, catégorie du bâtiment (A à G) en E1, nombre de murs en G1, en-tête B3:K4 (G = Charges G, H = Charges Q, I = ΣQ, écrit ChrW(931), J = αn, écrit ChrW(945), K = αn × ΣQ, tout en kN/ml), saisie lignes 5 à 54, total ligne 55.
+' G = b × (γ × h + g)  en kN/ml pour un mur (b = largeur reprise en m)
 Public Sub CreerTableauChargesPermanentes()
     With ActiveSheet
         .Cells.Clear
@@ -31,31 +31,29 @@ Public Sub CreerTableauChargesPermanentes()
         .Range("B1:G1").Font.Bold = True
         .Range("B1:G1").WrapText = True
         .Range("B1:G1").VerticalAlignment = xlCenter
-        .Range("B3:L3").Value = Array("Désignation de l'ouvrage", "Poids volumique (kN/m3)", _
-            "Poids Surfacique (kN/m²)", "Dimensions", "", "", "Charges permanentes G (kN/ml)", _
+        .Range("B3:K3").Value = Array("Désignation de l'ouvrage", "Poids volumique (kN/m3)", _
+            "Poids Surfacique (kN/m²)", "Dimensions", "", "Charges permanentes G (kN/ml)", _
             "Charge d'exploitation Q (kN/ml)", ChrW(931) & "Q (kN/ml)", ChrW(945) & "n", ChrW(945) & "n × " & ChrW(931) & "Q (kN/ml)")
-        .Range("E4:G4").Value = Array("Largeur b (m)", "Épaisseur h (m)", "Nombre n")
-        .Range("B3:B4,C3:C4,D3:D4,E3:G3,H3:H4,I3:I4,J3:J4,K3:K4,L3:L4").Merge
-        With .Range("B3:L4")
+        .Range("E4:F4").Value = Array("Largeur b (m)", "Épaisseur h (m)")
+        .Range("B3:B4,C3:C4,D3:D4,E3:F3,G3:G4,H3:H4,I3:I4,J3:J4,K3:K4").Merge
+        With .Range("B3:K4")
             .Font.Bold = True
             .WrapText = True
             .RowHeight = 30
             .HorizontalAlignment = xlCenter
             .VerticalAlignment = xlCenter
         End With
-        .Range("G5:G54").Value = 1
-        .Range("H5:H54").FormulaR1C1 = "=IF(RC2="""","""",RC7*RC5*(RC3*RC6+RC4))"
+        .Range("G5:G54").FormulaR1C1 = "=IF(RC2="""","""",RC5*(RC3*RC6+RC4))"
         .Range("B55").Value = "TOTAL G"
-        .Range("H55").Formula = "=SUBTOTAL(109,H5:H54)"  ' ignore les lignes masquées
-        .Range("B55:L55").Font.Bold = True
-        .Range("C5:L55").NumberFormat = "0.00"
-        .Range("G5:G54").NumberFormat = "0"
-        .Range("C3:L55").HorizontalAlignment = xlCenter
-        .Range("B3:L55").Borders.LineStyle = xlContinuous
-        .Range("B3:L55").BorderAround xlContinuous, xlMedium
+        .Range("G55").Formula = "=SUBTOTAL(109,G5:G54)"  ' ignore les lignes masquées
+        .Range("B55:K55").Font.Bold = True
+        .Range("C5:K55").NumberFormat = "0.00"
+        .Range("C3:K55").HorizontalAlignment = xlCenter
+        .Range("B3:K55").Borders.LineStyle = xlContinuous
+        .Range("B3:K55").BorderAround xlContinuous, xlMedium
         .Columns("B").ColumnWidth = 35
-        .Columns("C:L").ColumnWidth = 16
-        .Columns("H").AutoFit                        ' colonne des charges ajustée au contenu
-        If .Columns("H").ColumnWidth < 12 Then .Columns("H").ColumnWidth = 12   ' place pour le titre
+        .Columns("C:K").ColumnWidth = 16
+        .Columns("G").AutoFit                        ' colonne des charges ajustée au contenu
+        If .Columns("G").ColumnWidth < 12 Then .Columns("G").ColumnWidth = 12   ' place pour le titre
     End With
 End Sub

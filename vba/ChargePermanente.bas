@@ -3,9 +3,9 @@ Option Explicit
 
 ' Module « Charge permanente » : remplissage du tableau des charges permanentes G.
 ' Listes déroulantes sous « Désignation de l'ouvrage », à partir de B5.
-' Descente de charges en kN/ml : G = n × b × (γ × h + g), b = largeur reprise (m).
-' Chaque bloc se termine par une ligne « Sous-total » (somme du bloc en H).
-' La charge d'exploitation Q (colonne I) est remplie par le module ChargeExploitation.
+' Descente de charges en kN/ml pour un mur : G = b × (γ × h + g), b = largeur reprise (m).
+' Chaque bloc se termine par une ligne « Sous-total » (somme du bloc en G).
+' La charge d'exploitation Q (colonne H) est remplie par le module ChargeExploitation.
 '   B5 à B9   : Toiture / Toiture terrasse, Revêtement, Plancher, Poutre, Sous-total
 '               (Revêtement et Plancher affichés seulement pour une toiture terrasse)
 '   B10 à B16 : Étage 5, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
@@ -16,12 +16,12 @@ Option Explicit
 '               (toujours affiché)
 ' Revêtement (au-dessus de chaque plancher) : charge permanente du revêtement de sol,
 ' sa valeur en kN/m² est mise en D (poids surfacique), voir ChargeRevetement.
-' Sa charge se calcule par G = n × poids surfacique D × largeur b (kN/ml).
+' Sa charge se calcule par G = poids surfacique D × largeur b (kN/ml).
 ' Plancher (épaisseur e à saisir en F) : poids surfacique selon le type
 '   dalle pleine      : 25 × e                    (C = 25, D vide)
 '   à poutrelles      : 0,05 × 25 + (e - 0,05) × 11  (C vide, D = cette formule)
 '   bois traditionnel : 1,5 kN/m²                 (C vide, D = 1,5)
-' Ligne 55 : TOTAL G = somme des sous-totaux (H9 + H16 + ... + H54). Le sous-total
+' Ligne 55 : TOTAL G = somme des sous-totaux (G9 + G16 + ... + G54). Le sous-total
 ' d'un étage masqué vaut 0 (SOUS.TOTAL ignore les lignes masquées).
 ' Pour un mur : le type se choisit en B, l'épaisseur en F (liste adaptée au type),
 ' et le poids surfacique D est calculé : D = poids volumique × épaisseur F.
@@ -70,36 +70,33 @@ Public Sub RemplirChargePermanente()
                 .IndentLevel = IIf(listes(i) = REVETEMENTS, 1, 0)   ' revêtement rattaché au plancher
             End With
             MajLigne ActiveSheet, r              ' poids volumique / surfacique
-            ' Nombre n laissé vide pour les titres et les poteaux (à saisir)
-            If i = 0 Or listes(i) = POTEAUX Then ActiveSheet.Range("G" & r).ClearContents
             r = r + 1
         Next i
-        ActiveSheet.Range("H" & debut).ClearContents   ' pas de charge sur le titre
+        ActiveSheet.Range("G" & debut).ClearContents   ' pas de charge sur le titre
 
         ' Ligne de sous-total sous le dernier élément du bloc
         With ActiveSheet
             .Range("B" & r).Validation.Delete
             .Range("B" & r).Value = "Sous-total " & nomBloc
-            .Range("G" & r).ClearContents
-            .Range("H" & r).Formula = "=SUBTOTAL(109,H" & debut + 1 & ":H" & r - 1 & ")"
-            .Range("B" & r & ":L" & r).Font.Bold = True
+            .Range("G" & r).Formula = "=SUBTOTAL(109,G" & debut + 1 & ":G" & r - 1 & ")"
+            .Range("B" & r & ":K" & r).Font.Bold = True
             .Range("B" & r).Font.Italic = True
         End With
-        sousTotaux = sousTotaux & ",H" & r
+        sousTotaux = sousTotaux & ",G" & r
         r = r + 1
     Next e
 
     ' TOTAL G = somme des sous-totaux de tous les blocs
     With ActiveSheet
         .Range("B" & r).Value = "TOTAL (somme des sous-totaux)"
-        .Range("H" & r).Formula = "=SUM(" & Mid(sousTotaux, 2) & ")"
-        .Range("B" & r & ":L" & r).Font.Bold = True
+        .Range("G" & r).Formula = "=SUM(" & Mid(sousTotaux, 2) & ")"
+        .Range("B" & r & ":K" & r).Font.Bold = True
     End With
 
     AfficherEtages ActiveSheet
 
-    ' Colonnes H (G) et I (Q) ajustées à leur contenu, avec un minimum pour le titre
-    With ActiveSheet.Columns("H:I")
+    ' Colonnes G (charges G) et H (Q) ajustées à leur contenu, avec un minimum pour le titre
+    With ActiveSheet.Columns("G:H")
         .AutoFit
         If .Columns(1).ColumnWidth < 12 Then .Columns(1).ColumnWidth = 12
         If .Columns(2).ColumnWidth < 12 Then .Columns(2).ColumnWidth = 12
@@ -154,7 +151,7 @@ End Function
 
 ' Remplit les poids de la ligne selon l'élément choisi en B :
 '   poutre / poteau -> poids volumique en C ; mur -> épaisseur F et poids surfacique D.
-' dc : décalage de colonnes du tableau (0 pour le tableau d'origine, 12 × k pour la
+' dc : décalage de colonnes du tableau (0 pour le tableau d'origine, 11 × k pour la
 ' copie du mur k + 1, voir le module DuplicationMurs). Les formules sont écrites en
 ' références relatives (R1C1) pour rester justes dans les copies.
 Public Sub MajLigne(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
@@ -170,7 +167,7 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
     ElseIf ChargeRevetement(typeElement) > 0 Then
         ws.Cells(ligne, 3 + dc).ClearContents
         ws.Cells(ligne, 4 + dc).Value = ChargeRevetement(typeElement)
-        ' Charge du revêtement : formule du tableau, n × b × D (kN/ml)
+        ' Charge du revêtement : formule du tableau, b × D (kN/ml)
     ElseIf PoidsVolumique(typeElement) > 0 Then
         ws.Cells(ligne, 3 + dc).Value = PoidsVolumique(typeElement)
         ws.Cells(ligne, 4 + dc).ClearContents
