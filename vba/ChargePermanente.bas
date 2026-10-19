@@ -6,26 +6,30 @@ Option Explicit
 ' Descente de charges en kN/ml pour un mur : G = b × (γ × h + g), b = largeur reprise (m).
 ' Chaque bloc se termine par une ligne « Sous-total » (somme du bloc en G).
 ' La charge d'exploitation Q (colonne H) est remplie par le module ChargeExploitation.
-'   B5 à B9   : Toiture (liste), Revêtement, Plancher, Poutre, Sous-total
+'   B5 à B10  : Toiture (liste), Charge, Revêtement, Plancher, Poutre, Sous-total
 '               Toiture : fermettes industrielles + tuiles, fermettes industrielles +
-'               ardoises, charpente traditionnelle bois massif (poids surfacique en D,
-'               D = g / cos(pente), pente du versant 18, 20, 25, 30 ou 45° choisie
-'               en F, G = b × D sur la ligne de titre, voir ChargeToiture) ou toiture
-'               terrasse (Revêtement et Plancher affichés seulement dans ce cas)
-'   B10 à B16 : Étage 5, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
+'               ardoises, charpente traditionnelle bois massif, chacune avec la pente
+'               du versant dans la désignation (18, 20, 25, 30 ou 45°), ou toiture
+'               terrasse. Toiture en pente : ligne « Charge » (6) avec le poids
+'               surfacique D = g / cos(pente) (voir ChargeToiture), b saisi en E et
+'               G = b × D. Toiture terrasse : lignes Revêtement et Plancher (7 et 8)
+'               à la place de la ligne Charge.
+'   B11 à B17 : Étage 5, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
 '   ...
-'   B38 à B44 : Étage 1, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
-'   B45 à B51 : RDC (liste), Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
-'               (toujours affiché). Liste en B45 : RDC, RDC+1SS (1 sous-sol),
+'   B39 à B45 : Étage 1, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
+'   B46 à B52 : RDC (liste), Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
+'               (toujours affiché). Liste en B46 : RDC, RDC+1SS (1 sous-sol),
 '               RDC+2SS (2 sous-sols), RDC+VS (vide sanitaire). Revêtement et
 '               Plancher du RDC affichés sauf pour « RDC » seul.
-'   B52 à B58 : Sous-sol 1, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
+'   B53 à B59 : Sous-sol 1, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
 '               (affiché pour RDC+1SS et RDC+2SS ; Revêtement et Plancher
 '               seulement pour RDC+2SS)
-'   B59 à B63 : Sous-sol 2, Poutre, Poteau, Mur, Sous-total (RDC+2SS seulement)
-'   B64 à B67 : Vide sanitaire, Poteau, Mur, Sous-total (RDC+VS seulement)
-'   B68 à B72 : Soubassement, Poteau, Semelle (liste par matériau), Mur, Sous-total
+'   B60 à B64 : Sous-sol 2, Poutre, Poteau, Mur, Sous-total (RDC+2SS seulement)
+'   B65 à B68 : Vide sanitaire, Poteau, Mur, Sous-total (RDC+VS seulement)
+'   B69 à B73 : Soubassement, Poteau, Semelle (liste par matériau), Mur, Sous-total
 '               (toujours affiché)
+' Une liste de plus de 255 caractères (limite d'Excel, ex. toitures) est écrite sur
+' la feuille masquée « Listes » et la liste déroulante y renvoie (voir AjouterListe).
 ' Revêtement (au-dessus de chaque plancher) : charge permanente du revêtement de sol,
 ' sa valeur en kN/m² est mise en D (poids surfacique), voir ChargeRevetement.
 ' Sa charge se calcule par G = poids surfacique D × largeur b (kN/ml).
@@ -33,7 +37,7 @@ Option Explicit
 '   dalle pleine      : 25 × e                    (C = 25, D vide)
 '   à poutrelles      : 0,05 × 25 + (e - 0,05) × 11  (C vide, D = cette formule)
 '   bois traditionnel : 1,5 kN/m²                 (C vide, D = 1,5)
-' Ligne 73 : TOTAL G = somme des sous-totaux (G9 + G16 + ... + G72). Le sous-total
+' Ligne 74 : TOTAL G = somme des sous-totaux (G10 + G17 + ... + G73). Le sous-total
 ' d'un étage masqué vaut 0 (SOUS.TOTAL ignore les lignes masquées).
 ' Pour un mur : le type se choisit en B, l'épaisseur en E (liste adaptée au type),
 ' la hauteur h du mur se saisit en F, et :
@@ -46,11 +50,11 @@ Option Explicit
 ' elles se modifient dans PoidsVolumique et PoidsVolumiqueMur.
 ' Seuls les étages jusqu'au niveau choisi en C1 sont affichés (voir AfficherEtages).
 
-Private Const TOITURES As String = "Toiture fermettes industrielles + tuiles," & _
-    "Toiture fermettes industrielles + ardoises,Toiture charpente traditionnelle bois massif," & _
-    "Toiture terrasse"
-Private Const PENTES As String = "18,20,25,30,45"   ' pentes des versants (°), toitures en pente
-Private Const NIVEAUX_RDC As String = "RDC,RDC+1SS,RDC+2SS,RDC+VS"   ' liste en B45
+' Toitures en pente (type + pente du versant dans la désignation, voir ListeToitures)
+Private Const TYPES_TOITURE As String = "Toiture fermettes industrielles + tuiles," & _
+    "Toiture fermettes industrielles + ardoises,Toiture charpente traditionnelle bois massif"
+Private Const PENTES As String = "18,20,25,30,45"   ' pentes des versants (°)
+Private Const NIVEAUX_RDC As String = "RDC,RDC+1SS,RDC+2SS,RDC+VS"   ' liste en B46
 Private Const PLANCHERS As String = "Plancher dalle pleine,Plancher à poutrelles,Plancher bois traditionnel"
 Private Const POUTRES As String = "Poutre BA,Poutre bois,Poutre métallique"
 Private Const POTEAUX As String = "Poteau BA,Poteau bois,Poteau métallique"
@@ -75,7 +79,7 @@ Public Sub RemplirChargePermanente()
     ' -3 = vide sanitaire, -4 = soubassement
     For e = 6 To -4 Step -1
         If e = 6 Then
-            listes = Array(TOITURES, REVETEMENTS, PLANCHERS, POUTRES)
+            listes = Array(ListeToitures(), "Charge", REVETEMENTS, PLANCHERS, POUTRES)
             nomBloc = "toiture"
         ElseIf e = 0 Then
             listes = Array(NIVEAUX_RDC, REVETEMENTS, PLANCHERS, POUTRES, POTEAUX, MURS)
@@ -102,9 +106,8 @@ Public Sub RemplirChargePermanente()
             With ActiveSheet.Range("B" & r)
                 .Validation.Delete
                 ' Liste déroulante seulement s'il y a plusieurs choix
-                If InStr(listes(i), ",") > 0 Then
-                    .Validation.Add xlValidateList, xlValidAlertStop, , listes(i)
-                End If
+                If InStr(listes(i), ",") > 0 Then AjouterListe ActiveSheet.Range("B" & r), _
+                    CStr(listes(i)), "Liste " & nomBloc
                 .Value = Split(listes(i), ",")(0)
                 .Font.Bold = (i = 0)          ' Toiture, Étage n, RDC et Soubassement en gras
                 .IndentLevel = IIf(listes(i) = REVETEMENTS, 1, 0)   ' revêtement rattaché au plancher
@@ -112,8 +115,7 @@ Public Sub RemplirChargePermanente()
             MajLigne ActiveSheet, r              ' poids volumique / surfacique
             r = r + 1
         Next i
-        ' Pas de charge sur le titre, sauf toiture en pente (G = b × D, voir MajLigne)
-        If e <> 6 Then ActiveSheet.Range("G" & debut).ClearContents
+        ActiveSheet.Range("G" & debut).ClearContents   ' pas de charge sur le titre
 
         ' Ligne de sous-total sous le dernier élément du bloc
         With ActiveSheet
@@ -156,17 +158,73 @@ Public Function EpaisseursMur(typeMur As String) As String
     End Select
 End Function
 
+' Liste des toitures pour la désignation : chaque type de toiture en pente avec
+' chaque pente de versant (ex. « Toiture fermettes industrielles + tuiles 18° »),
+' puis la toiture terrasse. Plus de 255 caractères : voir AjouterListe.
+Public Function ListeToitures() As String
+    Dim t As Variant, p As Variant, s As String
+    For Each t In Split(TYPES_TOITURE, ",")
+        For Each p In Split(PENTES, ",")
+            s = s & "," & t & " " & p & "°"
+        Next p
+    Next t
+    ListeToitures = Mid(s, 2) & ",Toiture terrasse"
+End Function
+
+' Pente du versant (°) lue à la fin de la désignation (« ... 25° » -> 25) ; 0 sinon.
+Public Function PenteToiture(nomToiture As String) As Double
+    PenteToiture = Val(Mid(nomToiture, InStrRev(nomToiture, " ") + 1))
+End Function
+
 ' Poids surfacique (kN/m² de versant) d'une toiture en pente selon son type
-' (charpente + couverture) ; ramené à l'horizontale en D (÷ cos de la pente choisie
-' en F) puis multiplié par la largeur reprise b ; 0 pour la toiture terrasse
-' (calculée avec ses lignes Revêtement et Plancher). Ordres de grandeur à vérifier.
-Public Function ChargeToiture(typeToiture As String) As Double
+' (charpente + couverture), la pente en fin de désignation étant ignorée ; ramené
+' à l'horizontale sur la ligne « Charge » (÷ cos de la pente) puis multiplié par la
+' largeur reprise b ; 0 pour la toiture terrasse (calculée avec ses lignes
+' Revêtement et Plancher). Ordres de grandeur à vérifier.
+Public Function ChargeToiture(nomToiture As String) As Double
+    Dim typeToiture As String
+    typeToiture = nomToiture
+    If PenteToiture(nomToiture) > 0 Then typeToiture = Left(nomToiture, InStrRev(nomToiture, " ") - 1)
     Select Case typeToiture
         Case "Toiture fermettes industrielles + tuiles":      ChargeToiture = 0.7
         Case "Toiture fermettes industrielles + ardoises":    ChargeToiture = 0.55
         Case "Toiture charpente traditionnelle bois massif":  ChargeToiture = 1
     End Select
 End Function
+
+' Met une liste déroulante sur la cellule c. Au-delà de 255 caractères (limite
+' d'Excel), les choix sont écrits dans une colonne de la feuille masquée « Listes »
+' (titre nom en ligne 1) et la liste déroulante renvoie à cette colonne.
+Public Sub AjouterListe(c As Range, liste As String, nom As String)
+    Dim wl As Worksheet, wb As Workbook, choix As Variant, col As Long
+
+    c.Validation.Delete
+    If Len(liste) <= 255 Then
+        c.Validation.Add xlValidateList, xlValidAlertStop, , liste
+        Exit Sub
+    End If
+    Set wb = c.Worksheet.Parent
+    On Error Resume Next
+    Set wl = wb.Worksheets("Listes")
+    On Error GoTo 0
+    If wl Is Nothing Then
+        Set wl = wb.Worksheets.Add(After:=wb.Worksheets(wb.Worksheets.Count))
+        wl.Name = "Listes"
+        wl.Visible = xlSheetHidden
+        c.Worksheet.Activate                 ' la feuille ajoutée était devenue active
+    End If
+    ' Colonne de cette liste (même titre), sinon la première colonne libre
+    col = 1
+    Do While wl.Cells(1, col).Value <> "" And wl.Cells(1, col).Value <> nom
+        col = col + 1
+    Loop
+    choix = Split(liste, ",")
+    wl.Columns(col).ClearContents
+    wl.Cells(1, col).Value = nom
+    wl.Cells(2, col).Resize(UBound(choix) + 1, 1).Value = Application.Transpose(choix)
+    c.Validation.Add xlValidateList, xlValidAlertStop, , "=Listes!" & _
+        wl.Cells(2, col).Resize(UBound(choix) + 1, 1).Address
+End Sub
 
 ' Charge permanente (kN/m²) du revêtement de sol posé sur le plancher ; 0 sinon.
 Public Function ChargeRevetement(typeRevetement As String) As Double
@@ -216,29 +274,24 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
 
     typeElement = CStr(ws.Cells(ligne, 2 + dc).Value)
     If Left(typeElement, 7) = "Toiture" Then
+        ' Rien sur la ligne de titre : la toiture en pente est calculée sur la ligne
+        ' « Charge » juste en dessous, la toiture terrasse sur Revêtement et Plancher
+        ws.Cells(ligne, 4 + dc).ClearContents
+        ws.Cells(ligne, 6 + dc).Validation.Delete
+        ws.Cells(ligne, 6 + dc).ClearContents
+        ws.Cells(ligne, 7 + dc).ClearContents
         If ChargeToiture(typeElement) > 0 Then
-            ' Toiture en pente : pente du versant choisie en F (liste PENTES, en degrés),
-            ' poids surfacique ramené à l'horizontale en D = g / cos(pente),
-            ' G = b × D (kN/ml)
-            ws.Cells(ligne, 3 + dc).ClearContents
-            With ws.Cells(ligne, 6 + dc)
-                .Validation.Delete
-                .Validation.Add xlValidateList, xlValidAlertStop, , PENTES
-                If IsEmpty(.Value) Then .Value = Val(PENTES)    ' 18° par défaut
-                .NumberFormat = "0""°"""
-            End With
-            ws.Cells(ligne, 4 + dc).FormulaR1C1 = "=" & _
-                Replace(CStr(ChargeToiture(typeElement)), ",", ".") & "/COS(RADIANS(RC[2]))"
-            ws.Cells(ligne, 7 + dc).FormulaR1C1 = _
+            ' D = g / cos(pente de la désignation), G = b × D (kN/ml), b saisi en E
+            ws.Cells(ligne + 1, 3 + dc).ClearContents
+            ws.Cells(ligne + 1, 4 + dc).Formula = "=" & _
+                Replace(CStr(ChargeToiture(typeElement)), ",", ".") & "/COS(RADIANS(" & _
+                PenteToiture(typeElement) & "))"
+            ws.Cells(ligne + 1, 7 + dc).FormulaR1C1 = _
                 "=IF(RC[-5]="""","""",RC[-2]*(RC[-4]*RC[-1]+RC[-3]))"
         Else
-            ' Toiture terrasse : charge portée par les lignes Revêtement et Plancher
-            ws.Cells(ligne, 4 + dc).ClearContents
-            ws.Cells(ligne, 6 + dc).Validation.Delete
-            ws.Cells(ligne, 6 + dc).ClearContents
-            ws.Cells(ligne, 7 + dc).ClearContents
+            ws.Cells(ligne + 1, 4 + dc).ClearContents   ' terrasse : ligne Charge masquée
         End If
-        AfficherEtages ws                    ' plancher de toiture affiché ou non
+        AfficherEtages ws                    ' ligne Charge ou plancher de toiture affichés
     ElseIf Left(typeElement, 3) = "RDC" Then
         AfficherEtages ws                    ' sous-sols / vide sanitaire affichés ou non
     ElseIf EpaisseursMur(typeElement) <> "" Then
@@ -308,26 +361,28 @@ End Sub
 
 ' Affiche la toiture et les étages 1 à niveau (C1), masque les autres.
 ' RDC -> toiture seule ; 1 -> toiture + étage 1 ; ... ; 5 -> tout.
-' Les lignes Revêtement et Plancher de la toiture (6 et 7) ne sont affichées que
-' pour une toiture terrasse. Selon le choix en B45 :
+' Toiture en pente : ligne Charge (6) affichée ; toiture terrasse : lignes
+' Revêtement et Plancher (7 et 8) affichées à la place. Selon le choix en B46 :
 '   RDC     : ni plancher du RDC, ni sous-sol, ni vide sanitaire
-'   RDC+1SS : revêtement et plancher du RDC (46-47) + sous-sol 1 (52-58, sans 53-54)
-'   RDC+2SS : idem + revêtement et plancher du sous-sol 1 (53-54) + sous-sol 2 (59-63)
-'   RDC+VS  : revêtement et plancher du RDC (46-47) + vide sanitaire (64-67)
+'   RDC+1SS : revêtement et plancher du RDC (47-48) + sous-sol 1 (53-59, sans 54-55)
+'   RDC+2SS : idem + revêtement et plancher du sous-sol 1 (54-55) + sous-sol 2 (60-64)
+'   RDC+VS  : revêtement et plancher du RDC (47-48) + vide sanitaire (65-68)
 ' Appelée aussi automatiquement quand C1 change (voir CodeFeuille.txt).
 Public Sub AfficherEtages(ws As Worksheet)
-    Dim niveau As Long, e As Long, rdc As String
+    Dim niveau As Long, e As Long, rdc As String, terrasse As Boolean
 
-    ws.Rows("6:7").Hidden = (ws.Range("B5").Value <> "Toiture terrasse")
-    rdc = CStr(ws.Range("B45").Value)
-    ws.Rows("46:47").Hidden = (rdc = "RDC")
-    ws.Rows("52:58").Hidden = (rdc <> "RDC+1SS" And rdc <> "RDC+2SS")   ' sous-sol 1
-    ws.Rows("53:54").Hidden = (rdc <> "RDC+2SS")   ' plancher du sous-sol 1
-    ws.Rows("59:63").Hidden = (rdc <> "RDC+2SS")   ' sous-sol 2
-    ws.Rows("64:67").Hidden = (rdc <> "RDC+VS")    ' vide sanitaire
+    terrasse = (ws.Range("B5").Value = "Toiture terrasse")
+    ws.Rows(6).Hidden = terrasse
+    ws.Rows("7:8").Hidden = Not terrasse
+    rdc = CStr(ws.Range("B46").Value)
+    ws.Rows("47:48").Hidden = (rdc = "RDC")
+    ws.Rows("53:59").Hidden = (rdc <> "RDC+1SS" And rdc <> "RDC+2SS")   ' sous-sol 1
+    ws.Rows("54:55").Hidden = (rdc <> "RDC+2SS")   ' plancher du sous-sol 1
+    ws.Rows("60:64").Hidden = (rdc <> "RDC+2SS")   ' sous-sol 2
+    ws.Rows("65:68").Hidden = (rdc <> "RDC+VS")    ' vide sanitaire
     niveau = Val(ws.Range("C1").Value)     ' "RDC" donne 0
     For e = 1 To 5
-        ' Bloc de l'étage e (sous-total compris) : 7 lignes à partir de 10 + 7 × (5 - e)
-        ws.Rows(10 + 7 * (5 - e)).Resize(7).Hidden = (e > niveau)
+        ' Bloc de l'étage e (sous-total compris) : 7 lignes à partir de 11 + 7 × (5 - e)
+        ws.Rows(11 + 7 * (5 - e)).Resize(7).Hidden = (e > niveau)
     Next e
 End Sub

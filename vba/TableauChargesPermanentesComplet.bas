@@ -20,7 +20,7 @@ Private Const LIGNE_NIVEAU As Long = 1
 Private Const LIGNE_TITRE As Long = 3
 Private Const LIGNE_SOUS_TITRE As Long = 4
 Private Const PREMIERE_LIGNE As Long = 5
-Private Const NB_LIGNES As Long = 68
+Private Const NB_LIGNES As Long = 69
 
 Public Sub CreerTableauChargesPermanentesComplet()
     Dim ws As Worksheet
