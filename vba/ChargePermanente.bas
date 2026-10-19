@@ -11,8 +11,11 @@ Option Explicit
 '   B10 à B16 : Étage 5, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
 '   ...
 '   B38 à B44 : Étage 1, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
-'   B45 à B49 : RDC, Poutre, Poteau, Mur, Sous-total (toujours affiché)
-'   B50 à B54 : Soubassement, Poteau, Semelle BA (sans liste), Mur, Sous-total
+'   B45 à B50 : RDC / RDC_Sous-sol, Plancher, Poutre, Poteau, Mur, Sous-total
+'               (toujours affiché ; la ligne Plancher seulement pour RDC_Sous-sol)
+'   B51 à B55 : Sous-sol, Poutre, Poteau, Mur, Sous-total
+'               (affiché seulement si RDC_Sous-sol est choisi en B45)
+'   B56 à B60 : Soubassement, Poteau, Semelle BA (sans liste), Mur, Sous-total
 '               (toujours affiché)
 ' Revêtement (au-dessus de chaque plancher) : charge permanente du revêtement de sol,
 ' sa valeur en kN/m² est mise en D (poids surfacique), voir ChargeRevetement.
@@ -21,7 +24,7 @@ Option Explicit
 '   dalle pleine      : 25 × e                    (C = 25, D vide)
 '   à poutrelles      : 0,05 × 25 + (e - 0,05) × 11  (C vide, D = cette formule)
 '   bois traditionnel : 1,5 kN/m²                 (C vide, D = 1,5)
-' Ligne 55 : TOTAL G = somme des sous-totaux (G9 + G16 + ... + G54). Le sous-total
+' Ligne 61 : TOTAL G = somme des sous-totaux (G9 + G16 + ... + G60). Le sous-total
 ' d'un étage masqué vaut 0 (SOUS.TOTAL ignore les lignes masquées).
 ' Pour un mur : le type se choisit en B, l'épaisseur en F (liste adaptée au type),
 ' et le poids surfacique D est calculé : D = poids volumique × épaisseur F.
@@ -42,14 +45,17 @@ Public Sub RemplirChargePermanente()
     Dim nomBloc As String, sousTotaux As String
 
     r = 5
-    For e = 6 To -1 Step -1            ' 6 = toiture, étages 5 à 1, 0 = RDC, -1 = soubassement
+    For e = 6 To -2 Step -1            ' 6 = toiture, étages 5 à 1, 0 = RDC, -1 = sous-sol, -2 = soubassement
         If e = 6 Then
             listes = Array("Toiture,Toiture terrasse", REVETEMENTS, PLANCHERS, POUTRES)
             nomBloc = "toiture"
         ElseIf e = 0 Then
-            listes = Array("RDC", POUTRES, POTEAUX, MURS)
+            listes = Array("RDC,RDC_Sous-sol", PLANCHERS, POUTRES, POTEAUX, MURS)
             nomBloc = "RDC"
         ElseIf e = -1 Then
+            listes = Array("Sous-sol", POUTRES, POTEAUX, MURS)
+            nomBloc = "sous-sol"
+        ElseIf e = -2 Then
             listes = Array("Soubassement", POTEAUX, "Semelle BA", MURS)
             nomBloc = "soubassement"
         Else
@@ -158,8 +164,8 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
     Dim typeElement As String
 
     typeElement = CStr(ws.Cells(ligne, 2 + dc).Value)
-    If Left(typeElement, 7) = "Toiture" Then
-        AfficherEtages ws                    ' plancher de toiture affiché ou non
+    If Left(typeElement, 7) = "Toiture" Or Left(typeElement, 3) = "RDC" Then
+        AfficherEtages ws                    ' plancher de toiture / sous-sol affiché ou non
     ElseIf EpaisseursMur(typeElement) <> "" Then
         MajEpaisseurMur ws, ligne, dc
     ElseIf Left(typeElement, 8) = "Plancher" Then
@@ -222,12 +228,15 @@ End Sub
 ' Affiche la toiture et les étages 1 à niveau (C1), masque les autres.
 ' RDC -> toiture seule ; 1 -> toiture + étage 1 ; ... ; 5 -> tout.
 ' Les lignes Revêtement et Plancher de la toiture (6 et 7) ne sont affichées que
-' pour une toiture terrasse.
+' pour une toiture terrasse. Le plancher du RDC (46) et le bloc Sous-sol (51 à 55)
+' ne sont affichés que si RDC_Sous-sol est choisi en B45.
 ' Appelée aussi automatiquement quand C1 change (voir CodeFeuille.txt).
 Public Sub AfficherEtages(ws As Worksheet)
     Dim niveau As Long, e As Long
 
     ws.Rows("6:7").Hidden = (ws.Range("B5").Value <> "Toiture terrasse")
+    ws.Rows(46).Hidden = (ws.Range("B45").Value <> "RDC_Sous-sol")
+    ws.Rows("51:55").Hidden = (ws.Range("B45").Value <> "RDC_Sous-sol")
     niveau = Val(ws.Range("C1").Value)     ' "RDC" donne 0
     For e = 1 To 5
         ' Bloc de l'étage e (sous-total compris) : 7 lignes à partir de 10 + 7 × (5 - e)

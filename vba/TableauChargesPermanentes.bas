@@ -2,7 +2,7 @@ Attribute VB_Name = "TableauChargesPermanentes_CodeEnDurArray"
 Option Explicit
 ' Version codée en dur avec Array, sans variable.
 
-' Niveau d'étage (RDC à 5) en C1, catégorie du bâtiment (A à G) en E1, nombre de murs en G1, en-tête B3:K4 (G = Charges G, H = Charges Q, I = ΣQ, écrit ChrW(931), J = αn, écrit ChrW(945), K = αn × ΣQ, tout en kN/ml), saisie lignes 5 à 54, total ligne 55.
+' Niveau d'étage (RDC à 5) en C1, catégorie du bâtiment (A à G) en E1, nombre de murs en G1, en-tête B3:K4 (G = Charges G, H = Charges Q, I = ΣQ, écrit ChrW(931), J = αn, écrit ChrW(945), K = αn × ΣQ, tout en kN/ml), saisie lignes 5 à 60, total ligne 61.
 ' G = b × (γ × h + g)  en kN/ml pour un mur (b = largeur reprise en m)
 Public Sub CreerTableauChargesPermanentes()
     With ActiveSheet
@@ -43,14 +43,14 @@ Public Sub CreerTableauChargesPermanentes()
             .HorizontalAlignment = xlCenter
             .VerticalAlignment = xlCenter
         End With
-        .Range("G5:G54").FormulaR1C1 = "=IF(RC2="""","""",RC5*(RC3*RC6+RC4))"
-        .Range("B55").Value = "TOTAL G"
-        .Range("G55").Formula = "=SUBTOTAL(109,G5:G54)"  ' ignore les lignes masquées
-        .Range("B55:K55").Font.Bold = True
-        .Range("C5:K55").NumberFormat = "0.00"
-        .Range("C3:K55").HorizontalAlignment = xlCenter
-        .Range("B3:K55").Borders.LineStyle = xlContinuous
-        .Range("B3:K55").BorderAround xlContinuous, xlMedium
+        .Range("G5:G60").FormulaR1C1 = "=IF(RC2="""","""",RC5*(RC3*RC6+RC4))"
+        .Range("B61").Value = "TOTAL G"
+        .Range("G61").Formula = "=SUBTOTAL(109,G5:G60)"  ' ignore les lignes masquées
+        .Range("B61:K61").Font.Bold = True
+        .Range("C5:K61").NumberFormat = "0.00"
+        .Range("C3:K61").HorizontalAlignment = xlCenter
+        .Range("B3:K61").Borders.LineStyle = xlContinuous
+        .Range("B3:K61").BorderAround xlContinuous, xlMedium
         .Columns("B").ColumnWidth = 35
         .Columns("C:K").ColumnWidth = 16
         .Columns("G").AutoFit                        ' colonne des charges ajustée au contenu
