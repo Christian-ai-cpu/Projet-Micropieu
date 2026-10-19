@@ -9,7 +9,8 @@ Option Explicit
 '   B5 à B9   : Toiture (liste), Revêtement, Plancher, Poutre, Sous-total
 '               Toiture : fermettes industrielles + tuiles, fermettes industrielles +
 '               ardoises, charpente traditionnelle bois massif (poids surfacique en D,
-'               G = b × D sur la ligne de titre, voir ChargeToiture) ou toiture
+'               D = g / cos(pente), pente du versant 18, 20, 25, 30 ou 45° choisie
+'               en F, G = b × D sur la ligne de titre, voir ChargeToiture) ou toiture
 '               terrasse (Revêtement et Plancher affichés seulement dans ce cas)
 '   B10 à B16 : Étage 5, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
 '   ...
@@ -48,6 +49,7 @@ Option Explicit
 Private Const TOITURES As String = "Toiture fermettes industrielles + tuiles," & _
     "Toiture fermettes industrielles + ardoises,Toiture charpente traditionnelle bois massif," & _
     "Toiture terrasse"
+Private Const PENTES As String = "18,20,25,30,45"   ' pentes des versants (°), toitures en pente
 Private Const NIVEAUX_RDC As String = "RDC,RDC+1SS,RDC+2SS,RDC+VS"   ' liste en B45
 Private Const PLANCHERS As String = "Plancher dalle pleine,Plancher à poutrelles,Plancher bois traditionnel"
 Private Const POUTRES As String = "Poutre BA,Poutre bois,Poutre métallique"
@@ -154,8 +156,9 @@ Public Function EpaisseursMur(typeMur As String) As String
     End Select
 End Function
 
-' Poids surfacique (kN/m²) d'une toiture en pente selon son type (charpente +
-' couverture), à multiplier par la largeur reprise b ; 0 pour la toiture terrasse
+' Poids surfacique (kN/m² de versant) d'une toiture en pente selon son type
+' (charpente + couverture) ; ramené à l'horizontale en D (÷ cos de la pente choisie
+' en F) puis multiplié par la largeur reprise b ; 0 pour la toiture terrasse
 ' (calculée avec ses lignes Revêtement et Plancher). Ordres de grandeur à vérifier.
 Public Function ChargeToiture(typeToiture As String) As Double
     Select Case typeToiture
@@ -214,14 +217,25 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
     typeElement = CStr(ws.Cells(ligne, 2 + dc).Value)
     If Left(typeElement, 7) = "Toiture" Then
         If ChargeToiture(typeElement) > 0 Then
-            ' Toiture en pente : poids surfacique de la toiture en D, G = b × D (kN/ml)
+            ' Toiture en pente : pente du versant choisie en F (liste PENTES, en degrés),
+            ' poids surfacique ramené à l'horizontale en D = g / cos(pente),
+            ' G = b × D (kN/ml)
             ws.Cells(ligne, 3 + dc).ClearContents
-            ws.Cells(ligne, 4 + dc).Value = ChargeToiture(typeElement)
+            With ws.Cells(ligne, 6 + dc)
+                .Validation.Delete
+                .Validation.Add xlValidateList, xlValidAlertStop, , PENTES
+                If IsEmpty(.Value) Then .Value = Val(PENTES)    ' 18° par défaut
+                .NumberFormat = "0""°"""
+            End With
+            ws.Cells(ligne, 4 + dc).FormulaR1C1 = "=" & _
+                Replace(CStr(ChargeToiture(typeElement)), ",", ".") & "/COS(RADIANS(RC[2]))"
             ws.Cells(ligne, 7 + dc).FormulaR1C1 = _
                 "=IF(RC[-5]="""","""",RC[-2]*(RC[-4]*RC[-1]+RC[-3]))"
         Else
             ' Toiture terrasse : charge portée par les lignes Revêtement et Plancher
             ws.Cells(ligne, 4 + dc).ClearContents
+            ws.Cells(ligne, 6 + dc).Validation.Delete
+            ws.Cells(ligne, 6 + dc).ClearContents
             ws.Cells(ligne, 7 + dc).ClearContents
         End If
         AfficherEtages ws                    ' plancher de toiture affiché ou non
