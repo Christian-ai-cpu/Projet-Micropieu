@@ -39,8 +39,13 @@ Private Const POUTRES As String = "Poutre BA,Poutre bois,Poutre métallique"
 Private Const POTEAUX As String = "Poteau BA,Poteau bois,Poteau métallique"
 Private Const REVETEMENTS As String = "Carrelage grès cérame,Dalles épaisses (marbre),Parquet traditionnel,Sols minces"
 Private Const ENDUIT_ISOLANT As Double = 0.2   ' kN/m², enduits + isolant (ajouté aux murs)
-Private Const MURS As String = "Agglos béton creux,Agglos béton plein,Béton banché," & _
-    "Briques creuses,Briques Monomur,Briques pleines,Pierre de taille"
+' Intitulé des murs : type + « + enduit et isolant » (0,2 kN/m² compris dans D).
+' La liste fait 255 caractères, le maximum accepté par Excel pour une liste.
+Private Const SUFFIXE_MUR As String = " + enduit et isolant"
+Private Const MURS As String = "Agglos béton creux + enduit et isolant," & _
+    "Agglos béton plein + enduit et isolant,Béton banché + enduit et isolant," & _
+    "Briques creuses + enduit et isolant,Briques Monomur + enduit et isolant," & _
+    "Briques pleines + enduit et isolant,Pierre de taille + enduit et isolant"
 
 Public Sub RemplirChargePermanente()
     Dim listes As Variant, i As Long, e As Long, r As Long, debut As Long
@@ -111,8 +116,9 @@ Public Sub RemplirChargePermanente()
     End With
 End Sub
 ' Épaisseurs possibles (en cm) selon le type de mur ; "" si ce n'est pas un mur.
+' (le suffixe « + enduit et isolant » de l'intitulé est ignoré)
 Public Function EpaisseursMur(typeMur As String) As String
-    Select Case typeMur
+    Select Case Replace(typeMur, SUFFIXE_MUR, "")
         Case "Agglos béton creux", "Agglos béton plein": EpaisseursMur = "15 cm,20 cm"
         Case "Béton banché":    EpaisseursMur = "20 cm,25 cm,30 cm"
         Case "Briques creuses": EpaisseursMur = "15 cm,20 cm,25 cm"
@@ -146,7 +152,7 @@ End Function
 ' Poids volumique apparent (kN/m³) d'un mur, vides des blocs creux compris.
 ' Poids surfacique du mur = cette valeur × épaisseur (m).
 Public Function PoidsVolumiqueMur(typeMur As String) As Double
-    Select Case typeMur
+    Select Case Replace(typeMur, SUFFIXE_MUR, "")
         Case "Agglos béton creux": PoidsVolumiqueMur = 9      ' 15 cm -> 1,35 kN/m²
         Case "Agglos béton plein": PoidsVolumiqueMur = 20     ' 20 cm -> 4,00 kN/m²
         Case "Béton banché":       PoidsVolumiqueMur = 25     ' 20 cm -> 5,00 kN/m²
