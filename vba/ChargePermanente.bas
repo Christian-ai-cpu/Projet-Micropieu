@@ -30,7 +30,8 @@ Option Explicit
 ' la hauteur h du mur se saisit en F, et :
 '   D = poids volumique × épaisseur E + 0,2   (0,2 kN/m² d'enduits et d'isolant
 '       thermique ou acoustique, voir ENDUIT_ISOLANT)
-'   G = (100 - % d'ouvertures I1) / 100 × D × h   (kN/ml)
+'   G = (100 - % d'ouvertures I1) / 100 × D × h   (kN/ml ; I1 pour le mur 1,
+'       T1, AE1... pour les copies : chaque mur a son propre pourcentage)
 ' Pour une poutre ou un poteau : le poids volumique C est rempli selon le type.
 ' Les valeurs sont des ordres de grandeur à vérifier (normes, fabricants) :
 ' elles se modifient dans PoidsVolumique et PoidsVolumiqueMur.
@@ -219,7 +220,7 @@ End Sub
 ' Le poids surfacique D suit l'épaisseur E par formule (γ × E + 0,2 d'enduits et
 ' isolant) ; C est vidé pour ne pas compter le poids du mur deux fois.
 ' La hauteur h du mur se saisit en F. La charge G du mur tient compte du
-' pourcentage d'ouvertures saisi en I1 : G = (100 - I1) / 100 × D × h.
+' pourcentage d'ouvertures de son tableau (I1, T1, AE1...) : G = (100 - I1) / 100 × D × h.
 Public Sub MajEpaisseurMur(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
     Dim liste As String, typeMur As String
 
@@ -237,8 +238,8 @@ Public Sub MajEpaisseurMur(ws As Worksheet, ligne As Long, Optional dc As Long =
     ws.Cells(ligne, 4 + dc).FormulaR1C1 = "=" & _
         Replace(CStr(PoidsVolumiqueMur(typeMur)), ",", ".") & "*RC[1]+" & _
         Replace(CStr(ENDUIT_ISOLANT), ",", ".")
-    ' G = (100 - % d'ouvertures en I1) / 100 × D × h
-    ws.Cells(ligne, 7 + dc).FormulaR1C1 = "=IF(RC[-5]="""","""",(100-R1C9)/100*RC[-3]*RC[-1])"
+    ' G = (100 - % d'ouvertures en ligne 1, colonne I du même tableau) / 100 × D × h
+    ws.Cells(ligne, 7 + dc).FormulaR1C1 = "=IF(RC[-5]="""","""",(100-R1C[2])/100*RC[-3]*RC[-1])"
 End Sub
 
 ' Affiche la toiture et les étages 1 à niveau (C1), masque les autres.
