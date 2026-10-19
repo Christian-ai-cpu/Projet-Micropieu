@@ -15,7 +15,7 @@ Option Explicit
 '               (toujours affiché ; Revêtement et Plancher seulement pour RDC_Sous-sol)
 '   B52 à B56 : Sous-sol, Poutre, Poteau, Mur, Sous-total
 '               (affiché seulement si RDC_Sous-sol est choisi en B45)
-'   B57 à B61 : Soubassement, Poteau, Semelle BA (sans liste), Mur, Sous-total
+'   B57 à B61 : Soubassement, Poteau, Semelle (liste par matériau), Mur, Sous-total
 '               (toujours affiché)
 ' Revêtement (au-dessus de chaque plancher) : charge permanente du revêtement de sol,
 ' sa valeur en kN/m² est mise en D (poids surfacique), voir ChargeRevetement.
@@ -40,6 +40,8 @@ Option Explicit
 Private Const PLANCHERS As String = "Plancher dalle pleine,Plancher à poutrelles,Plancher bois traditionnel"
 Private Const POUTRES As String = "Poutre BA,Poutre bois,Poutre métallique"
 Private Const POTEAUX As String = "Poteau BA,Poteau bois,Poteau métallique"
+Private Const SEMELLES As String = "Semelle BA,Semelle béton non armé,Semelle gros béton," & _
+    "Semelle maçonnerie de moellons"
 Private Const REVETEMENTS As String = "Carrelage grès cérame,Dalles épaisses (marbre),Parquet traditionnel,Sols minces"
 Private Const ENDUIT_ISOLANT As Double = 0.2   ' kN/m², enduits + isolant (ajouté aux murs)
 ' Intitulé des murs : type + « + enduit et isolant » (0,2 kN/m² compris dans D).
@@ -66,7 +68,7 @@ Public Sub RemplirChargePermanente()
             listes = Array("Sous-sol", POUTRES, POTEAUX, MURS)
             nomBloc = "sous-sol"
         ElseIf e = -2 Then
-            listes = Array("Soubassement", POTEAUX, "Semelle BA", MURS)
+            listes = Array("Soubassement", POTEAUX, SEMELLES, MURS)
             nomBloc = "soubassement"
         Else
             listes = Array("Étage " & e, REVETEMENTS, PLANCHERS, POUTRES, POTEAUX, MURS)
@@ -141,12 +143,15 @@ Public Function ChargeRevetement(typeRevetement As String) As Double
     End Select
 End Function
 
-' Poids volumique (kN/m³) d'une poutre ou d'un poteau selon son type ; 0 sinon.
+' Poids volumique (kN/m³) d'une poutre, d'un poteau ou d'une semelle selon son type ; 0 sinon.
 Public Function PoidsVolumique(typeElement As String) As Double
     Select Case typeElement
         Case "Poutre BA", "Poteau BA":                 PoidsVolumique = 25
         Case "Plancher dalle pleine", "Plancher à poutrelles": PoidsVolumique = 25
         Case "Semelle BA":                             PoidsVolumique = 25
+        Case "Semelle béton non armé":                 PoidsVolumique = 24
+        Case "Semelle gros béton":                     PoidsVolumique = 22
+        Case "Semelle maçonnerie de moellons":         PoidsVolumique = 23
         Case "Poutre bois", "Poteau bois":             PoidsVolumique = 6
         Case "Poutre métallique", "Poteau métallique": PoidsVolumique = 78.5
     End Select
