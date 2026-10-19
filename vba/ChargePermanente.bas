@@ -18,9 +18,7 @@ Option Explicit
 '   B57 à B61 : Soubassement, Poteau, Semelle BA (sans liste), Mur, Sous-total
 '               (toujours affiché)
 ' Revêtement (au-dessus de chaque plancher) : charge permanente du revêtement de sol,
-' sa valeur en kN/m² est mise en D (poids surfacique), voir ChargeRevetement,
-' augmentée de 0,2 kN/m² pour les enduits et l'isolant thermique ou acoustique
-' (D = revêtement + 0,2, voir ENDUIT_ISOLANT).
+' sa valeur en kN/m² est mise en D (poids surfacique), voir ChargeRevetement.
 ' Sa charge se calcule par G = poids surfacique D × largeur b (kN/ml).
 ' Plancher (épaisseur e à saisir en F) : poids surfacique selon le type
 '   dalle pleine      : 25 × e                    (C = 25, D vide)
@@ -29,7 +27,8 @@ Option Explicit
 ' Ligne 62 : TOTAL G = somme des sous-totaux (G9 + G16 + ... + G61). Le sous-total
 ' d'un étage masqué vaut 0 (SOUS.TOTAL ignore les lignes masquées).
 ' Pour un mur : le type se choisit en B, l'épaisseur en F (liste adaptée au type),
-' et le poids surfacique D est calculé : D = poids volumique × épaisseur F.
+' et le poids surfacique D est calculé : D = poids volumique × épaisseur F + 0,2
+' (0,2 kN/m² d'enduits et d'isolant thermique ou acoustique, voir ENDUIT_ISOLANT).
 ' Pour une poutre ou un poteau : le poids volumique C est rempli selon le type.
 ' Les valeurs sont des ordres de grandeur à vérifier (normes, fabricants) :
 ' elles se modifient dans PoidsVolumique et PoidsVolumiqueMur.
@@ -39,7 +38,7 @@ Private Const PLANCHERS As String = "Plancher dalle pleine,Plancher à poutrelle
 Private Const POUTRES As String = "Poutre BA,Poutre bois,Poutre métallique"
 Private Const POTEAUX As String = "Poteau BA,Poteau bois,Poteau métallique"
 Private Const REVETEMENTS As String = "Carrelage grès cérame,Dalles épaisses (marbre),Parquet traditionnel,Sols minces"
-Private Const ENDUIT_ISOLANT As Double = 0.2   ' kN/m², enduits + isolant (ajouté au revêtement)
+Private Const ENDUIT_ISOLANT As Double = 0.2   ' kN/m², enduits + isolant (ajouté aux murs)
 Private Const MURS As String = "Agglos béton creux,Agglos béton plein,Béton banché," & _
     "Briques creuses,Briques Monomur,Briques pleines,Pierre de taille"
 
@@ -175,10 +174,7 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
         MajPlancher ws, ligne, typeElement, dc
     ElseIf ChargeRevetement(typeElement) > 0 Then
         ws.Cells(ligne, 3 + dc).ClearContents
-        ' D = revêtement + enduits / isolant, ex. « =0.5+0.2 » (détail visible)
-        ws.Cells(ligne, 4 + dc).Formula = "=" & _
-            Replace(CStr(ChargeRevetement(typeElement)), ",", ".") & "+" & _
-            Replace(CStr(ENDUIT_ISOLANT), ",", ".")
+        ws.Cells(ligne, 4 + dc).Value = ChargeRevetement(typeElement)
         ' Charge du revêtement : formule du tableau, b × D (kN/ml)
     ElseIf PoidsVolumique(typeElement) > 0 Then
         ws.Cells(ligne, 3 + dc).Value = PoidsVolumique(typeElement)
@@ -212,7 +208,8 @@ Public Sub MajPlancher(ws As Worksheet, ligne As Long, typePlancher As String, _
 End Sub
 
 ' Met en F la liste des épaisseurs du mur choisi en B, et la première en mètres.
-' Le poids surfacique D suit l'épaisseur F par formule ; C est vidé pour ne pas
+' Le poids surfacique D suit l'épaisseur F par formule (γ × F + 0,2 d'enduits et
+' isolant) ; C est vidé pour ne pas
 ' compter le poids du mur deux fois.
 Public Sub MajEpaisseurMur(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
     Dim liste As String, typeMur As String
@@ -228,7 +225,8 @@ Public Sub MajEpaisseurMur(ws As Worksheet, ligne As Long, Optional dc As Long =
     End With
     ws.Cells(ligne, 3 + dc).ClearContents
     ws.Cells(ligne, 4 + dc).FormulaR1C1 = "=" & _
-        Replace(CStr(PoidsVolumiqueMur(typeMur)), ",", ".") & "*RC[2]"
+        Replace(CStr(PoidsVolumiqueMur(typeMur)), ",", ".") & "*RC[2]+" & _
+        Replace(CStr(ENDUIT_ISOLANT), ",", ".")
 End Sub
 
 ' Affiche la toiture et les étages 1 à niveau (C1), masque les autres.
