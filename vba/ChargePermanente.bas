@@ -12,7 +12,7 @@ Option Explicit
 '   ...
 '   B38 à B44 : Étage 1, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
 '   B45 à B49 : RDC, Poutre, Poteau, Mur, Sous-total (toujours affiché)
-'   B50 à B54 : Soubassement, Semelle BA (sans liste), Poteau, Mur, Sous-total
+'   B50 à B54 : Soubassement, Poteau, Semelle BA (sans liste), Mur, Sous-total
 '               (toujours affiché)
 ' Revêtement (au-dessus de chaque plancher) : charge permanente du revêtement de sol,
 ' sa valeur en kN/m² est mise en D (poids surfacique), voir ChargeRevetement.
@@ -50,7 +50,7 @@ Public Sub RemplirChargePermanente()
             listes = Array("RDC", POUTRES, POTEAUX, MURS)
             nomBloc = "RDC"
         ElseIf e = -1 Then
-            listes = Array("Soubassement", "Semelle BA", POTEAUX, MURS)
+            listes = Array("Soubassement", POTEAUX, "Semelle BA", MURS)
             nomBloc = "soubassement"
         Else
             listes = Array("Étage " & e, REVETEMENTS, PLANCHERS, POUTRES, POTEAUX, MURS)
