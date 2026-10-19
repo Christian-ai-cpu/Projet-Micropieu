@@ -26,9 +26,11 @@ Option Explicit
 '   bois traditionnel : 1,5 kN/m²                 (C vide, D = 1,5)
 ' Ligne 62 : TOTAL G = somme des sous-totaux (G9 + G16 + ... + G61). Le sous-total
 ' d'un étage masqué vaut 0 (SOUS.TOTAL ignore les lignes masquées).
-' Pour un mur : le type se choisit en B, l'épaisseur en F (liste adaptée au type),
-' et le poids surfacique D est calculé : D = poids volumique × épaisseur F + 0,2
-' (0,2 kN/m² d'enduits et d'isolant thermique ou acoustique, voir ENDUIT_ISOLANT).
+' Pour un mur : le type se choisit en B, l'épaisseur en E (liste adaptée au type),
+' la hauteur h du mur se saisit en F, et :
+'   D = poids volumique × épaisseur E + 0,2   (0,2 kN/m² d'enduits et d'isolant
+'       thermique ou acoustique, voir ENDUIT_ISOLANT)
+'   G = (100 - % d'ouvertures I1) / 100 × D × h   (kN/ml)
 ' Pour une poutre ou un poteau : le poids volumique C est rempli selon le type.
 ' Les valeurs sont des ordres de grandeur à vérifier (normes, fabricants) :
 ' elles se modifient dans PoidsVolumique et PoidsVolumiqueMur.
@@ -164,7 +166,7 @@ Public Function PoidsVolumiqueMur(typeMur As String) As Double
 End Function
 
 ' Remplit les poids de la ligne selon l'élément choisi en B :
-'   poutre / poteau -> poids volumique en C ; mur -> épaisseur F et poids surfacique D.
+'   poutre / poteau -> poids volumique en C ; mur -> épaisseur E et poids surfacique D.
 ' dc : décalage de colonnes du tableau (0 pour le tableau d'origine, 11 × k pour la
 ' copie du mur k + 1, voir le module DuplicationMurs). Les formules sont écrites en
 ' références relatives (R1C1) pour rester justes dans les copies.
@@ -213,26 +215,30 @@ Public Sub MajPlancher(ws As Worksheet, ligne As Long, typePlancher As String, _
     End Select
 End Sub
 
-' Met en F la liste des épaisseurs du mur choisi en B, et la première en mètres.
-' Le poids surfacique D suit l'épaisseur F par formule (γ × F + 0,2 d'enduits et
-' isolant) ; C est vidé pour ne pas
-' compter le poids du mur deux fois.
+' Met en E la liste des épaisseurs du mur choisi en B, et la première en mètres.
+' Le poids surfacique D suit l'épaisseur E par formule (γ × E + 0,2 d'enduits et
+' isolant) ; C est vidé pour ne pas compter le poids du mur deux fois.
+' La hauteur h du mur se saisit en F. La charge G du mur tient compte du
+' pourcentage d'ouvertures saisi en I1 : G = (100 - I1) / 100 × D × h.
 Public Sub MajEpaisseurMur(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
     Dim liste As String, typeMur As String
 
     typeMur = CStr(ws.Cells(ligne, 2 + dc).Value)
     liste = EpaisseursMur(typeMur)
     If liste = "" Then Exit Sub
-    With ws.Cells(ligne, 6 + dc)
+    With ws.Cells(ligne, 5 + dc)            ' épaisseur en E
         .Validation.Delete
         .Validation.Add xlValidateList, xlValidAlertStop, , liste
         .Value = Val(liste) / 100           ' "15 cm" -> 0.15 m
         .NumberFormat = "0.000"
     End With
+    ws.Cells(ligne, 6 + dc).Validation.Delete   ' F : hauteur h du mur, saisie libre
     ws.Cells(ligne, 3 + dc).ClearContents
     ws.Cells(ligne, 4 + dc).FormulaR1C1 = "=" & _
-        Replace(CStr(PoidsVolumiqueMur(typeMur)), ",", ".") & "*RC[2]+" & _
+        Replace(CStr(PoidsVolumiqueMur(typeMur)), ",", ".") & "*RC[1]+" & _
         Replace(CStr(ENDUIT_ISOLANT), ",", ".")
+    ' G = (100 - % d'ouvertures en I1) / 100 × D × h
+    ws.Cells(ligne, 7 + dc).FormulaR1C1 = "=IF(RC[-5]="""","""",(100-R1C9)/100*RC[-3]*RC[-1])"
 End Sub
 
 ' Affiche la toiture et les étages 1 à niveau (C1), masque les autres.

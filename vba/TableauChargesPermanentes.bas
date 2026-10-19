@@ -2,7 +2,7 @@ Attribute VB_Name = "TableauChargesPermanentes_CodeEnDurArray"
 Option Explicit
 ' Version codée en dur avec Array, sans variable.
 
-' Niveau d'étage (RDC à 5) en C1, catégorie du bâtiment (A à G) en E1, nombre de murs en G1, en-tête B3:K4 (G = Charges G, H = Charges Q, I = ΣQ, écrit ChrW(931), J = αn, écrit ChrW(945), K = αn × ΣQ, tout en kN/ml), saisie lignes 5 à 61, total ligne 62.
+' Niveau d'étage (RDC à 5) en C1, catégorie du bâtiment (A à G) en E1, nombre de murs en G1, % d'ouvertures des murs en I1, en-tête B3:K4 (G = Charges G, H = Charges Q, I = ΣQ, écrit ChrW(931), J = αn, écrit ChrW(945), K = αn × ΣQ, tout en kN/ml), saisie lignes 5 à 61, total ligne 62.
 ' G = b × (γ × h + g)  en kN/ml pour un mur (b = largeur reprise en m)
 Public Sub CreerTableauChargesPermanentes()
     With ActiveSheet
@@ -28,13 +28,20 @@ Public Sub CreerTableauChargesPermanentes()
             .Validation.Add xlValidateWholeNumber, xlValidAlertStop, xlBetween, "1", "50"
             .BorderAround xlContinuous, xlMedium
         End With
-        .Range("B1:G1").Font.Bold = True
-        .Range("B1:G1").WrapText = True
-        .Range("B1:G1").VerticalAlignment = xlCenter
+        .Range("H1").Value = "Pourcentage des ouvertures des murs (%)"
+        With .Range("I1")                            ' G du mur × (100 - I1) / 100
+            .Value = 0
+            .Validation.Delete
+            .Validation.Add xlValidateDecimal, xlValidAlertStop, xlBetween, "0", "100"
+            .BorderAround xlContinuous, xlMedium
+        End With
+        .Range("B1:I1").Font.Bold = True
+        .Range("B1:I1").WrapText = True
+        .Range("B1:I1").VerticalAlignment = xlCenter
         .Range("B3:K3").Value = Array("Désignation de l'ouvrage", "Poids volumique (kN/m3)", _
             "Poids Surfacique (kN/m²)", "Dimensions", "", "Charges permanentes G (kN/ml)", _
             "Charge d'exploitation Q (kN/ml)", ChrW(931) & "Q (kN/ml)", ChrW(945) & "n", ChrW(945) & "n × " & ChrW(931) & "Q (kN/ml)")
-        .Range("E4:F4").Value = Array("Largeur b (m)", "Épaisseur h (m)")
+        .Range("E4:F4").Value = Array("Largeur b (m)", "Hauteur h (m)")
         .Range("B3:B4,C3:C4,D3:D4,E3:F3,G3:G4,H3:H4,I3:I4,J3:J4,K3:K4").Merge
         With .Range("B3:K4")
             .Font.Bold = True
@@ -43,7 +50,7 @@ Public Sub CreerTableauChargesPermanentes()
             .HorizontalAlignment = xlCenter
             .VerticalAlignment = xlCenter
         End With
-        .Range("G5:G61").FormulaR1C1 = "=IF(RC2="""","""",RC5*(RC3*RC6+RC4))"
+        .Range("G5:G61").FormulaR1C1 = "=IF(RC[-5]="""","""",RC[-2]*(RC[-4]*RC[-1]+RC[-3]))"   ' références relatives (copies des murs)
         .Range("B62").Value = "TOTAL G"
         .Range("G62").Formula = "=SUBTOTAL(109,G5:G61)"  ' ignore les lignes masquées
         .Range("B62:K62").Font.Bold = True

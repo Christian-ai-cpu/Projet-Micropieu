@@ -5,7 +5,7 @@ Option Explicit
 '   B : Désignation de l'ouvrage
 '   C : Poids volumique (kN/m3)
 '   D : Poids Surfacique (kN/m²)
-'   E:F : Dimensions (fusionnées) -> Largeur b (m) / Épaisseur h (m)
+'   E:F : Dimensions (fusionnées) -> Largeur b (m) / Hauteur h (m)
 '   G : Charges permanentes G (kN/ml)
 '   H : Charge d'exploitation Q (kN/ml), calculée sur les lignes de sous-total
 '   I : ΣQ (kN/ml) (Σ écrit ChrW(931)), cumul des Q de la toiture jusqu'au niveau
@@ -13,7 +13,8 @@ Option Explicit
 '   K : αn × ΣQ (kN/ml), charge d'exploitation cumulée réduite
 ' Descente de charges en kN/ml pour un mur : les lignes de saisie calculent
 ' G = γ × b × h + g × b, b étant la largeur reprise (m).
-' En ligne 1 : listes déroulantes du niveau d'étage (RDC à 5) et de la catégorie du bâtiment (A à G).
+' En ligne 1 : listes déroulantes du niveau d'étage (RDC à 5) et de la catégorie du bâtiment (A à G),
+' nombre de murs (G1) et pourcentage des ouvertures des murs (I1).
 
 Private Const LIGNE_NIVEAU As Long = 1
 Private Const LIGNE_TITRE As Long = 3
@@ -80,11 +81,25 @@ Public Sub CreerTableauChargesPermanentesComplet()
         .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
     End With
 
+    ' --- Pourcentage des ouvertures des murs (I1) : G du mur × (100 - I1) / 100 ---
+    ws.Range("H" & LIGNE_NIVEAU).Value = "Pourcentage des ouvertures des murs (%)"
+    ws.Range("H" & LIGNE_NIVEAU).Font.Bold = True
+    With ws.Range("I" & LIGNE_NIVEAU)
+        .Value = 0
+        .Validation.Delete
+        .Validation.Add Type:=xlValidateDecimal, AlertStyle:=xlValidAlertStop, _
+            Operator:=xlBetween, Formula1:="0", Formula2:="100"
+        .Validation.ErrorMessage = "Entrer un pourcentage d'ouvertures entre 0 et 100."
+        .Font.Bold = True
+        .HorizontalAlignment = xlCenter
+        .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
+    End With
+
     ' --- Titres (ligne 1) et sous-titres (ligne 2) remplis par boucle ---
     titres = Array("Désignation de l'ouvrage", "Poids volumique (kN/m3)", _
         "Poids Surfacique (kN/m²)", "Dimensions", "", "Charges permanentes G (kN/ml)", _
         "Charge d'exploitation Q (kN/ml)", ChrW(931) & "Q (kN/ml)", ChrW(945) & "n", ChrW(945) & "n × " & ChrW(931) & "Q (kN/ml)")
-    sousTitres = Array("", "", "", "Largeur b (m)", "Épaisseur h (m)", "", "", "", "", "")
+    sousTitres = Array("", "", "", "Largeur b (m)", "Hauteur h (m)", "", "", "", "", "")
     For r = 1 To 2
         For c = 1 To 10
             Entete(r, c) = IIf(r = 1, titres(c - 1), sousTitres(c - 1))
@@ -139,8 +154,8 @@ Public Sub CreerTableauChargesPermanentesComplet()
     ws.Columns("G").AutoFit
     If ws.Columns("G").ColumnWidth < 12 Then ws.Columns("G").ColumnWidth = 12   ' place pour le titre
     ws.Range("B" & LIGNE_TITRE & ":K" & derniereLigne + 1).Rows.AutoFit
-    ' Ligne 1 : niveau d'étage, catégorie du bâtiment et nombre de murs
-    With ws.Range("B" & LIGNE_NIVEAU & ":G" & LIGNE_NIVEAU)
+    ' Ligne 1 : niveau d'étage, catégorie du bâtiment, nombre de murs et % d'ouvertures
+    With ws.Range("B" & LIGNE_NIVEAU & ":I" & LIGNE_NIVEAU)
         .WrapText = True
         .VerticalAlignment = xlCenter
         .Rows.AutoFit
