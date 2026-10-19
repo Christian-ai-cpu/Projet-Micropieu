@@ -2,7 +2,7 @@ Attribute VB_Name = "TableauChargesPermanentes_CodeEnDurArray"
 Option Explicit
 ' Version codée en dur avec Array, sans variable.
 
-' Niveau d'étage (RDC à 5) en C1, catégorie du bâtiment (A à G) en E1, nombre de murs en G1, en-tête B3:L4 (H = Charges G, I = Charges Q, J = ΣQ, écrit ChrW(931), K = αn, écrit ChrW(945), L = αn × ΣQ, tout en kN/ml), saisie lignes 5 à 53, total ligne 54.
+' Niveau d'étage (RDC à 5) en C1, catégorie du bâtiment (A à G) en E1, nombre de murs en G1, en-tête B3:L4 (H = Charges G, I = Charges Q, J = ΣQ, écrit ChrW(931), K = αn, écrit ChrW(945), L = αn × ΣQ, tout en kN/ml), saisie lignes 5 à 54, total ligne 55.
 ' G = n × b × (γ × h + g)  en kN/ml (b = largeur reprise en m)
 Public Sub CreerTableauChargesPermanentes()
     With ActiveSheet
@@ -43,16 +43,16 @@ Public Sub CreerTableauChargesPermanentes()
             .HorizontalAlignment = xlCenter
             .VerticalAlignment = xlCenter
         End With
-        .Range("G5:G53").Value = 1
-        .Range("H5:H53").FormulaR1C1 = "=IF(RC2="""","""",RC7*RC5*(RC3*RC6+RC4))"
-        .Range("B54").Value = "TOTAL G"
-        .Range("H54").Formula = "=SUBTOTAL(109,H5:H53)"  ' ignore les lignes masquées
-        .Range("B54:L54").Font.Bold = True
-        .Range("C5:L54").NumberFormat = "0.00"
-        .Range("G5:G53").NumberFormat = "0"
-        .Range("C3:L54").HorizontalAlignment = xlCenter
-        .Range("B3:L54").Borders.LineStyle = xlContinuous
-        .Range("B3:L54").BorderAround xlContinuous, xlMedium
+        .Range("G5:G54").Value = 1
+        .Range("H5:H54").FormulaR1C1 = "=IF(RC2="""","""",RC7*RC5*(RC3*RC6+RC4))"
+        .Range("B55").Value = "TOTAL G"
+        .Range("H55").Formula = "=SUBTOTAL(109,H5:H54)"  ' ignore les lignes masquées
+        .Range("B55:L55").Font.Bold = True
+        .Range("C5:L55").NumberFormat = "0.00"
+        .Range("G5:G54").NumberFormat = "0"
+        .Range("C3:L55").HorizontalAlignment = xlCenter
+        .Range("B3:L55").Borders.LineStyle = xlContinuous
+        .Range("B3:L55").BorderAround xlContinuous, xlMedium
         .Columns("B").ColumnWidth = 35
         .Columns("C:L").ColumnWidth = 16
         .Columns("H").AutoFit                        ' colonne des charges ajustée au contenu
