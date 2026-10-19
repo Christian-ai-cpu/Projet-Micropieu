@@ -6,8 +6,11 @@ Option Explicit
 ' Descente de charges en kN/ml pour un mur : G = b × (γ × h + g), b = largeur reprise (m).
 ' Chaque bloc se termine par une ligne « Sous-total » (somme du bloc en G).
 ' La charge d'exploitation Q (colonne H) est remplie par le module ChargeExploitation.
-'   B5 à B9   : Toiture / Toiture terrasse, Revêtement, Plancher, Poutre, Sous-total
-'               (Revêtement et Plancher affichés seulement pour une toiture terrasse)
+'   B5 à B9   : Toiture (liste), Revêtement, Plancher, Poutre, Sous-total
+'               Toiture : fermettes industrielles + tuiles, fermettes industrielles +
+'               ardoises, charpente traditionnelle bois massif (poids surfacique en D,
+'               G = b × D sur la ligne de titre, voir ChargeToiture) ou toiture
+'               terrasse (Revêtement et Plancher affichés seulement dans ce cas)
 '   B10 à B16 : Étage 5, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
 '   ...
 '   B38 à B44 : Étage 1, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
@@ -42,6 +45,9 @@ Option Explicit
 ' elles se modifient dans PoidsVolumique et PoidsVolumiqueMur.
 ' Seuls les étages jusqu'au niveau choisi en C1 sont affichés (voir AfficherEtages).
 
+Private Const TOITURES As String = "Toiture fermettes industrielles + tuiles," & _
+    "Toiture fermettes industrielles + ardoises,Toiture charpente traditionnelle bois massif," & _
+    "Toiture terrasse"
 Private Const NIVEAUX_RDC As String = "RDC,RDC+1SS,RDC+2SS,RDC+VS"   ' liste en B45
 Private Const PLANCHERS As String = "Plancher dalle pleine,Plancher à poutrelles,Plancher bois traditionnel"
 Private Const POUTRES As String = "Poutre BA,Poutre bois,Poutre métallique"
@@ -67,7 +73,7 @@ Public Sub RemplirChargePermanente()
     ' -3 = vide sanitaire, -4 = soubassement
     For e = 6 To -4 Step -1
         If e = 6 Then
-            listes = Array("Toiture,Toiture terrasse", REVETEMENTS, PLANCHERS, POUTRES)
+            listes = Array(TOITURES, REVETEMENTS, PLANCHERS, POUTRES)
             nomBloc = "toiture"
         ElseIf e = 0 Then
             listes = Array(NIVEAUX_RDC, REVETEMENTS, PLANCHERS, POUTRES, POTEAUX, MURS)
@@ -104,13 +110,14 @@ Public Sub RemplirChargePermanente()
             MajLigne ActiveSheet, r              ' poids volumique / surfacique
             r = r + 1
         Next i
-        ActiveSheet.Range("G" & debut).ClearContents   ' pas de charge sur le titre
+        ' Pas de charge sur le titre, sauf toiture en pente (G = b × D, voir MajLigne)
+        If e <> 6 Then ActiveSheet.Range("G" & debut).ClearContents
 
         ' Ligne de sous-total sous le dernier élément du bloc
         With ActiveSheet
             .Range("B" & r).Validation.Delete
             .Range("B" & r).Value = "Sous-total " & nomBloc
-            .Range("G" & r).Formula = "=SUBTOTAL(109,G" & debut + 1 & ":G" & r - 1 & ")"
+            .Range("G" & r).Formula = "=SUBTOTAL(109,G" & debut & ":G" & r - 1 & ")"
             .Range("B" & r & ":K" & r).Font.Bold = True
             .Range("B" & r).Font.Italic = True
         End With
@@ -144,6 +151,17 @@ Public Function EpaisseursMur(typeMur As String) As String
         Case "Briques Monomur": EpaisseursMur = "30 cm,37 cm"
         Case "Briques pleines": EpaisseursMur = "10 cm,21.5 cm,33 cm"
         Case "Pierre de taille": EpaisseursMur = "30 cm,40 cm,50 cm,60 cm"
+    End Select
+End Function
+
+' Poids surfacique (kN/m²) d'une toiture en pente selon son type (charpente +
+' couverture), à multiplier par la largeur reprise b ; 0 pour la toiture terrasse
+' (calculée avec ses lignes Revêtement et Plancher). Ordres de grandeur à vérifier.
+Public Function ChargeToiture(typeToiture As String) As Double
+    Select Case typeToiture
+        Case "Toiture fermettes industrielles + tuiles":      ChargeToiture = 0.7
+        Case "Toiture fermettes industrielles + ardoises":    ChargeToiture = 0.55
+        Case "Toiture charpente traditionnelle bois massif":  ChargeToiture = 1
     End Select
 End Function
 
@@ -194,8 +212,21 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
     Dim typeElement As String
 
     typeElement = CStr(ws.Cells(ligne, 2 + dc).Value)
-    If Left(typeElement, 7) = "Toiture" Or Left(typeElement, 3) = "RDC" Then
-        AfficherEtages ws                    ' plancher de toiture / sous-sol affiché ou non
+    If Left(typeElement, 7) = "Toiture" Then
+        If ChargeToiture(typeElement) > 0 Then
+            ' Toiture en pente : poids surfacique de la toiture en D, G = b × D (kN/ml)
+            ws.Cells(ligne, 3 + dc).ClearContents
+            ws.Cells(ligne, 4 + dc).Value = ChargeToiture(typeElement)
+            ws.Cells(ligne, 7 + dc).FormulaR1C1 = _
+                "=IF(RC[-5]="""","""",RC[-2]*(RC[-4]*RC[-1]+RC[-3]))"
+        Else
+            ' Toiture terrasse : charge portée par les lignes Revêtement et Plancher
+            ws.Cells(ligne, 4 + dc).ClearContents
+            ws.Cells(ligne, 7 + dc).ClearContents
+        End If
+        AfficherEtages ws                    ' plancher de toiture affiché ou non
+    ElseIf Left(typeElement, 3) = "RDC" Then
+        AfficherEtages ws                    ' sous-sols / vide sanitaire affichés ou non
     ElseIf EpaisseursMur(typeElement) <> "" Then
         MajEpaisseurMur ws, ligne, dc
     ElseIf Left(typeElement, 8) = "Plancher" Then
