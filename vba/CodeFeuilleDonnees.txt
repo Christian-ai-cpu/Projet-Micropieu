@@ -1,0 +1,8 @@
+' À COLLER DANS LE MODULE DE LA FEUILLE « Données du projet » (pas dans un module
+' standard) : clic droit sur l'onglet de la feuille > Visualiser le code, puis coller.
+' - Phase du projet (C9) modifiée : la ligne « Type de fondation » s'affiche
+'   seulement pour la phase G5.
+
+Private Sub Worksheet_Change(ByVal Target As Range)
+    If Not Intersect(Target, Me.Range("C9")) Is Nothing Then AfficherTypeFondation Me
+End Sub
