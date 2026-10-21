@@ -10,14 +10,20 @@ Option Explicit
 '               ou Pont ; type de fondation, affiché seulement en phase G5 ;
 '               catégorie A à G ; altitude ; zone de sismicité 1 à 5)
 '   B18 à I26 : Références normatives (référence, date, intitulé)
-'   B28 à I45 : Données géotechniques : nombre de couches (C29, 1 à 15) et tableau
+'   B28 à E29 : Référentiel altimétrique (liste) et niveau du terrain naturel (unité
+'               m + référentiel)
+'   B31 à I48 : Données géotechniques : nombre de couches (C32, 1 à 15) et tableau
 '               des couches de sol (seules les lignes jusqu'à ce nombre sont affichées)
-'   B47 à E52 : Données des micropieux (arase supérieure, base, nappe, méthode,
+'   B50 à E55 : Données des micropieux (arase supérieure, base, nappe, méthode,
 '               niveau d'eau ; intitulé sur B:C, valeur en D, unité en E)
-'   B54 à D70 : Caractéristiques des micropieux (type de pieu du tableau A.1 de la
+'   B57 à D73 : Caractéristiques des micropieux (type de pieu du tableau A.1 de la
 '               NF P94-262, diamètre constant, incliné, groupe, norme de référence,
 '               classe, catégorie, mode de fonctionnement, résistance de pointe, B, hauteurs, nombres,
 '               conditions en tête, essai de contrôle ; intitulé sur B:C, valeur en D)
+'   B75       : HYPOTHÈSES RELATIVES AUX MATÉRIAUX CONSTITUTIFS DES FONDATIONS PROFONDES
+'   B77 à E79 : Caractéristiques du béton (classe d'exposition, classe de résistance)
+'   B81 à E91 : Caractéristiques de l'acier (type d'armature tube ou barre, classe,
+'               diamètres et épaisseur du tube, E, fe, platine, nuance, contrainte max)
 ' Les valeurs se saisissent dans les cases jaunes. Le type de fondation (ligne 13)
 ' s'affiche quand la phase (C9) vaut G5 (AfficherTypeFondation) et le tableau des
 ' couches suit le nombre de couches (AfficherCouches) : voir CodeFeuilleDonnees.txt.
@@ -27,16 +33,33 @@ Option Explicit
 Private Const NOM_FEUILLE As String = "Données du projet"
 Private Const CELLULE_PHASE As String = "C9"
 Private Const LIGNE_FONDATION As Long = 13
-Private Const CELLULE_NB_COUCHES As String = "C29"   ' nombre de couches saisi
-Private Const LIGNE_COUCHES As Long = 31       ' première couche de sol
+Private Const CELLULE_NB_COUCHES As String = "C32"   ' nombre de couches saisi
+Private Const LIGNE_COUCHES As Long = 34       ' première couche de sol
 Private Const MAX_COUCHES As Long = 15         ' lignes prévues (au-delà du nombre : masquées)
-Private Const LIGNE_PIEU As Long = 55          ' type de pieu (caractéristiques des micropieux)
+Private Const LIGNE_PIEU As Long = 58          ' type de pieu (caractéristiques des micropieux)
+Private Const LIGNE_ACIER As Long = 82         ' type d'armature (caractéristiques de l'acier)
+Private Const CLASSES_EXPOSITION As String = "X0,XC1,XC2,XC3,XC4,XD1,XD2,XD3," & _
+    "XS1,XS2,XS3,XF1,XF2,XF3,XF4,XA1,XA2,XA3"
+' Armatures des micropieux (dimensions courantes, à vérifier auprès du fournisseur).
+' Tube : « Øde x e mm » est lu pour remplir les diamètres et l'épaisseur (MajAcier).
+Private Const TUBES As String = "Tube N80 Ø73 x 5.5 mm,Tube N80 Ø88.9 x 6.5 mm," & _
+    "Tube N80 Ø88.9 x 9.5 mm,Tube N80 Ø101.6 x 9 mm,Tube N80 Ø114.3 x 9 mm," & _
+    "Tube N80 Ø127 x 9 mm,Tube N80 Ø139.7 x 9 mm,Tube N80 Ø168.3 x 10 mm," & _
+    "Tube N80 Ø177.8 x 10.4 mm"
+Private Const BARRES As String = "Barre GEWI Ø25 (S555/700),Barre GEWI Ø28 (S555/700)," & _
+    "Barre GEWI Ø32 (S555/700),Barre GEWI Ø40 (S555/700),Barre GEWI Ø50 (S555/700)," & _
+    "Barre HA B500 Ø25,Barre HA B500 Ø32,Barre HA B500 Ø40"
+Private Const PLATINES As String = "Platine carrée soudée,Platine carrée avec raidisseurs," & _
+    "Platine vissée sur manchon,Platine circulaire soudée"
 Private Const CATEGORIES_SOL As String = "Argiles et limons," & _
     "Sols intermédiaires (sable limoneux / sable argileux / argile sableuse)," & _
     "Sables et graves,Craies,Marnes et calcaires marneux,Roches"
 
 Public Sub CreerDonneesProjet()
     Dim ws As Worksheet, r As Long, normes As Variant, lc As Long, lm As Long, lp As Long
+    Dim la As Long
+
+    Application.EnableEvents = False         ' pas de Worksheet_Change pendant la création
 
     ' Feuille créée si elle n'existe pas, sinon vidée
     On Error Resume Next
@@ -102,9 +125,20 @@ Public Sub CreerDonneesProjet()
         ws.Range("D" & r & ":I" & r).Merge
     Next r
 
+    ' --- Référentiel altimétrique et niveau du terrain naturel ---
+    ' Intitulé sur B:C fusionnées, valeur en D, unité en E (m + référentiel choisi)
+    ws.Range("B28").Value = "Référentiel altimétrique"
+    ws.Range("B29").Value = "Niveau du terrain naturel"
+    Liste ws.Range("D28"), "NGF-IGN69,NGF-IGN78,NVP,IGN,Local"
+    ws.Range("D29").NumberFormat = "0.00"
+    ws.Range("E29").Formula = "=""m ""&D28"
+    ws.Range("D28:E29").HorizontalAlignment = xlCenter
+    ws.Range("B28:C28").Merge
+    ws.Range("B29:C29").Merge
+
     ' --- Données géotechniques : nombre de couches puis tableau des couches ---
-    SousTitre ws, 28, "Données géotechniques"
-    ws.Range("B29").Value = "Nombre de couches"
+    SousTitre ws, 31, "Données géotechniques"
+    ws.Range("B32").Value = "Nombre de couches"
     With ws.Range(CELLULE_NB_COUCHES)
         .Value = 3
         .Validation.Delete
@@ -193,9 +227,51 @@ Public Sub CreerDonneesProjet()
     Next r
     MajTypePieu ws
 
+    ' --- Hypothèses relatives aux matériaux constitutifs des fondations profondes ---
+    ' Intitulé sur B:C fusionnées, valeur en D, unité en E
+    la = lp + 17                             ' titre de la partie matériaux
+    With ws.Range("B" & la & ":I" & la)
+        .Merge
+        .Value = "HYPOTHÈSES RELATIVES AUX MATÉRIAUX CONSTITUTIFS DES FONDATIONS PROFONDES"
+        .Font.Bold = True
+        .Font.Size = 14
+        .HorizontalAlignment = xlCenter
+    End With
+    SousTitre ws, la + 2, "Caractéristiques du béton"
+    ws.Range("B" & la + 3 & ":B" & la + 4).Value = Application.Transpose(Array( _
+        "Classe d'exposition du béton", "Classe de résistance nominale du béton"))
+    Liste ws.Range("D" & la + 3), CLASSES_EXPOSITION
+    Liste ws.Range("D" & la + 4), "C20/25,C25/30,C30/37,C35/45,C40/50,C45/55,C50/60"
+    ws.Range("D" & la + 4).Value = "C25/30"
+
+    ' Acier : la liste des classes dépend du type d'armature, les dimensions du tube
+    ' choisi sont remplies (voir MajArmature et MajAcier)
+    SousTitre ws, LIGNE_ACIER - 1, "Caractéristiques de l'acier"
+    ws.Range("B" & LIGNE_ACIER & ":B" & LIGNE_ACIER + 9).Value = Application.Transpose(Array( _
+        "Type d'armature", "Classe de l'acier", "Diamètre extérieur", "Épaisseur e", _
+        "Diamètre intérieur", "Module de Young E", "Contrainte de l'acier fe", _
+        "Type de platine (liaison micropieu / structure)", "Nuance de la platine", _
+        "Contrainte max de l'acier de la platine"))
+    ws.Range("E" & LIGNE_ACIER + 2 & ":E" & LIGNE_ACIER + 9).Value = Application.Transpose(Array( _
+        "mm", "mm", "mm", "MPa", "MPa", "", "", "MPa"))
+    Liste ws.Range("D" & LIGNE_ACIER), "Tube,Barre"
+    ws.Range("D" & LIGNE_ACIER + 2 & ":D" & LIGNE_ACIER + 4).NumberFormat = "0.0"
+    ws.Range("D" & LIGNE_ACIER + 5).Value = 210000
+    ws.Range("D" & LIGNE_ACIER + 6).Value = 500
+    ws.Range("D" & LIGNE_ACIER + 5 & ":D" & LIGNE_ACIER + 6).NumberFormat = "0"
+    Liste ws.Range("D" & LIGNE_ACIER + 7), PLATINES
+    Liste ws.Range("D" & LIGNE_ACIER + 8), "S235,S275,S355,S420,S460"
+    ' Limite d'élasticité de la nuance (S235 -> 235 MPa, épaisseur <= 40 mm)
+    ws.Range("D" & LIGNE_ACIER + 9).Formula = "=VALUE(MID(D" & LIGNE_ACIER + 8 & ",2,3))"
+    ws.Range("D" & la + 3 & ":E" & LIGNE_ACIER + 9).HorizontalAlignment = xlCenter
+    For r = la + 3 To LIGNE_ACIER + 9
+        If r <> LIGNE_ACIER - 1 And r <> LIGNE_ACIER - 2 Then ws.Range("B" & r & ":C" & r).Merge
+    Next r
+
     ' --- Mise en forme ---
-    With ws.Range("B4:C9,B12:C16,B19:I26,B29:C29,B" & LIGNE_COUCHES - 1 & ":I" & lc & _
-            ",B" & lm + 1 & ":E" & lm + 5 & ",B" & lp & ":D" & lp + 15)
+    With ws.Range("B4:C9,B12:C16,B19:I26,B28:E29,B32:C32,B" & LIGNE_COUCHES - 1 & ":I" & lc & _
+            ",B" & lm + 1 & ":E" & lm + 5 & ",B" & lp & ":D" & lp + 15 & _
+            ",B" & la + 3 & ":E" & la + 4 & ",B" & LIGNE_ACIER & ":E" & LIGNE_ACIER + 9)
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
@@ -203,23 +279,27 @@ Public Sub CreerDonneesProjet()
     ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).Font.Bold = True
     ws.Range("B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).HorizontalAlignment = xlCenter
     ' Cases à remplir (données d'entrée) en jaune ; épaisseur et norme sont calculées
-    ws.Range("C4:C9,C12:C16,C29,C" & LIGNE_COUCHES & ":E" & lc & ",G" & LIGNE_COUCHES & _
+    ws.Range("C4:C9,C12:C16,D28:D29,C32,C" & LIGNE_COUCHES & ":E" & lc & ",G" & LIGNE_COUCHES & _
         ":I" & lc & ",D" & lm + 1 & ":D" & lm + 5 & ",D" & lp & ":D" & lp + 3 & _
-        ",D" & lp + 5 & ":D" & lp + 15).Interior.Color = RGB(255, 255, 204)
+        ",D" & lp + 5 & ":D" & lp + 15 & ",D" & la + 3 & ":D" & la + 4 & _
+        ",D" & LIGNE_ACIER & ":D" & LIGNE_ACIER + 1 & ",D" & LIGNE_ACIER + 5 & ":D" & _
+        LIGNE_ACIER + 8).Interior.Color = RGB(255, 255, 204)
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 40
     ws.Columns("D").ColumnWidth = 28         ' valeurs des micropieux, catégorie de sol
     ws.Columns("E:I").ColumnWidth = 14
-    ws.Rows("19:" & lp + 15).AutoFit
+    ws.Rows("19:" & LIGNE_ACIER + 9).AutoFit
 
     AfficherTypeFondation ws
     AfficherCouches ws
+    MajArmature ws
     ws.Activate
+    Application.EnableEvents = True
 End Sub
 
-' Affiche autant de lignes de couches que le nombre saisi en C29 (1 à MAX_COUCHES),
-' les autres lignes du tableau sont masquées. Appelée aussi quand C29 change
+' Affiche autant de lignes de couches que le nombre saisi en C32 (1 à MAX_COUCHES),
+' les autres lignes du tableau sont masquées. Appelée aussi quand C32 change
 ' (voir CodeFeuilleDonnees.txt).
 Public Sub AfficherCouches(ws As Worksheet)
     Dim nb As Long
@@ -230,7 +310,7 @@ Public Sub AfficherCouches(ws As Worksheet)
     If nb < MAX_COUCHES Then ws.Rows(LIGNE_COUCHES + nb).Resize(MAX_COUCHES - nb).Hidden = True
 End Sub
 
-' Type de pieu choisi (D55) : la catégorie est le rang de la technique dans le
+' Type de pieu choisi (D58) : la catégorie est le rang de la technique dans le
 ' tableau A.1 (TypesPieux, « Micropieu type I (M1) » -> 17), la classe s'en déduit
 ' (ClassePieu) et la résistance de pointe est prise en compte (Oui) sauf pour les
 ' micropieux, catégories 17 à 20 (Non) ; la norme de référence suit la catégorie
@@ -247,11 +327,43 @@ Public Sub MajTypePieu(ws As Worksheet)
     ws.Range("D" & LIGNE_PIEU + 8).Value = IIf(categorie >= 17, "Non", "Oui")
 End Sub
 
-' Hauteur totale du micropieu (D65) : la valeur saisie est multipliée par -1
+' Hauteur totale du micropieu (D68) : la valeur saisie est multipliée par -1
 ' (ex. cote -12 saisie -> 12 m). Appelée quand la cellule change
 ' (voir CodeFeuilleDonnees.txt).
 Public Sub InverserHauteur(c As Range)
     If IsNumeric(c.Value) And Not IsEmpty(c.Value) Then c.Value = -c.Value
+End Sub
+
+' Type d'armature choisi (D82) : la liste « Classe de l'acier » propose les tubes
+' (TUBES) ou les barres (BARRES) ; diamètres et épaisseur ne sont affichés que pour
+' un tube. Appelée aussi quand le type change (voir CodeFeuilleDonnees.txt).
+Public Sub MajArmature(ws As Worksheet)
+    Dim tube As Boolean, liste As String
+    tube = (ws.Range("D" & LIGNE_ACIER).Value = "Tube")
+    liste = IIf(tube, TUBES, BARRES)
+    With ws.Range("D" & LIGNE_ACIER + 1)
+        .Validation.Delete
+        .Validation.Add xlValidateList, xlValidAlertStop, , liste
+        If InStr("," & liste & ",", "," & .Value & ",") = 0 Then .Value = Split(liste, ",")(0)
+    End With
+    ws.Rows(LIGNE_ACIER + 2).Resize(3).Hidden = Not tube
+    MajAcier ws
+End Sub
+
+' Classe de l'acier choisie (D83) : pour un tube « ... Øde x e mm », diamètre
+' extérieur de et épaisseur e sont lus dans la désignation, diamètre intérieur =
+' de - 2 e. Appelée aussi quand la classe change (voir CodeFeuilleDonnees.txt).
+Public Sub MajAcier(ws As Worksheet)
+    Dim nom As String, p As Long
+    nom = CStr(ws.Range("D" & LIGNE_ACIER + 1).Value)
+    p = InStr(nom, "Ø")
+    If ws.Range("D" & LIGNE_ACIER).Value = "Tube" And p > 0 Then
+        ws.Range("D" & LIGNE_ACIER + 2).Value = Val(Mid(nom, p + 1))
+        ws.Range("D" & LIGNE_ACIER + 3).Value = Val(Mid(nom, InStr(p, nom, "x") + 1))
+        ws.Range("D" & LIGNE_ACIER + 4).Formula = "=D" & LIGNE_ACIER + 2 & "-2*D" & LIGNE_ACIER + 3
+    Else
+        ws.Range("D" & LIGNE_ACIER + 2 & ":D" & LIGNE_ACIER + 4).ClearContents
+    End If
 End Sub
 
 ' Classe de pieu (NF P94-262, tableau A.1) selon la catégorie 1 à 20
@@ -328,6 +440,7 @@ Private Function SolsNFP11300() As String
     s = s & ",R4 - Roches siliceuses (grès / poudingues / brèches)"
     s = s & ",R5 - Roches salines (sel gemme / gypse)"
     s = s & ",R6 - Roches magmatiques et métamorphiques (granites / basaltes / schistes)"
+    s = s & ",Terrain neutralisé"
     SolsNFP11300 = s
 End Function
 
