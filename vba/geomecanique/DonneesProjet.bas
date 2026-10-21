@@ -9,16 +9,26 @@ Option Explicit
 '   B11 à C16 : Caractérisation générale de l'ouvrage (type d'ouvrage : Bâtiment
 '               ou Pont ; type de fondation, affiché seulement en phase G5 ;
 '               catégorie A à G ; altitude ; zone de sismicité 1 à 5)
-'   B18 à D23 : Références normatives (EC0, EC2, EC3 partie 1, EC7)
-' Les valeurs se saisissent en colonne C. Le type de fondation (ligne 13) s'affiche
-' quand la phase (C9) vaut G5 : voir AfficherTypeFondation et CodeFeuilleDonnees.txt.
+'   B18 à I26 : Références normatives (référence, date, intitulé)
+'   B28 à I37 : Hypothèses de calcul : tableau des couches de sol (8 couches)
+'   B39 à C43 : Micropieux (arase supérieure, base, nappe, méthode, niveau d'eau)
+' Les valeurs se saisissent dans les cases jaunes. Le type de fondation (ligne 13)
+' s'affiche quand la phase (C9) vaut G5 : voir AfficherTypeFondation et
+' CodeFeuilleDonnees.txt.
+' Les listes de plus de 255 caractères (limite d'Excel, ex. noms des sols de la
+' NF P11-300) sont écrites sur la feuille masquée « Listes » (voir ListeLongue).
 
 Private Const NOM_FEUILLE As String = "Données du projet"
 Private Const CELLULE_PHASE As String = "C9"
 Private Const LIGNE_FONDATION As Long = 13
+Private Const LIGNE_COUCHES As Long = 30       ' première couche de sol
+Private Const NB_COUCHES As Long = 8
+Private Const CATEGORIES_SOL As String = "Argiles et limons," & _
+    "Sols intermédiaires (sable limoneux / sable argileux / argile sableuse)," & _
+    "Sables et graves,Craies,Marnes et calcaires marneux,Roches"
 
 Public Sub CreerDonneesProjet()
-    Dim ws As Worksheet, r As Long, normes As Variant
+    Dim ws As Worksheet, r As Long, normes As Variant, lc As Long
 
     ' Feuille créée si elle n'existe pas, sinon vidée
     On Error Resume Next
@@ -32,7 +42,7 @@ Public Sub CreerDonneesProjet()
     ws.Rows.Hidden = False
 
     ' --- Titre ---
-    With ws.Range("B1:D1")
+    With ws.Range("B1:I1")
         .Merge
         .Value = "HYPOTHÈSES GÉNÉRALES"
         .Font.Bold = True
@@ -59,35 +69,84 @@ Public Sub CreerDonneesProjet()
     Liste ws.Range("C15"), "<=1000 m,>1000 m"
     Liste ws.Range("C16"), "1,2,3,4,5"
 
-    ' --- Références normatives ---
+    ' --- Références normatives : référence (date), intitulé fusionné de D à I ---
     SousTitre ws, 18, "Références normatives"
-    ws.Range("B19:D19").Value = Array("Eurocode", "Référence", "Intitulé")
-    ws.Range("B19:D19").Font.Bold = True
+    ws.Range("B19:D19").Value = Array("Référence", "Date", "Intitulé")
     normes = Array( _
-        Array("EC0", "NF EN 1990 et son annexe nationale", _
-            "Eurocodes structuraux - Bases de calcul des structures"), _
-        Array("EC2", "NF EN 1992-1-1 et son annexe nationale", _
-            "Calcul des structures en béton - Partie 1-1 : règles générales et règles pour les bâtiments"), _
-        Array("EC3 - Partie 1", "NF EN 1993-1-1 et son annexe nationale", _
-            "Calcul des structures en acier - Partie 1-1 : règles générales et règles pour les bâtiments"), _
-        Array("EC7", "NF EN 1997-1 et son annexe nationale", _
-            "Calcul géotechnique - Partie 1 : règles générales"))
+        Array("NF EN 1990", "mars 2003", _
+            "Eurocode 0 - Bases de calcul des structures"), _
+        Array("NF EN 1992-1-1", "octobre 2005", _
+            "Eurocode 2 - Calcul des structures en béton - Partie 1-1 : règles générales et règles pour les bâtiments"), _
+        Array("NF P22-311-1", "octobre 2005", _
+            "Eurocode 3 (NF EN 1993-1-1) - Calcul des structures en acier - Partie 1-1 : règles générales et règles pour les bâtiments"), _
+        Array("NF P94-251-1", "juin 2005", _
+            "Eurocode 7 (NF EN 1997-1) - Calcul géotechnique - Partie 1 : règles générales"), _
+        Array("NF P94-262", "juillet 2012", _
+            "Justification des ouvrages géotechniques - Norme d'application nationale de l'Eurocode 7 - Fondations profondes"), _
+        Array("NF EN 1998-1", "septembre 2005", _
+            "Eurocode 8 - Calcul des structures pour leur résistance aux séismes - Partie 1 : règles générales, actions sismiques et règles pour les bâtiments"), _
+        Array("NF EN 1998-5", "septembre 2005", _
+            "Eurocode 8 - Partie 5 : fondations, ouvrages de soutènement et aspects géotechniques"))
     For r = 0 To UBound(normes)
         ws.Range("B" & 20 + r & ":D" & 20 + r).Value = normes(r)
     Next r
+    For r = 19 To 26
+        ws.Range("D" & r & ":I" & r).Merge
+    Next r
+
+    ' --- Hypothèses de calcul : couches de sol ---
+    SousTitre ws, 28, "Hypothèses de calcul"
+    ws.Range("B29:I29").Value = Array("N° de couche", "Nom de couche (NF P11-300)", _
+        "Catégorie de sol", "Prof. bas (m/TN)", "Épaisseur (m)", _
+        "Pression limite pl* (MPa)", "Module pressiométrique EM (MPa)", "Terrain neutralisé")
+    For r = LIGNE_COUCHES To LIGNE_COUCHES + NB_COUCHES - 1
+        ws.Range("B" & r).Value = r - LIGNE_COUCHES + 1
+        ListeLongue ws.Range("C" & r), SolsNFP11300(), "Sols NF P11-300"
+        ws.Range("C" & r).ClearContents      ' nom de couche à choisir
+        Liste ws.Range("D" & r), CATEGORIES_SOL
+        ws.Range("D" & r).ClearContents      ' catégorie à choisir
+        ' Épaisseur = différence entre la base de la couche et celle de la couche
+        ' au-dessus (TN pour la première couche)
+        If r = LIGNE_COUCHES Then
+            ws.Range("F" & r).Formula = "=IF(E" & r & "="""","""",ABS(E" & r & "))"
+        Else
+            ws.Range("F" & r).Formula = "=IF(E" & r & "="""","""",ABS(E" & r & "-E" & r - 1 & "))"
+        End If
+        Liste ws.Range("I" & r), "Non,Oui"
+    Next r
+    lc = LIGNE_COUCHES + NB_COUCHES - 1
+    ws.Range("E" & LIGNE_COUCHES & ":F" & lc).NumberFormat = "0.00"
+    ws.Range("G" & LIGNE_COUCHES & ":H" & lc).NumberFormat = "0.00"
+    ws.Range("B" & LIGNE_COUCHES & ":B" & lc & ",E" & LIGNE_COUCHES & ":I" & lc).HorizontalAlignment = xlCenter
+
+    ' --- Micropieux ---
+    ws.Range("B39:B43").Value = Application.Transpose(Array( _
+        "Cote de l'arase supérieure des micropieux (m/TN)", "Base des micropieux (m/TN)", _
+        "Présence de nappe phréatique", "Méthode de calcul retenue pour les pieux", _
+        "Niveau de l'eau (m/TN)"))
+    ws.Range("C39:C40,C43").NumberFormat = "0.00"
+    ws.Range("C39:C43").HorizontalAlignment = xlCenter
+    Liste ws.Range("C41"), "Non,Oui"
+    Liste ws.Range("C42"), "Méthode pressiométrique,Méthode pénétrométrique," & _
+        "Essais de chargement statique"
 
     ' --- Mise en forme ---
-    With ws.Range("B4:C9,B12:C16,B19:D23")
+    With ws.Range("B4:C9,B12:C16,B19:I26,B29:I" & lc & ",B39:C43")
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    ws.Range("C4:C9,C12:C16").Interior.Color = RGB(255, 255, 204)   ' cases à remplir
+    ws.Range("B19:I19,B29:I29").Font.Bold = True
+    ws.Range("B29:I29").HorizontalAlignment = xlCenter
+    ' Cases à remplir (données d'entrée) en jaune ; l'épaisseur est calculée
+    ws.Range("C4:C9,C12:C16,C" & LIGNE_COUCHES & ":E" & lc & ",G" & LIGNE_COUCHES & _
+        ":I" & lc & ",C39:C43").Interior.Color = RGB(255, 255, 204)
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
-    ws.Columns("C").ColumnWidth = 40
-    ws.Columns("D").ColumnWidth = 70
-    ws.Rows("19:23").AutoFit
+    ws.Columns("C:D").ColumnWidth = 40
+    ws.Columns("E:I").ColumnWidth = 14
+    ws.Rows("19:" & lc).AutoFit
+    ws.Rows("39:43").AutoFit
 
     AfficherTypeFondation ws
     ws.Activate
@@ -99,6 +158,34 @@ End Sub
 Public Sub AfficherTypeFondation(ws As Worksheet)
     ws.Rows(LIGNE_FONDATION).Hidden = (ws.Range(CELLULE_PHASE).Value <> "G5")
 End Sub
+
+' Noms des sols et roches des classes A, B, C, D et R de la NF P11-300 (GTR).
+' Désignations abrégées, à compléter si besoin.
+Private Function SolsNFP11300() As String
+    Dim s As String
+    s = "A1 - Limons peu plastiques / loess / sables fins peu pollués"
+    s = s & ",A2 - Sables fins argileux / limons / argiles et marnes peu plastiques"
+    s = s & ",A3 - Argiles et argiles marneuses / limons très plastiques"
+    s = s & ",A4 - Argiles et argiles marneuses très plastiques"
+    s = s & ",B1 - Sables silteux"
+    s = s & ",B2 - Sables argileux (peu argileux)"
+    s = s & ",B3 - Graves silteuses"
+    s = s & ",B4 - Graves argileuses (peu argileuses)"
+    s = s & ",B5 - Sables et graves très silteux"
+    s = s & ",B6 - Sables et graves argileux à très argileux"
+    s = s & ",C1 - Sols à fines et gros éléments (argiles à silex / éboulis / moraines)"
+    s = s & ",C2 - Sols à gros éléments dominants avec fines"
+    s = s & ",D1 - Sables alluvionnaires propres / sables de dune"
+    s = s & ",D2 - Graves alluvionnaires propres / sables"
+    s = s & ",D3 - Graves alluvionnaires grossières propres / galets"
+    s = s & ",R1 - Craies"
+    s = s & ",R2 - Calcaires"
+    s = s & ",R3 - Roches argileuses (marnes / argilites / pélites)"
+    s = s & ",R4 - Roches siliceuses (grès / poudingues / brèches)"
+    s = s & ",R5 - Roches salines (sel gemme / gypse)"
+    s = s & ",R6 - Roches magmatiques et métamorphiques (granites / basaltes / schistes)"
+    SolsNFP11300 = s
+End Function
 
 ' Sous-titre en gras, souligné, en colonne B
 Private Sub SousTitre(ws As Worksheet, ligne As Long, texte As String)
@@ -116,4 +203,39 @@ Private Sub Liste(c As Range, choix As String)
     c.Validation.Add xlValidateList, xlValidAlertStop, , choix
     c.Value = Split(choix, ",")(0)
     c.HorizontalAlignment = xlCenter
+End Sub
+
+' Liste déroulante de plus de 255 caractères : les choix sont écrits dans une
+' colonne de la feuille masquée « Listes » (titre nom en ligne 1) et la liste
+' déroulante renvoie à cette colonne.
+Private Sub ListeLongue(c As Range, choix As String, nom As String)
+    Dim wl As Worksheet, wb As Workbook, t As Variant, col As Long
+
+    If Len(choix) <= 255 Then
+        Liste c, choix
+        Exit Sub
+    End If
+    Set wb = c.Worksheet.Parent
+    On Error Resume Next
+    Set wl = wb.Worksheets("Listes")
+    On Error GoTo 0
+    If wl Is Nothing Then
+        Set wl = wb.Worksheets.Add(After:=wb.Worksheets(wb.Worksheets.Count))
+        wl.Name = "Listes"
+        wl.Visible = xlSheetHidden
+        c.Worksheet.Activate                 ' la feuille ajoutée était devenue active
+    End If
+    ' Colonne de cette liste (même titre), sinon la première colonne libre
+    col = 1
+    Do While wl.Cells(1, col).Value <> "" And wl.Cells(1, col).Value <> nom
+        col = col + 1
+    Loop
+    t = Split(choix, ",")
+    wl.Columns(col).ClearContents
+    wl.Cells(1, col).Value = nom
+    wl.Cells(2, col).Resize(UBound(t) + 1, 1).Value = Application.Transpose(t)
+    c.Validation.Delete
+    c.Validation.Add xlValidateList, xlValidAlertStop, , "=Listes!" & _
+        wl.Cells(2, col).Resize(UBound(t) + 1, 1).Address
+    c.Value = t(0)
 End Sub
