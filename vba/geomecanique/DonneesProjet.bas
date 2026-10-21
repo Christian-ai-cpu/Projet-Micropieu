@@ -14,6 +14,10 @@ Option Explicit
 '               des couches de sol (seules les lignes jusqu'à ce nombre sont affichées)
 '   B47 à D52 : Données des micropieux (arase supérieure, base, nappe, méthode,
 '               niveau d'eau ; valeur en C, unité en D)
+'   B54 à D69 : Caractéristiques des micropieux (type de pieu du tableau A.1 de la
+'               NF P94-262, diamètre constant, incliné, groupe, norme de référence,
+'               classe, catégorie, résistance en pointe, B, hauteurs, nombres,
+'               conditions en tête, essai de contrôle)
 ' Les valeurs se saisissent dans les cases jaunes. Le type de fondation (ligne 13)
 ' s'affiche quand la phase (C9) vaut G5 (AfficherTypeFondation) et le tableau des
 ' couches suit le nombre de couches (AfficherCouches) : voir CodeFeuilleDonnees.txt.
@@ -26,12 +30,13 @@ Private Const LIGNE_FONDATION As Long = 13
 Private Const CELLULE_NB_COUCHES As String = "C29"   ' nombre de couches saisi
 Private Const LIGNE_COUCHES As Long = 31       ' première couche de sol
 Private Const MAX_COUCHES As Long = 15         ' lignes prévues (au-delà du nombre : masquées)
+Private Const LIGNE_PIEU As Long = 55          ' type de pieu (caractéristiques des micropieux)
 Private Const CATEGORIES_SOL As String = "Argiles et limons," & _
     "Sols intermédiaires (sable limoneux / sable argileux / argile sableuse)," & _
     "Sables et graves,Craies,Marnes et calcaires marneux,Roches"
 
 Public Sub CreerDonneesProjet()
-    Dim ws As Worksheet, r As Long, normes As Variant, lc As Long, lm As Long
+    Dim ws As Worksheet, r As Long, normes As Variant, lc As Long, lm As Long, lp As Long
 
     ' Feuille créée si elle n'existe pas, sinon vidée
     On Error Resume Next
@@ -146,9 +151,43 @@ Public Sub CreerDonneesProjet()
     Liste ws.Range("C" & lm + 4), "Méthode pressiométrique,Méthode pénétrométrique," & _
         "Essais de chargement statique"
 
+    ' --- Caractéristiques des micropieux (sous le tableau précédent) ---
+    ' Valeur en C, unité en D. Le type de pieu (tableau A.1 de la NF P94-262) remplit
+    ' la catégorie, la classe et la norme de référence (voir MajTypePieu).
+    lp = LIGNE_PIEU
+    SousTitre ws, lp - 1, "Caractéristiques des micropieux"
+    ws.Range("B" & lp & ":B" & lp + 14).Value = Application.Transpose(Array( _
+        "Type de pieu - technique de mise en oeuvre (NF P94-262, tableau A.1)", _
+        "Diamètre constant", "Incliné", "Groupe", "Norme de référence", _
+        "Classe du micropieu", "Catégorie du micropieu", _
+        "Prise en compte de la résistance en pointe", "Diamètre du micropieu B", _
+        "Hauteur totale du micropieu", "Hauteur du micropieu dans la couche porteuse h", _
+        "Nombre de micropieux / appui du bâtiment", "Nombre total de micropieux", _
+        "Conditions en tête du micropieu", "Essai de contrôle"))
+    ws.Range("D" & lp + 8 & ":D" & lp + 12).Value = Application.Transpose(Array( _
+        "m", "m", "m", "u", "u"))
+    ListeLongue ws.Range("C" & lp), TypesPieux(), "Pieux NF P94-262"
+    ws.Range("C" & lp).Value = Split(TypesPieux(), ",")(16)   ' 17 - micropieu type I
+    Liste ws.Range("C" & lp + 1), "Oui,Non"
+    Liste ws.Range("C" & lp + 2), "Non,Oui"
+    Liste ws.Range("C" & lp + 3), "Non,Oui"
+    ' Norme de référence selon la catégorie (C de la ligne Catégorie)
+    ws.Range("C" & lp + 4).Formula = "=IF(C" & lp + 6 & "="""","""",IF(VALUE(C" & lp + 6 & _
+        "&"""")<=6,""NF EN 1536"",IF(VALUE(C" & lp + 6 & "&"""")<=15,""NF EN 12699""," & _
+        "IF(VALUE(C" & lp + 6 & "&"""")=16,""NF EN 12063"",""NF EN 14199""))))"
+    Liste ws.Range("C" & lp + 5), "1,1bis,2,3,4,5,6,7,8"
+    Liste ws.Range("C" & lp + 6), "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20"
+    Liste ws.Range("C" & lp + 7), "Oui,Non"
+    ws.Range("C" & lp + 8 & ":C" & lp + 10).NumberFormat = "0.00"
+    ws.Range("C" & lp + 11 & ":C" & lp + 12).NumberFormat = "0"
+    Liste ws.Range("C" & lp + 13), "Libre en tête,Encastré en tête"
+    Liste ws.Range("C" & lp + 14), "Non,Oui"
+    ws.Range("C" & lp & ":C" & lp + 14).HorizontalAlignment = xlCenter
+    MajTypePieu ws
+
     ' --- Mise en forme ---
     With ws.Range("B4:C9,B12:C16,B19:I26,B29:C29,B" & LIGNE_COUCHES - 1 & ":I" & lc & _
-            ",B" & lm + 1 & ":D" & lm + 5)
+            ",B" & lm + 1 & ":D" & lm + 5 & ",B" & lp & ":D" & lp + 14)
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
@@ -157,12 +196,13 @@ Public Sub CreerDonneesProjet()
     ws.Range("B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).HorizontalAlignment = xlCenter
     ' Cases à remplir (données d'entrée) en jaune ; l'épaisseur est calculée
     ws.Range("C4:C9,C12:C16,C29,C" & LIGNE_COUCHES & ":E" & lc & ",G" & LIGNE_COUCHES & _
-        ":I" & lc & ",C" & lm + 1 & ":C" & lm + 5).Interior.Color = RGB(255, 255, 204)
+        ":I" & lc & ",C" & lm + 1 & ":C" & lm + 5 & ",C" & lp & ":C" & lp + 3 & _
+        ",C" & lp + 5 & ":C" & lp + 14).Interior.Color = RGB(255, 255, 204)
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C:D").ColumnWidth = 40
     ws.Columns("E:I").ColumnWidth = 14
-    ws.Rows("19:" & lm + 5).AutoFit
+    ws.Rows("19:" & lp + 14).AutoFit
 
     AfficherTypeFondation ws
     AfficherCouches ws
@@ -180,6 +220,60 @@ Public Sub AfficherCouches(ws As Worksheet)
     ws.Rows(LIGNE_COUCHES).Resize(MAX_COUCHES).Hidden = False
     If nb < MAX_COUCHES Then ws.Rows(LIGNE_COUCHES + nb).Resize(MAX_COUCHES - nb).Hidden = True
 End Sub
+
+' Type de pieu choisi (C55) : la catégorie est le numéro en tête de la désignation
+' (« 17 - Micropieu type I (M1) » -> 17) et la classe s'en déduit (ClassePieu) ;
+' la norme de référence suit la catégorie par formule. Appelée aussi quand le type
+' change (voir CodeFeuilleDonnees.txt).
+Public Sub MajTypePieu(ws As Worksheet)
+    Dim categorie As Long
+    categorie = Val(ws.Range("C" & LIGNE_PIEU).Value)
+    If categorie < 1 Or categorie > 20 Then Exit Sub
+    ws.Range("C" & LIGNE_PIEU + 6).Value = categorie
+    ws.Range("C" & LIGNE_PIEU + 5).Value = ClassePieu(categorie)
+End Sub
+
+' Classe de pieu (NF P94-262, tableau A.1) selon la catégorie 1 à 20
+Public Function ClassePieu(ByVal categorie As Long) As String
+    Select Case categorie
+        Case 1 To 5:   ClassePieu = "1"      ' pieux forés
+        Case 6:        ClassePieu = "2"      ' tarière creuse
+        Case 7, 8:     ClassePieu = "3"      ' vissés
+        Case 9 To 12:  ClassePieu = "4"      ' battus fermés
+        Case 13:       ClassePieu = "5"      ' battu acier ouvert
+        Case 14, 15:   ClassePieu = "6"      ' profilés H
+        Case 16:       ClassePieu = "7"      ' palplanches
+        Case 17, 18:   ClassePieu = "1bis"   ' micropieux types I et II
+        Case 19, 20:   ClassePieu = "8"      ' injectés haute pression (IGU, IRS)
+    End Select
+End Function
+
+' Techniques de mise en oeuvre des pieux (NF P94-262, tableau A.1), numérotées par
+' catégorie. Désignations abrégées, à vérifier sur la norme.
+Private Function TypesPieux() As String
+    Dim s As String
+    s = "1 - Foré simple (pieux et barrettes) (FS)"
+    s = s & ",2 - Foré boue (pieux et barrettes) (FB)"
+    s = s & ",3 - Foré tubé - virole perdue (FTP)"
+    s = s & ",4 - Foré tubé - virole récupérée (FTR)"
+    s = s & ",5 - Foré simple ou boue avec rainurage ou puits (FSR / FBR / PU)"
+    s = s & ",6 - Foré tarière creuse simple ou double rotation (FTC / FTCD)"
+    s = s & ",7 - Vissé moulé (VM)"
+    s = s & ",8 - Vissé tubé (VT)"
+    s = s & ",9 - Battu béton préfabriqué ou précontraint (BPF / BPR)"
+    s = s & ",10 - Battu enrobé - béton / mortier / coulis (BE)"
+    s = s & ",11 - Battu moulé (BM)"
+    s = s & ",12 - Battu acier fermé (BAF)"
+    s = s & ",13 - Battu acier ouvert (BAO)"
+    s = s & ",14 - Profilé H battu (HB)"
+    s = s & ",15 - Profilé H battu injecté (HBi)"
+    s = s & ",16 - Palplanches battues (PP)"
+    s = s & ",17 - Micropieu type I (M1)"
+    s = s & ",18 - Micropieu type II (M2)"
+    s = s & ",19 - Pieu ou micropieu injecté mode IGU - type III (PIGU / MIGU)"
+    s = s & ",20 - Pieu ou micropieu injecté mode IRS - type IV (PIRS / MIRS)"
+    TypesPieux = s
+End Function
 
 ' Affiche la ligne « Type de fondation » juste sous le type d'ouvrage seulement
 ' quand la phase du projet est G5. Appelée aussi quand la phase change
