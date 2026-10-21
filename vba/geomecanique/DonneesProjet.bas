@@ -12,12 +12,12 @@ Option Explicit
 '   B18 à I26 : Références normatives (référence, date, intitulé)
 '   B28 à I45 : Données géotechniques : nombre de couches (C29, 1 à 15) et tableau
 '               des couches de sol (seules les lignes jusqu'à ce nombre sont affichées)
-'   B47 à D52 : Données des micropieux (arase supérieure, base, nappe, méthode,
-'               niveau d'eau ; valeur en C, unité en D)
+'   B47 à E52 : Données des micropieux (arase supérieure, base, nappe, méthode,
+'               niveau d'eau ; intitulé sur B:C, valeur en D, unité en E)
 '   B54 à D69 : Caractéristiques des micropieux (type de pieu du tableau A.1 de la
 '               NF P94-262, diamètre constant, incliné, groupe, norme de référence,
 '               classe, catégorie, résistance en pointe, B, hauteurs, nombres,
-'               conditions en tête, essai de contrôle)
+'               conditions en tête, essai de contrôle ; intitulé sur B:C, valeur en D)
 ' Les valeurs se saisissent dans les cases jaunes. Le type de fondation (ligne 13)
 ' s'affiche quand la phase (C9) vaut G5 (AfficherTypeFondation) et le tableau des
 ' couches suit le nombre de couches (AfficherCouches) : voir CodeFeuilleDonnees.txt.
@@ -136,71 +136,77 @@ Public Sub CreerDonneesProjet()
     ws.Range("G" & LIGNE_COUCHES & ":H" & lc).NumberFormat = "0.00"
     ws.Range("B" & LIGNE_COUCHES & ":B" & lc & ",E" & LIGNE_COUCHES & ":I" & lc).HorizontalAlignment = xlCenter
 
-    ' --- Données des micropieux : valeur en C, unité à droite en D ---
+    ' --- Données des micropieux : intitulé sur B:C fusionnées, valeur en D, unité en E ---
     lm = lc + 2                              ' sous-titre
     SousTitre ws, lm, "Données des micropieux"
     ws.Range("B" & lm + 1 & ":B" & lm + 5).Value = Application.Transpose(Array( _
         "Cote de l'arase supérieure des micropieux", "Base des micropieux", _
         "Présence de nappe phréatique", "Méthode de calcul retenue pour les pieux", _
         "Niveau de l'eau"))
-    ws.Range("D" & lm + 1 & ":D" & lm + 5).Value = Application.Transpose(Array( _
-        "m/TN", "m/TN", "", "", "m/TN"))
-    ws.Range("C" & lm + 1 & ":C" & lm + 2 & ",C" & lm + 5).NumberFormat = "0.00"
-    ws.Range("C" & lm + 1 & ":C" & lm + 5).HorizontalAlignment = xlCenter
-    Liste ws.Range("C" & lm + 3), "Non,Oui"
-    Liste ws.Range("C" & lm + 4), "Méthode pressiométrique,Méthode pénétrométrique," & _
+    ws.Range("E" & lm + 1 & ":E" & lm + 5).Value = Application.Transpose(Array( _
+        "m/TN", "m/TN", "", "", "m"))
+    ws.Range("D" & lm + 1 & ":D" & lm + 2 & ",D" & lm + 5).NumberFormat = "0.00"
+    ws.Range("D" & lm + 1 & ":E" & lm + 5).HorizontalAlignment = xlCenter
+    Liste ws.Range("D" & lm + 3), "Non,Oui"
+    Liste ws.Range("D" & lm + 4), "Méthode pressiométrique,Méthode pénétrométrique," & _
         "Essais de chargement statique"
+    For r = lm + 1 To lm + 5
+        ws.Range("B" & r & ":C" & r).Merge
+    Next r
 
     ' --- Caractéristiques des micropieux (sous le tableau précédent) ---
-    ' Valeur en C, unité en D. Le type de pieu (tableau A.1 de la NF P94-262) remplit
-    ' la catégorie, la classe et la norme de référence (voir MajTypePieu).
+    ' Intitulé (unité comprise) sur B:C fusionnées, valeur en D. Le type de pieu
+    ' (tableau A.1 de la NF P94-262) remplit la catégorie et la classe, la norme de
+    ' référence suit la catégorie (voir MajTypePieu).
     lp = LIGNE_PIEU
     SousTitre ws, lp - 1, "Caractéristiques des micropieux"
     ws.Range("B" & lp & ":B" & lp + 14).Value = Application.Transpose(Array( _
         "Type de pieu - technique de mise en oeuvre (NF P94-262, tableau A.1)", _
         "Diamètre constant", "Incliné", "Groupe", "Norme de référence", _
         "Classe du micropieu", "Catégorie du micropieu", _
-        "Prise en compte de la résistance en pointe", "Diamètre du micropieu B", _
-        "Hauteur totale du micropieu", "Hauteur du micropieu dans la couche porteuse h", _
+        "Prise en compte de la résistance en pointe", "Diamètre du micropieu B (m)", _
+        "Hauteur totale du micropieu (m)", "Hauteur du micropieu dans la couche porteuse h (m)", _
         "Nombre de micropieux / appui du bâtiment", "Nombre total de micropieux", _
         "Conditions en tête du micropieu", "Essai de contrôle"))
-    ws.Range("D" & lp + 8 & ":D" & lp + 12).Value = Application.Transpose(Array( _
-        "m", "m", "m", "u", "u"))
-    ListeLongue ws.Range("C" & lp), TypesPieux(), "Pieux NF P94-262"
-    ws.Range("C" & lp).Value = Split(TypesPieux(), ",")(16)   ' 17 - micropieu type I
-    Liste ws.Range("C" & lp + 1), "Oui,Non"
-    Liste ws.Range("C" & lp + 2), "Non,Oui"
-    Liste ws.Range("C" & lp + 3), "Non,Oui"
-    ' Norme de référence selon la catégorie (C de la ligne Catégorie)
-    ws.Range("C" & lp + 4).Formula = "=IF(C" & lp + 6 & "="""","""",IF(VALUE(C" & lp + 6 & _
-        "&"""")<=6,""NF EN 1536"",IF(VALUE(C" & lp + 6 & "&"""")<=15,""NF EN 12699""," & _
-        "IF(VALUE(C" & lp + 6 & "&"""")=16,""NF EN 12063"",""NF EN 14199""))))"
-    Liste ws.Range("C" & lp + 5), "1,1bis,2,3,4,5,6,7,8"
-    Liste ws.Range("C" & lp + 6), "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20"
-    Liste ws.Range("C" & lp + 7), "Oui,Non"
-    ws.Range("C" & lp + 8 & ":C" & lp + 10).NumberFormat = "0.00"
-    ws.Range("C" & lp + 11 & ":C" & lp + 12).NumberFormat = "0"
-    Liste ws.Range("C" & lp + 13), "Libre en tête,Encastré en tête"
-    Liste ws.Range("C" & lp + 14), "Non,Oui"
-    ws.Range("C" & lp & ":C" & lp + 14).HorizontalAlignment = xlCenter
+    ListeLongue ws.Range("D" & lp), TypesPieux(), "Pieux NF P94-262"
+    ws.Range("D" & lp).Value = Split(TypesPieux(), ",")(16)   ' 17 - micropieu type I
+    Liste ws.Range("D" & lp + 1), "Oui,Non"
+    Liste ws.Range("D" & lp + 2), "Non,Oui"
+    Liste ws.Range("D" & lp + 3), "Non,Oui"
+    ' Norme de référence selon la catégorie (D de la ligne Catégorie)
+    ws.Range("D" & lp + 4).Formula = "=IF(D" & lp + 6 & "="""","""",IF(VALUE(D" & lp + 6 & _
+        "&"""")<=6,""NF EN 1536"",IF(VALUE(D" & lp + 6 & "&"""")<=15,""NF EN 12699""," & _
+        "IF(VALUE(D" & lp + 6 & "&"""")=16,""NF EN 12063"",""NF EN 14199""))))"
+    Liste ws.Range("D" & lp + 5), "1,1bis,2,3,4,5,6,7,8"
+    Liste ws.Range("D" & lp + 6), "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20"
+    Liste ws.Range("D" & lp + 7), "Oui,Non"
+    ws.Range("D" & lp + 8 & ":D" & lp + 10).NumberFormat = "0.00"
+    ws.Range("D" & lp + 11 & ":D" & lp + 12).NumberFormat = "0"
+    Liste ws.Range("D" & lp + 13), "Libre en tête,Encastré en tête"
+    Liste ws.Range("D" & lp + 14), "Non,Oui"
+    ws.Range("D" & lp & ":D" & lp + 14).HorizontalAlignment = xlCenter
+    For r = lp To lp + 14
+        ws.Range("B" & r & ":C" & r).Merge
+    Next r
     MajTypePieu ws
 
     ' --- Mise en forme ---
     With ws.Range("B4:C9,B12:C16,B19:I26,B29:C29,B" & LIGNE_COUCHES - 1 & ":I" & lc & _
-            ",B" & lm + 1 & ":D" & lm + 5 & ",B" & lp & ":D" & lp + 14)
+            ",B" & lm + 1 & ":E" & lm + 5 & ",B" & lp & ":D" & lp + 14)
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
     ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).Font.Bold = True
     ws.Range("B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).HorizontalAlignment = xlCenter
-    ' Cases à remplir (données d'entrée) en jaune ; l'épaisseur est calculée
+    ' Cases à remplir (données d'entrée) en jaune ; épaisseur et norme sont calculées
     ws.Range("C4:C9,C12:C16,C29,C" & LIGNE_COUCHES & ":E" & lc & ",G" & LIGNE_COUCHES & _
-        ":I" & lc & ",C" & lm + 1 & ":C" & lm + 5 & ",C" & lp & ":C" & lp + 3 & _
-        ",C" & lp + 5 & ":C" & lp + 14).Interior.Color = RGB(255, 255, 204)
+        ":I" & lc & ",D" & lm + 1 & ":D" & lm + 5 & ",D" & lp & ":D" & lp + 3 & _
+        ",D" & lp + 5 & ":D" & lp + 14).Interior.Color = RGB(255, 255, 204)
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
-    ws.Columns("C:D").ColumnWidth = 40
+    ws.Columns("C").ColumnWidth = 40
+    ws.Columns("D").ColumnWidth = 28         ' valeurs des micropieux, catégorie de sol
     ws.Columns("E:I").ColumnWidth = 14
     ws.Rows("19:" & lp + 14).AutoFit
 
@@ -221,16 +227,16 @@ Public Sub AfficherCouches(ws As Worksheet)
     If nb < MAX_COUCHES Then ws.Rows(LIGNE_COUCHES + nb).Resize(MAX_COUCHES - nb).Hidden = True
 End Sub
 
-' Type de pieu choisi (C55) : la catégorie est le numéro en tête de la désignation
+' Type de pieu choisi (D55) : la catégorie est le numéro en tête de la désignation
 ' (« 17 - Micropieu type I (M1) » -> 17) et la classe s'en déduit (ClassePieu) ;
 ' la norme de référence suit la catégorie par formule. Appelée aussi quand le type
 ' change (voir CodeFeuilleDonnees.txt).
 Public Sub MajTypePieu(ws As Worksheet)
     Dim categorie As Long
-    categorie = Val(ws.Range("C" & LIGNE_PIEU).Value)
+    categorie = Val(ws.Range("D" & LIGNE_PIEU).Value)
     If categorie < 1 Or categorie > 20 Then Exit Sub
-    ws.Range("C" & LIGNE_PIEU + 6).Value = categorie
-    ws.Range("C" & LIGNE_PIEU + 5).Value = ClassePieu(categorie)
+    ws.Range("D" & LIGNE_PIEU + 6).Value = categorie
+    ws.Range("D" & LIGNE_PIEU + 5).Value = ClassePieu(categorie)
 End Sub
 
 ' Classe de pieu (NF P94-262, tableau A.1) selon la catégorie 1 à 20
