@@ -74,6 +74,8 @@ Public Sub RemplirChargePermanente()
     Dim listes As Variant, i As Long, e As Long, r As Long, debut As Long
     Dim nomBloc As String, sousTotaux As String
 
+    Application.ScreenUpdating = False       ' pas de scintillement pendant l'exécution
+    Application.EnableEvents = False
     r = 5
     ' 6 = toiture, étages 5 à 1, 0 = RDC, -1 = sous-sol 1, -2 = sous-sol 2,
     ' -3 = vide sanitaire, -4 = soubassement
@@ -144,6 +146,8 @@ Public Sub RemplirChargePermanente()
         If .Columns(1).ColumnWidth < 12 Then .Columns(1).ColumnWidth = 12
         If .Columns(2).ColumnWidth < 12 Then .Columns(2).ColumnWidth = 12
     End With
+    Application.EnableEvents = True
+    Application.ScreenUpdating = True
 End Sub
 ' Épaisseurs possibles (en cm) selon le type de mur ; "" si ce n'est pas un mur.
 ' (le suffixe « + enduit et isolant » de l'intitulé est ignoré)

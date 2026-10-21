@@ -5,6 +5,8 @@ Option Explicit
 ' Niveau d'étage (RDC à 5) en C1, catégorie du bâtiment (A à G) en E1, nombre de murs en G1, % d'ouvertures des murs en I1, en-tête B3:K4 (G = Charges G, H = Charges Q, I = ΣQ, écrit ChrW(931), J = αn, écrit ChrW(945), K = αn × ΣQ, tout en kN/ml), saisie lignes 5 à 73, total ligne 74.
 ' G = b × (γ × h + g)  en kN/ml pour un mur (b = largeur reprise en m)
 Public Sub CreerTableauChargesPermanentes()
+    Application.ScreenUpdating = False       ' pas de scintillement pendant l'exécution
+    Application.EnableEvents = False
     With ActiveSheet
         .Cells.Clear
         .Range("B1").Value = "Niveau d'étage"
@@ -63,4 +65,6 @@ Public Sub CreerTableauChargesPermanentes()
         .Columns("G").AutoFit                        ' colonne des charges ajustée au contenu
         If .Columns("G").ColumnWidth < 12 Then .Columns("G").ColumnWidth = 12   ' place pour le titre
     End With
+    Application.EnableEvents = True
+    Application.ScreenUpdating = True
 End Sub

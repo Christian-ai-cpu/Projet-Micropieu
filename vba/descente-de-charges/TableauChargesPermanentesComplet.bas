@@ -33,6 +33,7 @@ Public Sub CreerTableauChargesPermanentesComplet()
     derniereLigne = PREMIERE_LIGNE + NB_LIGNES - 1
 
     Application.ScreenUpdating = False
+    Application.EnableEvents = False         ' pas de Worksheet_Change pendant la création
 
     ' --- Effacement complet de la feuille (contenu, formats, fusions, listes) ---
     ws.Cells.Clear
@@ -161,6 +162,7 @@ Public Sub CreerTableauChargesPermanentesComplet()
         .Rows.AutoFit
     End With
 
+    Application.EnableEvents = True
     Application.ScreenUpdating = True
     MsgBox "Tableau des charges permanentes créé.", vbInformation
 End Sub

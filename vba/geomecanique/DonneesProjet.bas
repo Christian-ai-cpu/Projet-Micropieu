@@ -59,6 +59,7 @@ Public Sub CreerDonneesProjet()
     Dim ws As Worksheet, r As Long, normes As Variant, lc As Long, lm As Long, lp As Long
     Dim la As Long
 
+    Application.ScreenUpdating = False       ' pas de scintillement pendant l'exécution
     Application.EnableEvents = False         ' pas de Worksheet_Change pendant la création
 
     ' Feuille créée si elle n'existe pas, sinon vidée
@@ -296,6 +297,7 @@ Public Sub CreerDonneesProjet()
     MajArmature ws
     ws.Activate
     Application.EnableEvents = True
+    Application.ScreenUpdating = True
 End Sub
 
 ' Affiche autant de lignes de couches que le nombre saisi en C32 (1 à MAX_COUCHES),
