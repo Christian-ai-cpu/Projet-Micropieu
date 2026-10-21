@@ -10,25 +10,28 @@ Option Explicit
 '               ou Pont ; type de fondation, affiché seulement en phase G5 ;
 '               catégorie A à G ; altitude ; zone de sismicité 1 à 5)
 '   B18 à I26 : Références normatives (référence, date, intitulé)
-'   B28 à I37 : Hypothèses de calcul : tableau des couches de sol (8 couches)
-'   B39 à C43 : Micropieux (arase supérieure, base, nappe, méthode, niveau d'eau)
+'   B28 à I45 : Données géotechniques : nombre de couches (C29, 1 à 15) et tableau
+'               des couches de sol (seules les lignes jusqu'à ce nombre sont affichées)
+'   B47 à D52 : Données des micropieux (arase supérieure, base, nappe, méthode,
+'               niveau d'eau ; valeur en C, unité en D)
 ' Les valeurs se saisissent dans les cases jaunes. Le type de fondation (ligne 13)
-' s'affiche quand la phase (C9) vaut G5 : voir AfficherTypeFondation et
-' CodeFeuilleDonnees.txt.
+' s'affiche quand la phase (C9) vaut G5 (AfficherTypeFondation) et le tableau des
+' couches suit le nombre de couches (AfficherCouches) : voir CodeFeuilleDonnees.txt.
 ' Les listes de plus de 255 caractères (limite d'Excel, ex. noms des sols de la
 ' NF P11-300) sont écrites sur la feuille masquée « Listes » (voir ListeLongue).
 
 Private Const NOM_FEUILLE As String = "Données du projet"
 Private Const CELLULE_PHASE As String = "C9"
 Private Const LIGNE_FONDATION As Long = 13
-Private Const LIGNE_COUCHES As Long = 30       ' première couche de sol
-Private Const NB_COUCHES As Long = 8
+Private Const CELLULE_NB_COUCHES As String = "C29"   ' nombre de couches saisi
+Private Const LIGNE_COUCHES As Long = 31       ' première couche de sol
+Private Const MAX_COUCHES As Long = 15         ' lignes prévues (au-delà du nombre : masquées)
 Private Const CATEGORIES_SOL As String = "Argiles et limons," & _
     "Sols intermédiaires (sable limoneux / sable argileux / argile sableuse)," & _
     "Sables et graves,Craies,Marnes et calcaires marneux,Roches"
 
 Public Sub CreerDonneesProjet()
-    Dim ws As Worksheet, r As Long, normes As Variant, lc As Long
+    Dim ws As Worksheet, r As Long, normes As Variant, lc As Long, lm As Long
 
     ' Feuille créée si elle n'existe pas, sinon vidée
     On Error Resume Next
@@ -94,12 +97,21 @@ Public Sub CreerDonneesProjet()
         ws.Range("D" & r & ":I" & r).Merge
     Next r
 
-    ' --- Hypothèses de calcul : couches de sol ---
-    SousTitre ws, 28, "Hypothèses de calcul"
-    ws.Range("B29:I29").Value = Array("N° de couche", "Nom de couche (NF P11-300)", _
-        "Catégorie de sol", "Prof. bas (m/TN)", "Épaisseur (m)", _
-        "Pression limite pl* (MPa)", "Module pressiométrique EM (MPa)", "Terrain neutralisé")
-    For r = LIGNE_COUCHES To LIGNE_COUCHES + NB_COUCHES - 1
+    ' --- Données géotechniques : nombre de couches puis tableau des couches ---
+    SousTitre ws, 28, "Données géotechniques"
+    ws.Range("B29").Value = "Nombre de couches"
+    With ws.Range(CELLULE_NB_COUCHES)
+        .Value = 3
+        .Validation.Delete
+        .Validation.Add xlValidateWholeNumber, xlValidAlertStop, xlBetween, "1", CStr(MAX_COUCHES)
+        .Validation.ErrorMessage = "Entrer un nombre de couches entre 1 et " & MAX_COUCHES & "."
+        .HorizontalAlignment = xlCenter
+    End With
+    ws.Range("B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).Value = Array("N° de couche", _
+        "Nom de couche (NF P11-300)", "Catégorie de sol (NF P94-262)", "Prof. bas (m/TN)", _
+        "Épaisseur (m)", "Pression limite pl* (MPa)", "Module pressiométrique EM (MPa)", _
+        "Terrain neutralisé")
+    For r = LIGNE_COUCHES To LIGNE_COUCHES + MAX_COUCHES - 1
         ws.Range("B" & r).Value = r - LIGNE_COUCHES + 1
         ListeLongue ws.Range("C" & r), SolsNFP11300(), "Sols NF P11-300"
         ws.Range("C" & r).ClearContents      ' nom de couche à choisir
@@ -114,42 +126,59 @@ Public Sub CreerDonneesProjet()
         End If
         Liste ws.Range("I" & r), "Non,Oui"
     Next r
-    lc = LIGNE_COUCHES + NB_COUCHES - 1
+    lc = LIGNE_COUCHES + MAX_COUCHES - 1
     ws.Range("E" & LIGNE_COUCHES & ":F" & lc).NumberFormat = "0.00"
     ws.Range("G" & LIGNE_COUCHES & ":H" & lc).NumberFormat = "0.00"
     ws.Range("B" & LIGNE_COUCHES & ":B" & lc & ",E" & LIGNE_COUCHES & ":I" & lc).HorizontalAlignment = xlCenter
 
-    ' --- Micropieux ---
-    ws.Range("B39:B43").Value = Application.Transpose(Array( _
-        "Cote de l'arase supérieure des micropieux (m/TN)", "Base des micropieux (m/TN)", _
+    ' --- Données des micropieux : valeur en C, unité à droite en D ---
+    lm = lc + 2                              ' sous-titre
+    SousTitre ws, lm, "Données des micropieux"
+    ws.Range("B" & lm + 1 & ":B" & lm + 5).Value = Application.Transpose(Array( _
+        "Cote de l'arase supérieure des micropieux", "Base des micropieux", _
         "Présence de nappe phréatique", "Méthode de calcul retenue pour les pieux", _
-        "Niveau de l'eau (m/TN)"))
-    ws.Range("C39:C40,C43").NumberFormat = "0.00"
-    ws.Range("C39:C43").HorizontalAlignment = xlCenter
-    Liste ws.Range("C41"), "Non,Oui"
-    Liste ws.Range("C42"), "Méthode pressiométrique,Méthode pénétrométrique," & _
+        "Niveau de l'eau"))
+    ws.Range("D" & lm + 1 & ":D" & lm + 5).Value = Application.Transpose(Array( _
+        "m/TN", "m/TN", "", "", "m/TN"))
+    ws.Range("C" & lm + 1 & ":C" & lm + 2 & ",C" & lm + 5).NumberFormat = "0.00"
+    ws.Range("C" & lm + 1 & ":C" & lm + 5).HorizontalAlignment = xlCenter
+    Liste ws.Range("C" & lm + 3), "Non,Oui"
+    Liste ws.Range("C" & lm + 4), "Méthode pressiométrique,Méthode pénétrométrique," & _
         "Essais de chargement statique"
 
     ' --- Mise en forme ---
-    With ws.Range("B4:C9,B12:C16,B19:I26,B29:I" & lc & ",B39:C43")
+    With ws.Range("B4:C9,B12:C16,B19:I26,B29:C29,B" & LIGNE_COUCHES - 1 & ":I" & lc & _
+            ",B" & lm + 1 & ":D" & lm + 5)
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    ws.Range("B19:I19,B29:I29").Font.Bold = True
-    ws.Range("B29:I29").HorizontalAlignment = xlCenter
+    ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).Font.Bold = True
+    ws.Range("B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).HorizontalAlignment = xlCenter
     ' Cases à remplir (données d'entrée) en jaune ; l'épaisseur est calculée
-    ws.Range("C4:C9,C12:C16,C" & LIGNE_COUCHES & ":E" & lc & ",G" & LIGNE_COUCHES & _
-        ":I" & lc & ",C39:C43").Interior.Color = RGB(255, 255, 204)
+    ws.Range("C4:C9,C12:C16,C29,C" & LIGNE_COUCHES & ":E" & lc & ",G" & LIGNE_COUCHES & _
+        ":I" & lc & ",C" & lm + 1 & ":C" & lm + 5).Interior.Color = RGB(255, 255, 204)
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C:D").ColumnWidth = 40
     ws.Columns("E:I").ColumnWidth = 14
-    ws.Rows("19:" & lc).AutoFit
-    ws.Rows("39:43").AutoFit
+    ws.Rows("19:" & lm + 5).AutoFit
 
     AfficherTypeFondation ws
+    AfficherCouches ws
     ws.Activate
+End Sub
+
+' Affiche autant de lignes de couches que le nombre saisi en C29 (1 à MAX_COUCHES),
+' les autres lignes du tableau sont masquées. Appelée aussi quand C29 change
+' (voir CodeFeuilleDonnees.txt).
+Public Sub AfficherCouches(ws As Worksheet)
+    Dim nb As Long
+    nb = Val(ws.Range(CELLULE_NB_COUCHES).Value)
+    If nb < 1 Then nb = 1
+    If nb > MAX_COUCHES Then nb = MAX_COUCHES
+    ws.Rows(LIGNE_COUCHES).Resize(MAX_COUCHES).Hidden = False
+    If nb < MAX_COUCHES Then ws.Rows(LIGNE_COUCHES + nb).Resize(MAX_COUCHES - nb).Hidden = True
 End Sub
 
 ' Affiche la ligne « Type de fondation » juste sous le type d'ouvrage seulement

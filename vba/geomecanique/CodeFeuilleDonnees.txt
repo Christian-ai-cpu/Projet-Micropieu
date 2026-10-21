@@ -1,8 +1,11 @@
 ' À COLLER DANS LE MODULE DE LA FEUILLE « Données du projet » (pas dans un module
-' standard) : clic droit sur l'onglet de la feuille > Visualiser le code, puis coller.
+' standard) : clic droit sur l'onglet de la feuille > Visualiser le code, puis coller
+' (remplacer entièrement l'ancien code).
 ' - Phase du projet (C9) modifiée : la ligne « Type de fondation » s'affiche
 '   seulement pour la phase G5.
+' - Nombre de couches (C29) modifié : le tableau des couches affiche ce nombre de lignes.
 
 Private Sub Worksheet_Change(ByVal Target As Range)
     If Not Intersect(Target, Me.Range("C9")) Is Nothing Then AfficherTypeFondation Me
+    If Not Intersect(Target, Me.Range("C29")) Is Nothing Then AfficherCouches Me
 End Sub
