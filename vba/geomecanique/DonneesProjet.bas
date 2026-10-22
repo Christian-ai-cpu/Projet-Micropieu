@@ -21,9 +21,12 @@ Option Explicit
 '               classe, catégorie, mode de fonctionnement, résistance de pointe, B, hauteurs, nombres,
 '               conditions en tête, essai de contrôle ; intitulé sur B:C, valeur en D)
 '   B75       : HYPOTHÈSES RELATIVES AUX MATÉRIAUX CONSTITUTIFS DES FONDATIONS PROFONDES
-'   B77 à E79 : Caractéristiques du béton (classe d'exposition, classe de résistance)
-'   B81 à E91 : Caractéristiques de l'acier (type d'armature tube ou barre, classe,
-'               diamètres et épaisseur du tube, E, fe, platine, nuance, contrainte max)
+'   B77 à E84 : Caractéristiques du béton (classe d'exposition, classe structurale,
+'               classe de résistance, fc28, coefficients gamma c ELU / accidentel /
+'               sismique)
+'   B86 à E99 : Caractéristiques de l'acier (type d'armature tube ou barre, classe,
+'               diamètres et épaisseur du tube, E, fe, coefficients gamma s ELU /
+'               accidentel / sismique, platine, nuance, contrainte max)
 ' Les valeurs se saisissent dans les cases jaunes. Le type de fondation (ligne 13)
 ' s'affiche quand la phase (C9) vaut G5 (AfficherTypeFondation) et le tableau des
 ' couches suit le nombre de couches (AfficherCouches) : voir CodeFeuilleDonnees.txt.
@@ -37,7 +40,7 @@ Private Const CELLULE_NB_COUCHES As String = "C32"   ' nombre de couches saisi
 Private Const LIGNE_COUCHES As Long = 34       ' première couche de sol
 Private Const MAX_COUCHES As Long = 15         ' lignes prévues (au-delà du nombre : masquées)
 Private Const LIGNE_PIEU As Long = 58          ' type de pieu (caractéristiques des micropieux)
-Private Const LIGNE_ACIER As Long = 82         ' type d'armature (caractéristiques de l'acier)
+Private Const LIGNE_ACIER As Long = 87         ' type d'armature (caractéristiques de l'acier)
 Private Const CLASSES_EXPOSITION As String = "X0,XC1,XC2,XC3,XC4,XD1,XD2,XD3," & _
     "XS1,XS2,XS3,XF1,XF2,XF3,XF4,XA1,XA2,XA3"
 ' Armatures des micropieux (dimensions courantes, à vérifier auprès du fournisseur).
@@ -46,11 +49,15 @@ Private Const TUBES As String = "Tube N80 Ø73 x 5.5 mm,Tube N80 Ø88.9 x 6.5 mm
     "Tube N80 Ø88.9 x 9.5 mm,Tube N80 Ø101.6 x 9 mm,Tube N80 Ø114.3 x 9 mm," & _
     "Tube N80 Ø127 x 9 mm,Tube N80 Ø139.7 x 9 mm,Tube N80 Ø168.3 x 10 mm," & _
     "Tube N80 Ø177.8 x 10.4 mm"
-Private Const BARRES As String = "Barre GEWI Ø25 (S555/700),Barre GEWI Ø28 (S555/700)," & _
-    "Barre GEWI Ø32 (S555/700),Barre GEWI Ø40 (S555/700),Barre GEWI Ø50 (S555/700)," & _
-    "Barre HA B500 Ø25,Barre HA B500 Ø32,Barre HA B500 Ø40"
+' Barre : seulement les aciers HA ; les barres filetées GEWI (écrou + platine) sont
+' proposées dans la liste des platines.
+Private Const BARRES As String = "Barre HA B500 Ø20,Barre HA B500 Ø25,Barre HA B500 Ø32," & _
+    "Barre HA B500 Ø40"
 Private Const PLATINES As String = "Platine carrée soudée,Platine carrée avec raidisseurs," & _
-    "Platine vissée sur manchon,Platine circulaire soudée"
+    "Platine vissée sur manchon,Platine circulaire soudée," & _
+    "Platine + écrou sur barre GEWI Ø25 (S555/700),Platine + écrou sur barre GEWI Ø28 (S555/700)," & _
+    "Platine + écrou sur barre GEWI Ø32 (S555/700),Platine + écrou sur barre GEWI Ø40 (S555/700)," & _
+    "Platine + écrou sur barre GEWI Ø50 (S555/700)"
 Private Const CATEGORIES_SOL As String = "Argiles et limons," & _
     "Sols intermédiaires (sable limoneux / sable argileux / argile sableuse)," & _
     "Sables et graves,Craies,Marnes et calcaires marneux,Roches"
@@ -239,58 +246,75 @@ Public Sub CreerDonneesProjet()
         .HorizontalAlignment = xlCenter
     End With
     SousTitre ws, la + 2, "Caractéristiques du béton"
-    ws.Range("B" & la + 3 & ":B" & la + 4).Value = Application.Transpose(Array( _
-        "Classe d'exposition du béton", "Classe de résistance nominale du béton"))
+    ws.Range("B" & la + 3 & ":B" & la + 9).Value = Application.Transpose(Array( _
+        "Classe d'exposition du béton", "Classe structurale", _
+        "Classe de résistance nominale du béton", "Résistance du béton à 28 jours fc28", _
+        "Coefficient " & ChrW(947) & "c - combinaison ELU fondamentale", _
+        "Coefficient " & ChrW(947) & "c - combinaison accidentelle", _
+        "Coefficient " & ChrW(947) & "c - combinaison sismique"))
+    ws.Range("E" & la + 6).Value = "MPa"
     Liste ws.Range("D" & la + 3), CLASSES_EXPOSITION
-    Liste ws.Range("D" & la + 4), "C20/25,C25/30,C30/37,C35/45,C40/50,C45/55,C50/60"
-    ws.Range("D" & la + 4).Value = "C25/30"
+    Liste ws.Range("D" & la + 4), "S1,S2,S3,S4,S5,S6"
+    ws.Range("D" & la + 4).Value = "S4"
+    Liste ws.Range("D" & la + 5), "C20/25,C25/30,C30/37,C35/45,C40/50,C45/55,C50/60"
+    ws.Range("D" & la + 5).Value = "C25/30"
+    ' fc28 = résistance caractéristique sur cylindre de la classe (C25/30 -> 25 MPa)
+    ws.Range("D" & la + 6).Formula = "=VALUE(MID(D" & la + 5 & ",2,FIND(""/"",D" & la + 5 & ")-2))"
+    ws.Range("D" & la + 7 & ":D" & la + 9).Value = Application.Transpose(Array(1.5, 1.2, 1.3))
+    ws.Range("D" & la + 6 & ":D" & la + 9).NumberFormat = "0.00"
 
     ' Acier : la liste des classes dépend du type d'armature, les dimensions du tube
     ' choisi sont remplies (voir MajArmature et MajAcier)
     SousTitre ws, LIGNE_ACIER - 1, "Caractéristiques de l'acier"
-    ws.Range("B" & LIGNE_ACIER & ":B" & LIGNE_ACIER + 9).Value = Application.Transpose(Array( _
+    ws.Range("B" & LIGNE_ACIER & ":B" & LIGNE_ACIER + 12).Value = Application.Transpose(Array( _
         "Type d'armature", "Classe de l'acier", "Diamètre extérieur", "Épaisseur e", _
         "Diamètre intérieur", "Module de Young E", "Contrainte de l'acier fe", _
+        "Coefficient " & ChrW(947) & "s - combinaison ELU fondamentale", _
+        "Coefficient " & ChrW(947) & "s - combinaison accidentelle", _
+        "Coefficient " & ChrW(947) & "s - combinaison sismique", _
         "Type de platine (liaison micropieu / structure)", "Nuance de la platine", _
         "Contrainte max de l'acier de la platine"))
-    ws.Range("E" & LIGNE_ACIER + 2 & ":E" & LIGNE_ACIER + 9).Value = Application.Transpose(Array( _
-        "mm", "mm", "mm", "MPa", "MPa", "", "", "MPa"))
+    ws.Range("E" & LIGNE_ACIER + 2 & ":E" & LIGNE_ACIER + 12).Value = Application.Transpose(Array( _
+        "mm", "mm", "mm", "MPa", "MPa", "", "", "", "", "", "MPa"))
     Liste ws.Range("D" & LIGNE_ACIER), "Tube,Barre"
     ws.Range("D" & LIGNE_ACIER + 2 & ":D" & LIGNE_ACIER + 4).NumberFormat = "0.0"
     ws.Range("D" & LIGNE_ACIER + 5).Value = 210000
     ws.Range("D" & LIGNE_ACIER + 6).Value = 500
     ws.Range("D" & LIGNE_ACIER + 5 & ":D" & LIGNE_ACIER + 6).NumberFormat = "0"
-    Liste ws.Range("D" & LIGNE_ACIER + 7), PLATINES
-    Liste ws.Range("D" & LIGNE_ACIER + 8), "S235,S275,S355,S420,S460"
+    ws.Range("D" & LIGNE_ACIER + 7 & ":D" & LIGNE_ACIER + 9).Value = Application.Transpose(Array(1.15, 1, 1))
+    ws.Range("D" & LIGNE_ACIER + 7 & ":D" & LIGNE_ACIER + 9).NumberFormat = "0.00"
+    ListeLongue ws.Range("D" & LIGNE_ACIER + 10), PLATINES, "Platines"
+    Liste ws.Range("D" & LIGNE_ACIER + 11), "S235,S275,S355,S420,S460"
     ' Limite d'élasticité de la nuance (S235 -> 235 MPa, épaisseur <= 40 mm)
-    ws.Range("D" & LIGNE_ACIER + 9).Formula = "=VALUE(MID(D" & LIGNE_ACIER + 8 & ",2,3))"
-    ws.Range("D" & la + 3 & ":E" & LIGNE_ACIER + 9).HorizontalAlignment = xlCenter
-    For r = la + 3 To LIGNE_ACIER + 9
+    ws.Range("D" & LIGNE_ACIER + 12).Formula = "=VALUE(MID(D" & LIGNE_ACIER + 11 & ",2,3))"
+    ws.Range("D" & la + 3 & ":E" & LIGNE_ACIER + 12).HorizontalAlignment = xlCenter
+    For r = la + 3 To LIGNE_ACIER + 12
         If r <> LIGNE_ACIER - 1 And r <> LIGNE_ACIER - 2 Then ws.Range("B" & r & ":C" & r).Merge
     Next r
 
     ' --- Mise en forme ---
     With ws.Range("B4:C9,B12:C16,B19:I26,B28:E29,B32:C32,B" & LIGNE_COUCHES - 1 & ":I" & lc & _
             ",B" & lm + 1 & ":E" & lm + 5 & ",B" & lp & ":D" & lp + 15 & _
-            ",B" & la + 3 & ":E" & la + 4 & ",B" & LIGNE_ACIER & ":E" & LIGNE_ACIER + 9)
+            ",B" & la + 3 & ":E" & la + 9 & ",B" & LIGNE_ACIER & ":E" & LIGNE_ACIER + 12)
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
     ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).Font.Bold = True
     ws.Range("B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).HorizontalAlignment = xlCenter
-    ' Cases à remplir (données d'entrée) en jaune ; épaisseur et norme sont calculées
+    ' Cases à remplir (données d'entrée) en jaune ; les valeurs calculées restent blanches
     ws.Range("C4:C9,C12:C16,D28:D29,C32,C" & LIGNE_COUCHES & ":E" & lc & ",G" & LIGNE_COUCHES & _
         ":I" & lc & ",D" & lm + 1 & ":D" & lm + 5 & ",D" & lp & ":D" & lp + 3 & _
-        ",D" & lp + 5 & ":D" & lp + 15 & ",D" & la + 3 & ":D" & la + 4 & _
+        ",D" & lp + 5 & ":D" & lp + 15 & ",D" & la + 3 & ":D" & la + 5 & _
+        ",D" & la + 7 & ":D" & la + 9 & _
         ",D" & LIGNE_ACIER & ":D" & LIGNE_ACIER + 1 & ",D" & LIGNE_ACIER + 5 & ":D" & _
-        LIGNE_ACIER + 8).Interior.Color = RGB(255, 255, 204)
+        LIGNE_ACIER + 11).Interior.Color = RGB(255, 255, 204)
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 40
     ws.Columns("D").ColumnWidth = 28         ' valeurs des micropieux, catégorie de sol
     ws.Columns("E:I").ColumnWidth = 14
-    ws.Rows("19:" & LIGNE_ACIER + 9).AutoFit
+    ws.Rows("19:" & LIGNE_ACIER + 12).AutoFit
 
     AfficherTypeFondation ws
     AfficherCouches ws
@@ -336,7 +360,7 @@ Public Sub InverserHauteur(c As Range)
     If IsNumeric(c.Value) And Not IsEmpty(c.Value) Then c.Value = -c.Value
 End Sub
 
-' Type d'armature choisi (D82) : la liste « Classe de l'acier » propose les tubes
+' Type d'armature choisi (D87) : la liste « Classe de l'acier » propose les tubes
 ' (TUBES) ou les barres (BARRES) ; diamètres et épaisseur ne sont affichés que pour
 ' un tube. Appelée aussi quand le type change (voir CodeFeuilleDonnees.txt).
 Public Sub MajArmature(ws As Worksheet)
@@ -352,7 +376,7 @@ Public Sub MajArmature(ws As Worksheet)
     MajAcier ws
 End Sub
 
-' Classe de l'acier choisie (D83) : pour un tube « ... Øde x e mm », diamètre
+' Classe de l'acier choisie (D88) : pour un tube « ... Øde x e mm », diamètre
 ' extérieur de et épaisseur e sont lus dans la désignation, diamètre intérieur =
 ' de - 2 e. Appelée aussi quand la classe change (voir CodeFeuilleDonnees.txt).
 Public Sub MajAcier(ws As Worksheet)
