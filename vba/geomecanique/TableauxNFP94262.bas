@@ -48,7 +48,7 @@ Public Sub CreerTableauxNFP94262()
     Application.ScreenUpdating = False
     On Error Resume Next
     Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
-    On Error GoTo 0
+    On Error GoTo Erreur
     If ws Is Nothing Then
         Set ws = ActiveWorkbook.Worksheets.Add(After:=ActiveWorkbook.Worksheets(ActiveWorkbook.Worksheets.Count))
         ws.Name = NOM_FEUILLE
@@ -224,7 +224,13 @@ Public Sub CreerTableauxNFP94262()
         ws.Columns(1 + (c + 1) * LARGEUR_EMPL).ColumnWidth = 3
     Next c
     ws.Activate
+Fin:
     Application.ScreenUpdating = True
+    Exit Sub
+Erreur:
+    MsgBox "Erreur pendant la création de la feuille « Tableaux NF P94-262 » : " & _
+        Err.Description & " (n° " & Err.Number & ")", vbExclamation
+    Resume Fin
 End Sub
 
 

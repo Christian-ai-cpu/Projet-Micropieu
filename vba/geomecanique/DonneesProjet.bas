@@ -81,11 +81,21 @@ Public Sub CreerDonneesProjet()
 
     Application.ScreenUpdating = False       ' pas de scintillement pendant l'exécution
     Application.EnableEvents = False         ' pas de Worksheet_Change pendant la création
+    On Error GoTo Erreur                     ' en cas d'erreur : message, événements rétablis
 
     ' Les listes et valeurs tirées de la norme renvoient à la feuille « Tableaux
-    ' NF P94-262 » (plages nommées NF_...) : elle est créée si elle manque
+    ' NF P94-262 » (plages nommées NF_...) : elle est créée si elle manque.
+    ' Application.Run : le module TableauxNFP94262 peut manquer sans bloquer celui-ci.
     If Not NomExiste("NF_A1_Technique") Or Not NomExiste("NF_Sols") Then
-        CreerTableauxNFP94262
+        On Error Resume Next
+        Application.Run "CreerTableauxNFP94262"
+        If Err.Number <> 0 Then
+            MsgBox "La feuille « Tableaux NF P94-262 » n'a pas pu être créée : importez le " & _
+                "module TableauxNFP94262 puis relancez CreerDonneesProjet." & vbCrLf & _
+                "(" & Err.Description & ")", vbExclamation
+            GoTo Fin
+        End If
+        On Error GoTo Erreur
         Application.ScreenUpdating = False
         Application.EnableEvents = False
     End If
@@ -93,7 +103,7 @@ Public Sub CreerDonneesProjet()
     ' Feuille créée si elle n'existe pas, sinon vidée
     On Error Resume Next
     Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
-    On Error GoTo 0
+    On Error GoTo Erreur
     If ws Is Nothing Then
         Set ws = ActiveWorkbook.Worksheets.Add(Before:=ActiveWorkbook.Worksheets(1))
         ws.Name = NOM_FEUILLE
@@ -342,8 +352,19 @@ Public Sub CreerDonneesProjet()
     AfficherCouches ws
     MajArmature ws
     ws.Activate
+Fin:
     Application.EnableEvents = True
     Application.ScreenUpdating = True
+    Exit Sub
+Erreur:
+    MsgBox "Erreur pendant la création de la feuille « Données du projet » : " & _
+        Err.Description & " (n° " & Err.Number & ")", vbExclamation
+    Resume Fin
+End Sub
+
+' Conservée pour l'ancien code de feuille (CodeFeuilleDonnees.txt) qui l'appelait :
+' le type de pieu est maintenant lu par formules dans la feuille « Tableaux NF P94-262 ».
+Public Sub MajTypePieu(ws As Worksheet)
 End Sub
 
 ' Affiche autant de lignes de couches que le nombre saisi en C32 (1 à MAX_COUCHES),
