@@ -73,7 +73,7 @@ Private Const NUANCES_FU As String = "360,430,510,550,390,390,490,490,520,520,54
     "370,370,470,470,520,520,540,540"
 Private Const CATEGORIES_SOL As String = "Argiles et limons," & _
     "Sols intermédiaires (sable limoneux / sable argileux / argile sableuse)," & _
-    "Sables et graves,Craies,Marnes et calcaires marneux,Roches"
+    "Sables et graves,Craies,Marnes et calcaires marneux,Roches altérées ou fragmentées"
 
 Public Sub CreerDonneesProjet()
     Dim ws As Worksheet, r As Long, normes As Variant, lc As Long, lm As Long, lp As Long
@@ -230,10 +230,11 @@ Public Sub CreerDonneesProjet()
     Liste ws.Range("D" & lp + 1), "Oui,Non"
     Liste ws.Range("D" & lp + 2), "Non,Oui"
     Liste ws.Range("D" & lp + 3), "Non,Oui"
-    ' Norme de référence selon la catégorie (D de la ligne Catégorie)
+    ' Norme de référence selon la catégorie (D de la ligne Catégorie), tableau A.1
+    ' de la NF P94-262 : 1 à 6 NF EN 1536, 7 à 16 NF EN 12699, 17 à 20 les trois
     ws.Range("D" & lp + 4).Formula = "=IF(D" & lp + 6 & "="""","""",IF(VALUE(D" & lp + 6 & _
-        "&"""")<=6,""NF EN 1536"",IF(VALUE(D" & lp + 6 & "&"""")<=15,""NF EN 12699""," & _
-        "IF(VALUE(D" & lp + 6 & "&"""")=16,""NF EN 12063"",""NF EN 14199""))))"
+        "&"""")<=6,""NF EN 1536"",IF(VALUE(D" & lp + 6 & "&"""")<=16,""NF EN 12699""," & _
+        """NF EN 1536 / 14199 / 12699"")))"
     Liste ws.Range("D" & lp + 5), "1,1bis,2,3,4,5,6,7,8"
     Liste ws.Range("D" & lp + 6), "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20"
     Liste ws.Range("D" & lp + 7), "Compression,Traction,Compression et traction"
@@ -418,7 +419,7 @@ End Sub
 Public Function ClassePieu(ByVal categorie As Long) As String
     Select Case categorie
         Case 1 To 5:   ClassePieu = "1"      ' pieux forés
-        Case 6:        ClassePieu = "2"      ' tarière creuse
+        Case 6:        ClassePieu = "2"      ' tarière continue
         Case 7, 8:     ClassePieu = "3"      ' vissés
         Case 9 To 12:  ClassePieu = "4"      ' battus fermés
         Case 13:       ClassePieu = "5"      ' battu acier ouvert
@@ -438,7 +439,7 @@ Private Function TypesPieux() As String
     s = s & ",Foré tubé - virole perdue (FTP)"
     s = s & ",Foré tubé - virole récupérée (FTR)"
     s = s & ",Foré simple ou boue avec rainurage ou puits (FSR / FBR / PU)"
-    s = s & ",Foré tarière creuse simple ou double rotation (FTC / FTCD)"
+    s = s & ",Foré tarière continue simple ou double rotation (FTC / FTCD)"
     s = s & ",Vissé moulé (VM)"
     s = s & ",Vissé tubé (VT)"
     s = s & ",Battu béton préfabriqué ou précontraint (BPF / BPR)"
