@@ -4,7 +4,6 @@
 ' - Phase du projet (C9) modifiée : la ligne « Type de fondation » s'affiche
 '   seulement pour la phase G5.
 ' - Nombre de couches (C32) modifié : le tableau des couches affiche ce nombre de lignes.
-' - Type de pieu (D58) modifié : catégorie, classe et résistance de pointe remplies.
 ' - Hauteur totale du micropieu (D68) saisie : valeur multipliée par -1.
 ' - Type d'armature (D87) modifié : liste des classes d'acier (tubes ou barres).
 ' - Classe de l'acier (D88) modifiée : diamètres et épaisseur du tube remplis.
@@ -14,7 +13,6 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     Application.EnableEvents = False
     If Not Intersect(Target, Me.Range("C9")) Is Nothing Then AfficherTypeFondation Me
     If Not Intersect(Target, Me.Range("C32")) Is Nothing Then AfficherCouches Me
-    If Not Intersect(Target, Me.Range("D58")) Is Nothing Then MajTypePieu Me
     If Not Intersect(Target, Me.Range("D68")) Is Nothing Then InverserHauteur Me.Range("D68")
     If Not Intersect(Target, Me.Range("D87")) Is Nothing Then MajArmature Me
     If Not Intersect(Target, Me.Range("D88")) Is Nothing Then MajAcier Me

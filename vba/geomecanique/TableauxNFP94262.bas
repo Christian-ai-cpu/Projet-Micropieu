@@ -18,6 +18,9 @@ Option Explicit
 ' modèle ; méthodes de calcul) et, dans chaque groupe, 3 tableaux côte à côte.
 ' « - » : pas de valeur dans la norme. Les notes des tableaux sont résumées sous
 ' chaque tableau ; se reporter à la norme pour leur texte complet.
+' Plages nommées créées pour la feuille « Données du projet » : NF_A1_Classe,
+' NF_A1_Categorie, NF_A1_Technique, NF_A1_Abreviation, NF_A1_Norme (tableau A.1) et
+' NF_Sols (catégories de sol, en-têtes des tableaux qs max).
 
 Private Const NOM_FEUILLE As String = "Tableaux NF P94-262"
 ' Colonnes de sols : 5 colonnes (pressiomètre, tableaux F.4.2.1, F.5.2.1, F.5.2.2)
@@ -36,6 +39,8 @@ Private Const NB_PAR_LIGNE As Long = 3
 Private mHaut As Long          ' première ligne de la rangée de tableaux en cours
 Private mBas As Long           ' ligne libre sous le plus long tableau de la rangée
 Private mEmpl As Long          ' emplacement suivant dans la rangée (0 à 2)
+Private mEntete As Range       ' ligne d'en-tête du dernier tableau écrit
+Private mDonnees As Range      ' lignes de données du dernier tableau écrit
 
 Public Sub CreerTableauxNFP94262()
     Dim ws As Worksheet, s As String, g As String, c As Long
@@ -85,6 +90,8 @@ Public Sub CreerTableauxNFP94262()
         "Classe|Catégorie|Technique de mise en oeuvre|Abréviation|Norme de référence", s, _
         "La classe 1 bis complète la classe 1. Les micropieux ne correspondant pas exactement " & _
         "aux types I à IV sont considérés par défaut comme de classe 1 bis (A.9.1)."
+    ' Colonnes nommées, utilisées par la feuille « Données du projet »
+    NommerColonnes "NF_A1", Array("Classe", "Categorie", "Technique", "Abreviation", "Norme")
 
     ' --- Tableau A.9.1 ---
     s = "Graves|1,5 Vs|1,7 à 2,4;Graves sableuses|1,5 Vs|1,7 à 2,4;Sables graveleux|1,5 Vs|1,7 à 2,4;" & _
@@ -172,6 +179,9 @@ Public Sub CreerTableauxNFP94262()
         "limite qs (kPa) - Méthode pressiométrique", "Catégorie|" & SOLS6, QsMax(), _
         "Catégories 17 et 18 : prendre les valeurs des techniques les plus proches. " & _
         "BAO, HB, PP vibrofoncés : abattement de 30 % sur qs."
+    ' Catégories de sol (en-têtes du tableau qs max), utilisées par « Données du projet »
+    ActiveWorkbook.Names.Add Name:="NF_Sols", RefersTo:="='" & ws.Name & "'!" & _
+        mEntete.Offset(0, 1).Resize(1, mEntete.Columns.Count - 1).Address
 
     NouveauGroupe ws, "Méthode pénétrométrique (annexe G)", 2
     ' --- Méthode pénétrométrique ---
@@ -253,6 +263,16 @@ Private Sub Placer(ws As Worksheet, titre As String, entetes As String, donnees 
     End If
 End Sub
 
+' Nomme chaque colonne de données du dernier tableau écrit : prefixe_nom
+' (ex. NF_A1_Technique), pour que les autres feuilles lisent les valeurs de la norme.
+Private Sub NommerColonnes(prefixe As String, noms As Variant)
+    Dim k As Long
+    For k = 0 To UBound(noms)
+        ActiveWorkbook.Names.Add Name:=prefixe & "_" & noms(k), RefersTo:="='" & _
+            mDonnees.Worksheet.Name & "'!" & mDonnees.Columns(k + 1).Address
+    Next k
+End Sub
+
 ' Valeurs maximales du frottement axial unitaire limite qs en kPa (tableaux F.5.2.3
 ' et G.5.2.3, identiques)
 Private Function QsMax() As String
@@ -315,6 +335,8 @@ Private Function EcrireTableau(ws As Worksheet, ByVal r As Long, c0 As Long, tit
         .VerticalAlignment = xlCenter
     End With
     ws.Range(ws.Cells(debut + 1, c0 + 1), ws.Cells(r, c0 + UBound(e))).HorizontalAlignment = xlCenter
+    Set mEntete = ws.Range(ws.Cells(debut, c0), ws.Cells(debut, c0 + UBound(e)))
+    Set mDonnees = ws.Range(ws.Cells(debut + 1, c0), ws.Cells(r, c0 + UBound(e)))
     If note <> "" Then
         r = r + 1
         With ws.Range(ws.Cells(r, c0), ws.Cells(r, c0 + LARGEUR_EMPL - 2))
