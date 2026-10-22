@@ -24,9 +24,10 @@ Option Explicit
 '   B77 à E84 : Caractéristiques du béton (classe d'exposition, classe structurale,
 '               classe de résistance, fc28, coefficients gamma c ELU / accidentel /
 '               sismique)
-'   B86 à E99 : Caractéristiques de l'acier (type d'armature tube ou barre, classe,
+'   B86 à E100: Caractéristiques de l'acier (type d'armature tube ou barre, classe,
 '               diamètres et épaisseur du tube, E, fe, coefficients gamma s ELU /
-'               accidentel / sismique, platine, nuance, contrainte max)
+'               accidentel / sismique, platine (barres GEWI, GEWI Plus, DYWIDAG),
+'               nuance, limite élastique fy et limite de rupture fu)
 ' Les valeurs se saisissent dans les cases jaunes. Le type de fondation (ligne 13)
 ' s'affiche quand la phase (C9) vaut G5 (AfficherTypeFondation) et le tableau des
 ' couches suit le nombre de couches (AfficherCouches) : voir CodeFeuilleDonnees.txt.
@@ -45,19 +46,31 @@ Private Const CLASSES_EXPOSITION As String = "X0,XC1,XC2,XC3,XC4,XD1,XD2,XD3," &
     "XS1,XS2,XS3,XF1,XF2,XF3,XF4,XA1,XA2,XA3"
 ' Armatures des micropieux (dimensions courantes, à vérifier auprès du fournisseur).
 ' Tube : « Øde x e mm » est lu pour remplir les diamètres et l'épaisseur (MajAcier).
-Private Const TUBES As String = "Tube N80 Ø73 x 5.5 mm,Tube N80 Ø88.9 x 6.5 mm," & _
-    "Tube N80 Ø88.9 x 9.5 mm,Tube N80 Ø101.6 x 9 mm,Tube N80 Ø114.3 x 9 mm," & _
-    "Tube N80 Ø127 x 9 mm,Tube N80 Ø139.7 x 9 mm,Tube N80 Ø168.3 x 10 mm," & _
-    "Tube N80 Ø177.8 x 10.4 mm"
-' Barre : seulement les aciers HA ; les barres filetées GEWI (écrou + platine) sont
-' proposées dans la liste des platines.
+Private Const TUBES As String = "Ø60.3 x 5.5 mm,Ø73 x 5.5 mm,Ø88.9 x 6.5 mm," & _
+    "Ø88.9 x 9.5 mm,Ø101.6 x 9 mm,Ø114.3 x 9 mm,Ø127 x 9 mm,Ø139.7 x 9 mm," & _
+    "Ø168.3 x 10 mm,Ø177.8 x 10.4 mm"
+' Barre : seulement les aciers HA ; les barres filetées (GEWI, GEWI Plus, DYWIDAG)
+' sont proposées dans la liste des platines.
 Private Const BARRES As String = "Barre HA B500 Ø20,Barre HA B500 Ø25,Barre HA B500 Ø32," & _
     "Barre HA B500 Ø40"
-Private Const PLATINES As String = "Platine carrée soudée,Platine carrée avec raidisseurs," & _
-    "Platine vissée sur manchon,Platine circulaire soudée," & _
-    "Platine + écrou sur barre GEWI Ø25 (S555/700),Platine + écrou sur barre GEWI Ø28 (S555/700)," & _
-    "Platine + écrou sur barre GEWI Ø32 (S555/700),Platine + écrou sur barre GEWI Ø40 (S555/700)," & _
-    "Platine + écrou sur barre GEWI Ø50 (S555/700)"
+' Type de platine : catalogue des barres filetées GEWI (S555/700), GEWI Plus
+' (S670/800) et DYWIDAG (Y1050), diamètres à vérifier sur les fiches fabricant.
+Private Const PLATINES As String = "GEWI Ø25 (S555/700),GEWI Ø28 (S555/700)," & _
+    "GEWI Ø32 (S555/700),GEWI Ø40 (S555/700),GEWI Ø50 (S555/700),GEWI Ø63.5 (S555/700)," & _
+    "GEWI Plus Ø18 (S670/800),GEWI Plus Ø22 (S670/800),GEWI Plus Ø25 (S670/800)," & _
+    "GEWI Plus Ø28 (S670/800),GEWI Plus Ø30 (S670/800),GEWI Plus Ø35 (S670/800)," & _
+    "GEWI Plus Ø43 (S670/800),GEWI Plus Ø57.5 (S670/800),GEWI Plus Ø63.5 (S670/800)," & _
+    "GEWI Plus Ø75 (S670/800),DYWIDAG Ø18 (Y1050),DYWIDAG Ø26.5 (Y1050)," & _
+    "DYWIDAG Ø32 (Y1050),DYWIDAG Ø36 (Y1050),DYWIDAG Ø40 (Y1050),DYWIDAG Ø47 (Y1050)," & _
+    "DYWIDAG Ø57 (Y1050),DYWIDAG Ø65 (Y1050),DYWIDAG Ø75 (Y1050)"
+' Nuances d'acier (NF EN 10025-2, -3 N/NL, -4 M/ML) avec limite élastique fy et
+' limite de rupture fu en MPa pour une épaisseur <= 40 mm (NF EN 1993-1-1, tab. 3.1)
+Private Const NUANCES As String = "S235,S275,S355,S450,S275N,S275NL,S355N,S355NL," & _
+    "S420N,S420NL,S460N,S460NL,S275M,S275ML,S355M,S355ML,S420M,S420ML,S460M,S460ML"
+Private Const NUANCES_FY As String = "235,275,355,440,275,275,355,355,420,420,460,460," & _
+    "275,275,355,355,420,420,460,460"
+Private Const NUANCES_FU As String = "360,430,510,550,390,390,490,490,520,520,540,540," & _
+    "370,370,470,470,520,520,540,540"
 Private Const CATEGORIES_SOL As String = "Argiles et limons," & _
     "Sols intermédiaires (sable limoneux / sable argileux / argile sableuse)," & _
     "Sables et graves,Craies,Marnes et calcaires marneux,Roches"
@@ -266,16 +279,16 @@ Public Sub CreerDonneesProjet()
     ' Acier : la liste des classes dépend du type d'armature, les dimensions du tube
     ' choisi sont remplies (voir MajArmature et MajAcier)
     SousTitre ws, LIGNE_ACIER - 1, "Caractéristiques de l'acier"
-    ws.Range("B" & LIGNE_ACIER & ":B" & LIGNE_ACIER + 12).Value = Application.Transpose(Array( _
+    ws.Range("B" & LIGNE_ACIER & ":B" & LIGNE_ACIER + 13).Value = Application.Transpose(Array( _
         "Type d'armature", "Classe de l'acier", "Diamètre extérieur", "Épaisseur e", _
         "Diamètre intérieur", "Module de Young E", "Contrainte de l'acier fe", _
         "Coefficient " & ChrW(947) & "s - combinaison ELU fondamentale", _
         "Coefficient " & ChrW(947) & "s - combinaison accidentelle", _
         "Coefficient " & ChrW(947) & "s - combinaison sismique", _
-        "Type de platine (liaison micropieu / structure)", "Nuance de la platine", _
-        "Contrainte max de l'acier de la platine"))
-    ws.Range("E" & LIGNE_ACIER + 2 & ":E" & LIGNE_ACIER + 12).Value = Application.Transpose(Array( _
-        "mm", "mm", "mm", "MPa", "MPa", "", "", "", "", "", "MPa"))
+        "Type de platine (liaison micropieu / structure)", "Nuance de l'acier de la platine", _
+        "Limite élastique de l'acier fy", "Limite de rupture de l'acier fu"))
+    ws.Range("E" & LIGNE_ACIER + 2 & ":E" & LIGNE_ACIER + 13).Value = Application.Transpose(Array( _
+        "mm", "mm", "mm", "MPa", "MPa", "", "", "", "", "", "MPa", "MPa"))
     Liste ws.Range("D" & LIGNE_ACIER), "Tube,Barre"
     ws.Range("D" & LIGNE_ACIER + 2 & ":D" & LIGNE_ACIER + 4).NumberFormat = "0.0"
     ws.Range("D" & LIGNE_ACIER + 5).Value = 210000
@@ -284,18 +297,20 @@ Public Sub CreerDonneesProjet()
     ws.Range("D" & LIGNE_ACIER + 7 & ":D" & LIGNE_ACIER + 9).Value = Application.Transpose(Array(1.15, 1, 1))
     ws.Range("D" & LIGNE_ACIER + 7 & ":D" & LIGNE_ACIER + 9).NumberFormat = "0.00"
     ListeLongue ws.Range("D" & LIGNE_ACIER + 10), PLATINES, "Platines"
-    Liste ws.Range("D" & LIGNE_ACIER + 11), "S235,S275,S355,S420,S460"
-    ' Limite d'élasticité de la nuance (S235 -> 235 MPa, épaisseur <= 40 mm)
-    ws.Range("D" & LIGNE_ACIER + 12).Formula = "=VALUE(MID(D" & LIGNE_ACIER + 11 & ",2,3))"
-    ws.Range("D" & la + 3 & ":E" & LIGNE_ACIER + 12).HorizontalAlignment = xlCenter
-    For r = la + 3 To LIGNE_ACIER + 12
+    Liste ws.Range("D" & LIGNE_ACIER + 11), NUANCES
+    ws.Range("D" & LIGNE_ACIER + 11).Value = "S355"
+    ' fy et fu de la nuance choisie (tables NUANCES_FY et NUANCES_FU)
+    ws.Range("D" & LIGNE_ACIER + 12).Formula = FormuleNuance(NUANCES_FY, LIGNE_ACIER + 11)
+    ws.Range("D" & LIGNE_ACIER + 13).Formula = FormuleNuance(NUANCES_FU, LIGNE_ACIER + 11)
+    ws.Range("D" & la + 3 & ":E" & LIGNE_ACIER + 13).HorizontalAlignment = xlCenter
+    For r = la + 3 To LIGNE_ACIER + 13
         If r <> LIGNE_ACIER - 1 And r <> LIGNE_ACIER - 2 Then ws.Range("B" & r & ":C" & r).Merge
     Next r
 
     ' --- Mise en forme ---
     With ws.Range("B4:C9,B12:C16,B19:I26,B28:E29,B32:C32,B" & LIGNE_COUCHES - 1 & ":I" & lc & _
             ",B" & lm + 1 & ":E" & lm + 5 & ",B" & lp & ":D" & lp + 15 & _
-            ",B" & la + 3 & ":E" & la + 9 & ",B" & LIGNE_ACIER & ":E" & LIGNE_ACIER + 12)
+            ",B" & la + 3 & ":E" & la + 9 & ",B" & LIGNE_ACIER & ":E" & LIGNE_ACIER + 13)
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
@@ -314,7 +329,7 @@ Public Sub CreerDonneesProjet()
     ws.Columns("C").ColumnWidth = 40
     ws.Columns("D").ColumnWidth = 28         ' valeurs des micropieux, catégorie de sol
     ws.Columns("E:I").ColumnWidth = 14
-    ws.Rows("19:" & LIGNE_ACIER + 12).AutoFit
+    ws.Rows("19:" & LIGNE_ACIER + 13).AutoFit
 
     AfficherTypeFondation ws
     AfficherCouches ws
@@ -360,6 +375,13 @@ Public Sub InverserHauteur(c As Range)
     If IsNumeric(c.Value) And Not IsEmpty(c.Value) Then c.Value = -c.Value
 End Sub
 
+' Formule qui donne la valeur de la table valeurs (même ordre que NUANCES) pour
+' la nuance choisie en D de la ligne indiquée.
+Private Function FormuleNuance(valeurs As String, ligne As Long) As String
+    FormuleNuance = "=INDEX({" & valeurs & "},MATCH(D" & ligne & ",{""" & _
+        Replace(NUANCES, ",", """,""") & """},0))"
+End Function
+
 ' Type d'armature choisi (D87) : la liste « Classe de l'acier » propose les tubes
 ' (TUBES) ou les barres (BARRES) ; diamètres et épaisseur ne sont affichés que pour
 ' un tube. Appelée aussi quand le type change (voir CodeFeuilleDonnees.txt).
@@ -376,7 +398,7 @@ Public Sub MajArmature(ws As Worksheet)
     MajAcier ws
 End Sub
 
-' Classe de l'acier choisie (D88) : pour un tube « ... Øde x e mm », diamètre
+' Classe de l'acier choisie (D88) : pour un tube « Øde x e mm », diamètre
 ' extérieur de et épaisseur e sont lus dans la désignation, diamètre intérieur =
 ' de - 2 e. Appelée aussi quand la classe change (voir CodeFeuilleDonnees.txt).
 Public Sub MajAcier(ws As Worksheet)
