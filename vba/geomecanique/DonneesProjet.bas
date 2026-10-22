@@ -31,9 +31,6 @@ Option Explicit
 ' Les valeurs se saisissent dans les cases jaunes. Le type de fondation (ligne 13)
 ' s'affiche quand la phase (C9) vaut G5 (AfficherTypeFondation) et le tableau des
 ' couches suit le nombre de couches (AfficherCouches) : voir CodeFeuilleDonnees.txt.
-' Le type de pieu, la norme de référence, la classe, la catégorie du micropieu et
-' les catégories de sol sont lus dans la feuille « Tableaux NF P94-262 » (module
-' TableauxNFP94262, plages nommées NF_A1_... et NF_Sols), créée si elle manque.
 ' Les listes de plus de 255 caractères (limite d'Excel, ex. noms des sols de la
 ' NF P11-300) sont écrites sur la feuille masquée « Listes » (voir ListeLongue).
 
@@ -74,42 +71,21 @@ Private Const NUANCES_FY As String = "235,275,355,440,275,275,355,355,420,420,46
     "275,275,355,355,420,420,460,460"
 Private Const NUANCES_FU As String = "360,430,510,550,390,390,490,490,520,520,540,540," & _
     "370,370,470,470,520,520,540,540"
+Private Const CATEGORIES_SOL As String = "Argiles et limons," & _
+    "Sols intermédiaires (sable limoneux / sable argileux / argile sableuse)," & _
+    "Sables et graves,Craies,Marnes et calcaires marneux,Roches"
 
 Public Sub CreerDonneesProjet()
     Dim ws As Worksheet, r As Long, normes As Variant, lc As Long, lm As Long, lp As Long
-    Dim la As Long, etape As String          ' etape : partie en cours (message d'erreur)
+    Dim la As Long
 
     Application.ScreenUpdating = False       ' pas de scintillement pendant l'exécution
     Application.EnableEvents = False         ' pas de Worksheet_Change pendant la création
-    On Error GoTo Erreur                     ' en cas d'erreur : message, événements rétablis
-
-    ' Les listes et valeurs tirées de la norme renvoient à la feuille « Tableaux
-    ' NF P94-262 » (plages nommées NF_...) : elle est créée si elle manque.
-    ' Application.Run : le module TableauxNFP94262 peut manquer sans bloquer celui-ci.
-    If Not NomExiste("NF_A1_Technique") Or Not NomExiste("NF_Sols") Then
-        On Error Resume Next
-        Application.Run "CreerTableauxNFP94262"
-        If Err.Number <> 0 Then
-            MsgBox "La feuille « Tableaux NF P94-262 » n'a pas pu être créée : importez le " & _
-                "module TableauxNFP94262 puis relancez CreerDonneesProjet." & vbCrLf & _
-                "(" & Err.Description & ")", vbExclamation
-            GoTo Fin
-        End If
-        On Error GoTo Erreur
-        Application.ScreenUpdating = False
-        Application.EnableEvents = False
-        If Not NomExiste("NF_A1_Technique") Or Not NomExiste("NF_Sols") Then
-            MsgBox "La feuille « Tableaux NF P94-262 » ne contient pas les plages nommées " & _
-                "NF_A1_... et NF_Sols : remplacez le module TableauxNFP94262 par sa dernière " & _
-                "version, puis relancez CreerDonneesProjet.", vbExclamation
-            GoTo Fin
-        End If
-    End If
 
     ' Feuille créée si elle n'existe pas, sinon vidée
     On Error Resume Next
     Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
-    On Error GoTo Erreur
+    On Error GoTo 0
     If ws Is Nothing Then
         Set ws = ActiveWorkbook.Worksheets.Add(Before:=ActiveWorkbook.Worksheets(1))
         ws.Name = NOM_FEUILLE
@@ -118,7 +94,6 @@ Public Sub CreerDonneesProjet()
     ws.Rows.Hidden = False
 
     ' --- Titre ---
-    etape = "titre"
     With ws.Range("B1:I1")
         .Merge
         .Value = "HYPOTHÈSES GÉNÉRALES"
@@ -128,7 +103,6 @@ Public Sub CreerDonneesProjet()
     End With
 
     ' --- Synthèse du projet ---
-    etape = "synthèse du projet"
     SousTitre ws, 3, "Synthèse du projet"
     ws.Range("B4:B9").Value = Application.Transpose(Array("Nom du projet", "Lieu", _
         "Maître d'ouvrage", "Date", "Numéro du projet", "Phase du projet"))
@@ -137,7 +111,6 @@ Public Sub CreerDonneesProjet()
     Liste ws.Range(CELLULE_PHASE), "G2-AVP,G2-PRO,G5"
 
     ' --- Caractérisation générale de l'ouvrage ---
-    etape = "caractérisation de l'ouvrage"
     SousTitre ws, 11, "Caractérisation générale de l'ouvrage"
     ws.Range("B12:B16").Value = Application.Transpose(Array("Type d'ouvrage", _
         "Type de fondation", "Catégorie de bâtiment", "Altitude", "Zone de sismicité"))
@@ -149,7 +122,6 @@ Public Sub CreerDonneesProjet()
     Liste ws.Range("C16"), "1,2,3,4,5"
 
     ' --- Références normatives : référence (date), intitulé fusionné de D à I ---
-    etape = "références normatives"
     SousTitre ws, 18, "Références normatives"
     ws.Range("B19:D19").Value = Array("Référence", "Date", "Intitulé")
     normes = Array( _
@@ -175,7 +147,6 @@ Public Sub CreerDonneesProjet()
     Next r
 
     ' --- Référentiel altimétrique et niveau du terrain naturel ---
-    etape = "référentiel altimétrique"
     ' Intitulé sur B:C fusionnées, valeur en D, unité en E (m + référentiel choisi)
     ws.Range("B28").Value = "Référentiel altimétrique"
     ws.Range("B29").Value = "Niveau du terrain naturel"
@@ -187,7 +158,6 @@ Public Sub CreerDonneesProjet()
     ws.Range("B29:C29").Merge
 
     ' --- Données géotechniques : nombre de couches puis tableau des couches ---
-    etape = "données géotechniques (couches)"
     SousTitre ws, 31, "Données géotechniques"
     ws.Range("B32").Value = "Nombre de couches"
     With ws.Range(CELLULE_NB_COUCHES)
@@ -205,8 +175,8 @@ Public Sub CreerDonneesProjet()
         ws.Range("B" & r).Value = r - LIGNE_COUCHES + 1
         ListeLongue ws.Range("C" & r), SolsNFP11300(), "Sols NF P11-300"
         ws.Range("C" & r).ClearContents      ' nom de couche à choisir
-        ' Catégorie de sol : en-têtes de colonnes des tableaux qs max de la NF P94-262
-        ListeNommee ws.Range("D" & r), "NF_Sols", ""
+        Liste ws.Range("D" & r), CATEGORIES_SOL
+        ws.Range("D" & r).ClearContents      ' catégorie à choisir
         ' Épaisseur = différence entre la base de la couche et celle de la couche
         ' au-dessus (TN pour la première couche)
         If r = LIGNE_COUCHES Then
@@ -222,7 +192,6 @@ Public Sub CreerDonneesProjet()
     ws.Range("B" & LIGNE_COUCHES & ":B" & lc & ",E" & LIGNE_COUCHES & ":I" & lc).HorizontalAlignment = xlCenter
 
     ' --- Données des micropieux : intitulé sur B:C fusionnées, valeur en D, unité en E ---
-    etape = "données des micropieux"
     lm = lc + 2                              ' sous-titre
     SousTitre ws, lm, "Données des micropieux"
     ws.Range("B" & lm + 1 & ":B" & lm + 5).Value = Application.Transpose(Array( _
@@ -241,11 +210,11 @@ Public Sub CreerDonneesProjet()
     Next r
 
     ' --- Caractéristiques des micropieux (sous le tableau précédent) ---
-    etape = "caractéristiques des micropieux"
-    ' Intitulé (unité comprise) sur B:C fusionnées, valeur en D. Le type de pieu,
-    ' la norme de référence, la classe et la catégorie viennent du tableau A.1 de
-    ' la feuille « Tableaux NF P94-262 » ; la résistance de pointe suit la catégorie.
-    ' La hauteur totale saisie est multipliée par -1 (voir InverserHauteur).
+    ' Intitulé (unité comprise) sur B:C fusionnées, valeur en D. Le type de pieu
+    ' (tableau A.1 de la NF P94-262) remplit la catégorie, la classe et la prise en
+    ' compte de la résistance de pointe ; la norme de référence suit la catégorie
+    ' (voir MajTypePieu). La hauteur totale saisie est multipliée par -1 (voir
+    ' InverserHauteur).
     lp = LIGNE_PIEU
     SousTitre ws, lp - 1, "Caractéristiques des micropieux"
     ws.Range("B" & lp & ":B" & lp + 15).Value = Application.Transpose(Array( _
@@ -256,20 +225,19 @@ Public Sub CreerDonneesProjet()
         "Hauteur totale du micropieu (m)", "Hauteur du micropieu dans la couche porteuse h (m)", _
         "Nombre de micropieux / appui du bâtiment", "Nombre total de micropieux", _
         "Conditions en tête du micropieu", "Essai de contrôle"))
-    ' Type de pieu : liste des techniques du tableau A.1 de la feuille
-    ' « Tableaux NF P94-262 » ; norme, classe et catégorie lues dans ce tableau
-    ListeNommee ws.Range("D" & lp), "NF_A1_Technique", "Micropieu type I"
+    ListeLongue ws.Range("D" & lp), TypesPieux(), "Pieux NF P94-262"
+    ws.Range("D" & lp).Value = Split(TypesPieux(), ",")(16)   ' micropieu type I (cat. 17)
     Liste ws.Range("D" & lp + 1), "Oui,Non"
     Liste ws.Range("D" & lp + 2), "Non,Oui"
     Liste ws.Range("D" & lp + 3), "Non,Oui"
-    ws.Range("D" & lp + 4).Formula = FormuleA1("NF_A1_Norme", lp)
-    ws.Range("D" & lp + 5).Formula = FormuleA1("NF_A1_Classe", lp)
-    ws.Range("D" & lp + 6).Formula = FormuleA1("NF_A1_Categorie", lp)
+    ' Norme de référence selon la catégorie (D de la ligne Catégorie)
+    ws.Range("D" & lp + 4).Formula = "=IF(D" & lp + 6 & "="""","""",IF(VALUE(D" & lp + 6 & _
+        "&"""")<=6,""NF EN 1536"",IF(VALUE(D" & lp + 6 & "&"""")<=15,""NF EN 12699""," & _
+        "IF(VALUE(D" & lp + 6 & "&"""")=16,""NF EN 12063"",""NF EN 14199""))))"
+    Liste ws.Range("D" & lp + 5), "1,1bis,2,3,4,5,6,7,8"
+    Liste ws.Range("D" & lp + 6), "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20"
     Liste ws.Range("D" & lp + 7), "Compression,Traction,Compression et traction"
-    ' Résistance de pointe : non prise en compte pour les micropieux (catégories 17 à
-    ' 20, note (b) des tableaux F.4.2.1 et G.4.2.1) ; modifiable dans la liste
     Liste ws.Range("D" & lp + 8), "Oui,Non"
-    ws.Range("D" & lp + 8).Formula = "=IF(N(D" & lp + 6 & ")>=17,""Non"",""Oui"")"
     ws.Range("D" & lp + 9 & ":D" & lp + 11).NumberFormat = "0.00"
     ws.Range("D" & lp + 12 & ":D" & lp + 13).NumberFormat = "0"
     Liste ws.Range("D" & lp + 14), "Libre en tête,Encastré en tête"
@@ -278,9 +246,9 @@ Public Sub CreerDonneesProjet()
     For r = lp To lp + 15
         ws.Range("B" & r & ":C" & r).Merge
     Next r
+    MajTypePieu ws
 
     ' --- Hypothèses relatives aux matériaux constitutifs des fondations profondes ---
-    etape = "matériaux (béton, acier)"
     ' Intitulé sur B:C fusionnées, valeur en D, unité en E
     la = lp + 17                             ' titre de la partie matériaux
     With ws.Range("B" & la & ":I" & la)
@@ -340,7 +308,6 @@ Public Sub CreerDonneesProjet()
     Next r
 
     ' --- Mise en forme ---
-    etape = "mise en forme"
     With ws.Range("B4:C9,B12:C16,B19:I26,B28:E29,B32:C32,B" & LIGNE_COUCHES - 1 & ":I" & lc & _
             ",B" & lm + 1 & ":E" & lm + 5 & ",B" & lp & ":D" & lp + 15 & _
             ",B" & la + 3 & ":E" & la + 9 & ",B" & LIGNE_ACIER & ":E" & LIGNE_ACIER + 13)
@@ -353,7 +320,7 @@ Public Sub CreerDonneesProjet()
     ' Cases à remplir (données d'entrée) en jaune ; les valeurs calculées restent blanches
     ws.Range("C4:C9,C12:C16,D28:D29,C32,C" & LIGNE_COUCHES & ":E" & lc & ",G" & LIGNE_COUCHES & _
         ":I" & lc & ",D" & lm + 1 & ":D" & lm + 5 & ",D" & lp & ":D" & lp + 3 & _
-        ",D" & lp + 7 & ":D" & lp + 15 & ",D" & la + 3 & ":D" & la + 5 & _
+        ",D" & lp + 5 & ":D" & lp + 15 & ",D" & la + 3 & ":D" & la + 5 & _
         ",D" & la + 7 & ":D" & la + 9 & _
         ",D" & LIGNE_ACIER & ":D" & LIGNE_ACIER + 1 & ",D" & LIGNE_ACIER + 5 & ":D" & _
         LIGNE_ACIER + 11).Interior.Color = RGB(255, 255, 204)
@@ -368,19 +335,8 @@ Public Sub CreerDonneesProjet()
     AfficherCouches ws
     MajArmature ws
     ws.Activate
-Fin:
     Application.EnableEvents = True
     Application.ScreenUpdating = True
-    Exit Sub
-Erreur:
-    MsgBox "Erreur pendant la création de la feuille « Données du projet », partie « " & _
-        etape & " » : " & Err.Description & " (n° " & Err.Number & ")", vbExclamation
-    Resume Fin
-End Sub
-
-' Conservée pour l'ancien code de feuille (CodeFeuilleDonnees.txt) qui l'appelait :
-' le type de pieu est maintenant lu par formules dans la feuille « Tableaux NF P94-262 ».
-Public Sub MajTypePieu(ws As Worksheet)
 End Sub
 
 ' Affiche autant de lignes de couches que le nombre saisi en C32 (1 à MAX_COUCHES),
@@ -393,6 +349,23 @@ Public Sub AfficherCouches(ws As Worksheet)
     If nb > MAX_COUCHES Then nb = MAX_COUCHES
     ws.Rows(LIGNE_COUCHES).Resize(MAX_COUCHES).Hidden = False
     If nb < MAX_COUCHES Then ws.Rows(LIGNE_COUCHES + nb).Resize(MAX_COUCHES - nb).Hidden = True
+End Sub
+
+' Type de pieu choisi (D58) : la catégorie est le rang de la technique dans le
+' tableau A.1 (TypesPieux, « Micropieu type I (M1) » -> 17), la classe s'en déduit
+' (ClassePieu) et la résistance de pointe est prise en compte (Oui) sauf pour les
+' micropieux, catégories 17 à 20 (Non) ; la norme de référence suit la catégorie
+' par formule. Appelée aussi quand le type change (voir CodeFeuilleDonnees.txt).
+Public Sub MajTypePieu(ws As Worksheet)
+    Dim categorie As Long, types As Variant, i As Long
+    types = Split(TypesPieux(), ",")
+    For i = 0 To UBound(types)
+        If types(i) = CStr(ws.Range("D" & LIGNE_PIEU).Value) Then categorie = i + 1
+    Next i
+    If categorie = 0 Then Exit Sub
+    ws.Range("D" & LIGNE_PIEU + 6).Value = categorie
+    ws.Range("D" & LIGNE_PIEU + 5).Value = ClassePieu(categorie)
+    ws.Range("D" & LIGNE_PIEU + 8).Value = IIf(categorie >= 17, "Non", "Oui")
 End Sub
 
 ' Hauteur totale du micropieu (D68) : la valeur saisie est multipliée par -1
@@ -441,27 +414,46 @@ Public Sub MajAcier(ws As Worksheet)
     End If
 End Sub
 
-' Formule qui lit la colonne nom (plage nommée du tableau A.1 de la feuille
-' « Tableaux NF P94-262 ») sur la ligne du type de pieu choisi en D de la ligne lp.
-Private Function FormuleA1(nom As String, lp As Long) As String
-    FormuleA1 = "=IFERROR(INDEX(" & nom & ",MATCH(D" & lp & ",NF_A1_Technique,0)),"""")"
+' Classe de pieu (NF P94-262, tableau A.1) selon la catégorie 1 à 20
+Public Function ClassePieu(ByVal categorie As Long) As String
+    Select Case categorie
+        Case 1 To 5:   ClassePieu = "1"      ' pieux forés
+        Case 6:        ClassePieu = "2"      ' tarière creuse
+        Case 7, 8:     ClassePieu = "3"      ' vissés
+        Case 9 To 12:  ClassePieu = "4"      ' battus fermés
+        Case 13:       ClassePieu = "5"      ' battu acier ouvert
+        Case 14, 15:   ClassePieu = "6"      ' profilés H
+        Case 16:       ClassePieu = "7"      ' palplanches
+        Case 17, 18:   ClassePieu = "1bis"   ' micropieux types I et II
+        Case 19, 20:   ClassePieu = "8"      ' injectés haute pression (IGU, IRS)
+    End Select
 End Function
 
-' Liste déroulante qui renvoie à une plage nommée (colonne d'un tableau de la
-' feuille « Tableaux NF P94-262 »), avec une valeur de départ (vide si "").
-Private Sub ListeNommee(c As Range, nom As String, valeur As String)
-    c.Validation.Delete
-    c.Validation.Add xlValidateList, xlValidAlertStop, , "=" & nom
-    c.Value = valeur
-    c.HorizontalAlignment = xlCenter
-End Sub
-
-' Vrai si la plage nommée existe dans le classeur
-Private Function NomExiste(nom As String) As Boolean
-    Dim n As Name
-    On Error Resume Next
-    Set n = ActiveWorkbook.Names(nom)
-    NomExiste = Not n Is Nothing
+' Techniques de mise en oeuvre des pieux (NF P94-262, tableau A.1), dans l'ordre
+' des catégories 1 à 20. Désignations abrégées, à vérifier sur la norme.
+Private Function TypesPieux() As String
+    Dim s As String
+    s = "Foré simple (pieux et barrettes) (FS)"
+    s = s & ",Foré boue (pieux et barrettes) (FB)"
+    s = s & ",Foré tubé - virole perdue (FTP)"
+    s = s & ",Foré tubé - virole récupérée (FTR)"
+    s = s & ",Foré simple ou boue avec rainurage ou puits (FSR / FBR / PU)"
+    s = s & ",Foré tarière creuse simple ou double rotation (FTC / FTCD)"
+    s = s & ",Vissé moulé (VM)"
+    s = s & ",Vissé tubé (VT)"
+    s = s & ",Battu béton préfabriqué ou précontraint (BPF / BPR)"
+    s = s & ",Battu enrobé - béton / mortier / coulis (BE)"
+    s = s & ",Battu moulé (BM)"
+    s = s & ",Battu acier fermé (BAF)"
+    s = s & ",Battu acier ouvert (BAO)"
+    s = s & ",Profilé H battu (HB)"
+    s = s & ",Profilé H battu injecté (HBi)"
+    s = s & ",Palplanches battues (PP)"
+    s = s & ",Micropieu type I (M1)"
+    s = s & ",Micropieu type II (M2)"
+    s = s & ",Pieu ou micropieu injecté mode IGU - type III (PIGU / MIGU)"
+    s = s & ",Pieu ou micropieu injecté mode IRS - type IV (PIRS / MIRS)"
+    TypesPieux = s
 End Function
 
 ' Affiche la ligne « Type de fondation » juste sous le type d'ouvrage seulement
