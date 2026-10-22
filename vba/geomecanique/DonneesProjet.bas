@@ -77,7 +77,7 @@ Private Const NUANCES_FU As String = "360,430,510,550,390,390,490,490,520,520,54
 
 Public Sub CreerDonneesProjet()
     Dim ws As Worksheet, r As Long, normes As Variant, lc As Long, lm As Long, lp As Long
-    Dim la As Long
+    Dim la As Long, etape As String          ' etape : partie en cours (message d'erreur)
 
     Application.ScreenUpdating = False       ' pas de scintillement pendant l'exécution
     Application.EnableEvents = False         ' pas de Worksheet_Change pendant la création
@@ -98,6 +98,12 @@ Public Sub CreerDonneesProjet()
         On Error GoTo Erreur
         Application.ScreenUpdating = False
         Application.EnableEvents = False
+        If Not NomExiste("NF_A1_Technique") Or Not NomExiste("NF_Sols") Then
+            MsgBox "La feuille « Tableaux NF P94-262 » ne contient pas les plages nommées " & _
+                "NF_A1_... et NF_Sols : remplacez le module TableauxNFP94262 par sa dernière " & _
+                "version, puis relancez CreerDonneesProjet.", vbExclamation
+            GoTo Fin
+        End If
     End If
 
     ' Feuille créée si elle n'existe pas, sinon vidée
@@ -112,6 +118,7 @@ Public Sub CreerDonneesProjet()
     ws.Rows.Hidden = False
 
     ' --- Titre ---
+    etape = "titre"
     With ws.Range("B1:I1")
         .Merge
         .Value = "HYPOTHÈSES GÉNÉRALES"
@@ -121,6 +128,7 @@ Public Sub CreerDonneesProjet()
     End With
 
     ' --- Synthèse du projet ---
+    etape = "synthèse du projet"
     SousTitre ws, 3, "Synthèse du projet"
     ws.Range("B4:B9").Value = Application.Transpose(Array("Nom du projet", "Lieu", _
         "Maître d'ouvrage", "Date", "Numéro du projet", "Phase du projet"))
@@ -129,6 +137,7 @@ Public Sub CreerDonneesProjet()
     Liste ws.Range(CELLULE_PHASE), "G2-AVP,G2-PRO,G5"
 
     ' --- Caractérisation générale de l'ouvrage ---
+    etape = "caractérisation de l'ouvrage"
     SousTitre ws, 11, "Caractérisation générale de l'ouvrage"
     ws.Range("B12:B16").Value = Application.Transpose(Array("Type d'ouvrage", _
         "Type de fondation", "Catégorie de bâtiment", "Altitude", "Zone de sismicité"))
@@ -140,6 +149,7 @@ Public Sub CreerDonneesProjet()
     Liste ws.Range("C16"), "1,2,3,4,5"
 
     ' --- Références normatives : référence (date), intitulé fusionné de D à I ---
+    etape = "références normatives"
     SousTitre ws, 18, "Références normatives"
     ws.Range("B19:D19").Value = Array("Référence", "Date", "Intitulé")
     normes = Array( _
@@ -165,6 +175,7 @@ Public Sub CreerDonneesProjet()
     Next r
 
     ' --- Référentiel altimétrique et niveau du terrain naturel ---
+    etape = "référentiel altimétrique"
     ' Intitulé sur B:C fusionnées, valeur en D, unité en E (m + référentiel choisi)
     ws.Range("B28").Value = "Référentiel altimétrique"
     ws.Range("B29").Value = "Niveau du terrain naturel"
@@ -176,6 +187,7 @@ Public Sub CreerDonneesProjet()
     ws.Range("B29:C29").Merge
 
     ' --- Données géotechniques : nombre de couches puis tableau des couches ---
+    etape = "données géotechniques (couches)"
     SousTitre ws, 31, "Données géotechniques"
     ws.Range("B32").Value = "Nombre de couches"
     With ws.Range(CELLULE_NB_COUCHES)
@@ -210,6 +222,7 @@ Public Sub CreerDonneesProjet()
     ws.Range("B" & LIGNE_COUCHES & ":B" & lc & ",E" & LIGNE_COUCHES & ":I" & lc).HorizontalAlignment = xlCenter
 
     ' --- Données des micropieux : intitulé sur B:C fusionnées, valeur en D, unité en E ---
+    etape = "données des micropieux"
     lm = lc + 2                              ' sous-titre
     SousTitre ws, lm, "Données des micropieux"
     ws.Range("B" & lm + 1 & ":B" & lm + 5).Value = Application.Transpose(Array( _
@@ -228,6 +241,7 @@ Public Sub CreerDonneesProjet()
     Next r
 
     ' --- Caractéristiques des micropieux (sous le tableau précédent) ---
+    etape = "caractéristiques des micropieux"
     ' Intitulé (unité comprise) sur B:C fusionnées, valeur en D. Le type de pieu,
     ' la norme de référence, la classe et la catégorie viennent du tableau A.1 de
     ' la feuille « Tableaux NF P94-262 » ; la résistance de pointe suit la catégorie.
@@ -266,6 +280,7 @@ Public Sub CreerDonneesProjet()
     Next r
 
     ' --- Hypothèses relatives aux matériaux constitutifs des fondations profondes ---
+    etape = "matériaux (béton, acier)"
     ' Intitulé sur B:C fusionnées, valeur en D, unité en E
     la = lp + 17                             ' titre de la partie matériaux
     With ws.Range("B" & la & ":I" & la)
@@ -325,6 +340,7 @@ Public Sub CreerDonneesProjet()
     Next r
 
     ' --- Mise en forme ---
+    etape = "mise en forme"
     With ws.Range("B4:C9,B12:C16,B19:I26,B28:E29,B32:C32,B" & LIGNE_COUCHES - 1 & ":I" & lc & _
             ",B" & lm + 1 & ":E" & lm + 5 & ",B" & lp & ":D" & lp + 15 & _
             ",B" & la + 3 & ":E" & la + 9 & ",B" & LIGNE_ACIER & ":E" & LIGNE_ACIER + 13)
@@ -357,8 +373,8 @@ Fin:
     Application.ScreenUpdating = True
     Exit Sub
 Erreur:
-    MsgBox "Erreur pendant la création de la feuille « Données du projet » : " & _
-        Err.Description & " (n° " & Err.Number & ")", vbExclamation
+    MsgBox "Erreur pendant la création de la feuille « Données du projet », partie « " & _
+        etape & " » : " & Err.Description & " (n° " & Err.Number & ")", vbExclamation
     Resume Fin
 End Sub
 
