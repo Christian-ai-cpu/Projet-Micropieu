@@ -10,12 +10,14 @@ Option Explicit
 '         abréviation, norme, classe, catégorie ; mode de fonctionnement (compression
 '         / traction), résistance de pointe, type de mise en oeuvre ; caractéristiques
 '         mécaniques (B, D, hauteur de la couche porteuse, Ab, Pe, frottement négligé,
-'         coefficients de modèle gamma R;d1 et R;d2 du tableau F.2.1)
-'   B29 : Frottement axial unitaire et résistance par couche, notations de la norme :
+'         coefficients de modèle gamma R;d1 et R;d2)
+'   B28 : Coefficients de modèle (tableau F.2.1 recopié sur la feuille, utilisé pour
+'         gamma R;d1 et R;d2)
+'   B35 : Frottement axial unitaire et résistance par couche, notations de la norme :
 '         hi, pl*,i, courbe et a, b, c (F.5.2.2), alpha pieu-sol (F.5.2.1), fsol,i,
-'         qs,max (F.5.2.3), qs,i = min(alpha x fsol,i ; qs,max), As,i = Pe x hi,
-'         qs,i,k = qs,i / (gamma R;d1 x gamma R;d2), Rs,i,k = qs,i,k x As,i (0 si le
-'         terrain est neutralisé), total Rs,k
+'         qs,max (F.5.2.3), qs = min(alpha x fsol,i ; qs,max), As,i = Pe x hi,
+'         qs,i = qs / (gamma R;d1 x gamma R;d2), Rs,i = qs,i x As,i (0 si le terrain
+'         est neutralisé), total Rs
 ' Méthode pressiométrique (annexe F) : fsol = (a.pl* + b)(1 - exp(-c.pl*)), pl* en
 ' MPa, fsol en kPa ; qs = min(alpha pieu-sol x fsol ; qs max).
 ' Catégories de sol de la feuille « Données du projet » -> colonnes des tableaux :
@@ -49,7 +51,6 @@ Public Sub CreerCalculVerification()
     zAlpha = ZoneTableau(wt, "Tableau F.5.2.1", 0, 20, 5)   ' 20 catégories x 5 sols
     zABC = ZoneTableau(wt, "Tableau F.5.2.2", 0, 4, 5)      ' courbe, a, b, c x 5 sols
     zQs = ZoneTableau(wt, "Tableau F.5.2.3", 0, 20, 6)      ' 20 catégories x 6 sols
-    zF21 = ZoneTableau(wt, "Tableau F.2.1", 0, 3, 4)        ' coefficients de modèle
 
     etape = "création de la feuille"
     On Error Resume Next
@@ -106,33 +107,48 @@ Public Sub CreerCalculVerification()
         "=IF(COUNTIF(OFFSET(" & DONNEES & "$I$" & lc & ",0,0," & nb & "),""Oui"")=0,""Non""," & _
         "SUMIF(OFFSET(" & DONNEES & "$I$" & lc & ",0,0," & nb & "),""Oui""," & _
         "OFFSET(" & DONNEES & "$F$" & lc & ",0,0," & nb & ")))", "m"
+    zF21 = "$D$30:$G$32"                     ' tableau des coefficients de modèle (ligne 28)
     ' Coefficients de modèle (tableau F.2.1) : ligne 3 pour les catégories 10, 15 et
     ' 17 à 20, ligne 2 si la couche porteuse est de la craie, ligne 1 sinon ;
     ' colonnes compression / traction selon le mode de fonctionnement
     ligneF21 = "IF(OR(" & cat & "=10," & cat & "=15," & cat & ">=17),3,IF(INDEX(" & DONNEES & _
         "$D$" & lc & ":$D$" & lg & "," & nb & ")=""Craies"",2,1))"
-    Ligne ws, 25, ChrW(947) & "R;d1 (tableau F.2.1)", "=IFERROR(INDEX(" & zF21 & "," & ligneF21 & _
-        ",IF($D$14=""Traction"",2,1)),"""")", ""
-    Ligne ws, 26, ChrW(947) & "R;d2 (tableau F.2.1)", "=IFERROR(INDEX(" & zF21 & "," & ligneF21 & _
-        ",IF($D$14=""Traction"",4,3)),"""")", ""
+    Ligne ws, 25, ChrW(947) & "R;d1 (tableau ci-dessous)", "=IFERROR(INDEX(" & zF21 & "," & _
+        ligneF21 & ",IF($D$14=""Traction"",2,1)),"""")", ""
+    Ligne ws, 26, ChrW(947) & "R;d2 (tableau ci-dessous)", "=IFERROR(INDEX(" & zF21 & "," & _
+        ligneF21 & ",IF($D$14=""Traction"",4,3)),"""")", ""
     ws.Range("D19:D24").NumberFormat = "0.000"
     ws.Range("D25:D26").NumberFormat = "0.00"
 
+    ' --- Coefficients de modèle (NF P94-262, tableau F.2.1), utilisés ci-dessus ---
+    etape = "coefficients de modèle"
+    SousTitre ws, 28, "Coefficients de modèle - méthode pressiométrique (NF P94-262, tableau F.2.1)"
+    ws.Range("B29:G29").Value = Array("Pieux", "", ChrW(947) & "R;d1 compression", _
+        ChrW(947) & "R;d1 traction", ChrW(947) & "R;d2 compression", ChrW(947) & "R;d2 traction")
+    ws.Range("B30:G30").Value = Array("Pieux non ancrés dans la craie, classes 1 à 7 hors " & _
+        "catégories 10 et 15", "", 1.15, 1.4, 1.1, 1.1)
+    ws.Range("B31:G31").Value = Array("Pieux ancrés dans la craie, classes 1 à 7 hors " & _
+        "catégories 10, 15, 17, 18, 19 et 20", "", 1.4, 1.7, 1.1, 1.1)
+    ws.Range("B32:G32").Value = Array("Pieux de catégories 10, 15, 17, 18, 19 et 20", "", 2, 2, 1.1, 1.1)
+    For i = 29 To 32
+        ws.Range("B" & i & ":C" & i).Merge
+    Next i
+    ws.Range("D30:G32").NumberFormat = "0.00"
+
     ' --- Frottement axial unitaire par couche (notations de la NF P94-262) ---
     etape = "frottement par couche"
-    r = 29
+    r = 35
     SousTitre ws, r, "Frottement axial unitaire et résistance par couche (méthode pressiométrique)"
     ws.Range("B" & r + 1 & ":P" & r + 1).Value = Array("N°", "Nom de couche", "Catégorie de sol", _
         "hi (m)", "pl*,i (MPa)", "Courbe fsol", ChrW(945) & "pieu-sol", "fsol,i (kPa)", _
-        ChrW(945) & "pieu-sol x fsol,i (kPa)", "qs,max (kPa)", "qs,i (kPa)", "As,i = Pe x hi (m²)", _
-        "qs,i,k = qs,i / (" & ChrW(947) & "R;d1 x " & ChrW(947) & "R;d2) (kPa)", _
-        "Rs,i,k = qs,i,k x As,i (kN)", "Terrain neutralisé")
+        ChrW(945) & "pieu-sol x fsol,i (kPa)", "qs,max (kPa)", "qs = min (kPa)", "As,i (m²)", _
+        "qs,i (kPa)", "Rs,i (kN)", "Terrain neutralisé")
     For i = 1 To MAX_COUCHES
         CoucheLigne ws, r + 1 + i, i, lc + i - 1, nb, cat, zAlpha, zABC, zQs
     Next i
     ' Total des résistances par couche
     lt = r + 2 + MAX_COUCHES
-    ws.Range("B" & lt).Value = "Rs,k = " & ChrW(931) & " Rs,i,k (kN)"
+    ws.Range("B" & lt).Value = "Rs = " & ChrW(931) & " Rs,i (kN)"
     ws.Range("B" & lt & ":N" & lt).Merge
     ws.Range("O" & lt).Formula = "=SUM(O" & r + 2 & ":O" & lt - 1 & ")"
     ws.Range("O" & lt).NumberFormat = "0.0"
@@ -140,17 +156,17 @@ Public Sub CreerCalculVerification()
 
     ' --- Mise en forme ---
     etape = "mise en forme"
-    With ws.Range("B4:E5,B8:E11,B14:E16,B19:E26,B" & r + 1 & ":P" & lt - 1 & ",B" & lt & ":O" & lt)
+    With ws.Range("B4:E5,B8:E11,B14:E16,B19:E26,B29:G32,B" & r + 1 & ":P" & lt - 1 & ",B" & lt & ":O" & lt)
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    With ws.Range("B" & r + 1 & ":P" & r + 1)
+    With ws.Range("B29:G29,B" & r + 1 & ":P" & r + 1)
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
         .Interior.Color = RGB(217, 225, 242)
     End With
-    ws.Range("D4:E26,B" & r + 2 & ":B" & lt - 1 & ",E" & r + 2 & ":P" & lt).HorizontalAlignment = xlCenter
+    ws.Range("D4:G32,B" & r + 2 & ":B" & lt - 1 & ",E" & r + 2 & ":P" & lt).HorizontalAlignment = xlCenter
     ws.Range("B" & lt).HorizontalAlignment = xlRight
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
@@ -224,7 +240,7 @@ End Function
 
 ' Ligne du tableau par couche (couche n° i, ligne ld dans « Données du projet ») ;
 ' vide au-delà du nombre de couches. Pe en D23, gamma R;d1 et R;d2 en D25 et D26.
-' Terrain neutralisé : frottement négligé, Rs,i,k = 0.
+' Terrain neutralisé : frottement négligé, Rs,i = 0.
 Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, nb As String, _
         cat As String, zAlpha As String, zABC As String, zQs As String)
     Dim cond As String, sol As String, pl As String
