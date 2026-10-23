@@ -356,6 +356,26 @@ Public Sub CreerDonneesProjet()
     Application.ScreenUpdating = True
 End Sub
 
+' Appelée par le code de la feuille « Données du projet » (CodeFeuilleDonnees.txt)
+' à chaque modification : les adresses des cellules suivies sont tenues ici, d'après
+' les constantes du module, pour ne plus avoir à modifier le code de la feuille quand
+' la disposition change.
+'   phase (C9) -> type de fondation ; nombre de couches -> lignes de couches ;
+'   hauteur totale du micropieu -> x (-1) ; type d'armature -> liste des classes
+'   d'acier ; classe de l'acier -> dimensions du tube
+Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
+    On Error GoTo Fin
+    Application.EnableEvents = False
+    If Not Intersect(Target, ws.Range(CELLULE_PHASE)) Is Nothing Then AfficherTypeFondation ws
+    If Not Intersect(Target, ws.Range(CELLULE_NB_COUCHES)) Is Nothing Then AfficherCouches ws
+    If Not Intersect(Target, ws.Range("D" & LIGNE_PIEU + 12)) Is Nothing Then _
+        InverserHauteur ws.Range("D" & LIGNE_PIEU + 12)
+    If Not Intersect(Target, ws.Range("D" & LIGNE_ACIER)) Is Nothing Then MajArmature ws
+    If Not Intersect(Target, ws.Range("D" & LIGNE_ACIER + 1)) Is Nothing Then MajAcier ws
+Fin:
+    Application.EnableEvents = True
+End Sub
+
 ' Affiche autant de lignes de couches que le nombre saisi en C32 (1 à MAX_COUCHES),
 ' les autres lignes du tableau sont masquées. Appelée aussi quand C32 change
 ' (voir CodeFeuilleDonnees.txt).

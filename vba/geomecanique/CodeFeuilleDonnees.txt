@@ -1,21 +1,14 @@
 ' À COLLER DANS LE MODULE DE LA FEUILLE « Données du projet » (pas dans un module
 ' standard) : clic droit sur l'onglet de la feuille > Visualiser le code, puis coller
 ' (remplacer entièrement l'ancien code).
-' - Phase du projet (C9) modifiée : la ligne « Type de fondation » s'affiche
-'   seulement pour la phase G5.
-' - Nombre de couches (C32) modifié : le tableau des couches affiche ce nombre de lignes.
-' - Hauteur totale du micropieu (D70) saisie : valeur multipliée par -1.
-' - Type d'armature (D89) modifié : liste des classes d'acier (tubes ou barres).
-' - Classe de l'acier (D90) modifiée : diamètres et épaisseur du tube remplis.
+' Toutes les réactions aux saisies sont dans ChangementDonnees (module DonneesProjet) :
+' - phase du projet : la ligne « Type de fondation » s'affiche seulement pour G5 ;
+' - nombre de couches : le tableau des couches affiche ce nombre de lignes ;
+' - hauteur totale du micropieu : valeur saisie multipliée par -1 ;
+' - type d'armature : liste des classes d'acier (tubes ou barres HA) ;
+' - classe de l'acier : diamètres et épaisseur du tube remplis.
+' Ce code n'a plus à être modifié quand la disposition de la feuille change.
 
 Private Sub Worksheet_Change(ByVal Target As Range)
-    On Error GoTo Fin
-    Application.EnableEvents = False
-    If Not Intersect(Target, Me.Range("C9")) Is Nothing Then AfficherTypeFondation Me
-    If Not Intersect(Target, Me.Range("C32")) Is Nothing Then AfficherCouches Me
-    If Not Intersect(Target, Me.Range("D70")) Is Nothing Then InverserHauteur Me.Range("D70")
-    If Not Intersect(Target, Me.Range("D89")) Is Nothing Then MajArmature Me
-    If Not Intersect(Target, Me.Range("D90")) Is Nothing Then MajAcier Me
-Fin:
-    Application.EnableEvents = True
+    ChangementDonnees Me, Target
 End Sub

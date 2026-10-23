@@ -9,10 +9,13 @@ Option Explicit
 '   B7  : Caractéristiques du micropieu, en 3 groupes séparés par 2 lignes vides :
 '         abréviation, norme, classe, catégorie ; mode de fonctionnement (compression
 '         / traction), résistance de pointe, type de mise en oeuvre ; caractéristiques
-'         mécaniques (B, D, Ab, Pe, frottement négligé)
-'   B26 : Frottement axial unitaire par couche (courbe fsol et a, b, c du tableau
-'         F.5.2.2, alpha pieu-sol du tableau F.5.2.1, fsol, alpha x fsol, qs max du
-'         tableau F.5.2.3, qs retenu)
+'         mécaniques (B, D, hauteur de la couche porteuse, Ab, Pe, frottement négligé,
+'         coefficients de modèle gamma R;d1 et R;d2 du tableau F.2.1)
+'   B29 : Frottement axial unitaire et résistance par couche, notations de la norme :
+'         hi, pl*,i, courbe et a, b, c (F.5.2.2), alpha pieu-sol (F.5.2.1), fsol,i,
+'         qs,max (F.5.2.3), qs,i = min(alpha x fsol,i ; qs,max), As,i = Pe x hi,
+'         qs,i,k = qs,i / (gamma R;d1 x gamma R;d2), Rs,i,k = qs,i,k x As,i (0 si le
+'         terrain est neutralisé), total Rs,k
 ' Méthode pressiométrique (annexe F) : fsol = (a.pl* + b)(1 - exp(-c.pl*)), pl* en
 ' MPa, fsol en kPa ; qs = min(alpha pieu-sol x fsol ; qs max).
 ' Catégories de sol de la feuille « Données du projet » -> colonnes des tableaux :
@@ -27,7 +30,7 @@ Private Const TABLEAUX As String = "Tableaux NF P94-262"
 Public Sub CreerCalculVerification()
     Dim ws As Worksheet, wt As Worksheet, r As Long, i As Long, lc As Long
     Dim zAlpha As String, zABC As String, zQs As String, nb As String, cat As String
-    Dim lg As Long, etape As String
+    Dim lg As Long, etape As String, zF21 As String, ligneF21 As String, lt As Long
 
     Application.ScreenUpdating = False
     On Error GoTo Erreur
@@ -46,6 +49,7 @@ Public Sub CreerCalculVerification()
     zAlpha = ZoneTableau(wt, "Tableau F.5.2.1", 0, 20, 5)   ' 20 catégories x 5 sols
     zABC = ZoneTableau(wt, "Tableau F.5.2.2", 0, 4, 5)      ' courbe, a, b, c x 5 sols
     zQs = ZoneTableau(wt, "Tableau F.5.2.3", 0, 20, 6)      ' 20 catégories x 6 sols
+    zF21 = ZoneTableau(wt, "Tableau F.2.1", 0, 3, 4)        ' coefficients de modèle
 
     etape = "création de la feuille"
     On Error Resume Next
@@ -91,48 +95,68 @@ Public Sub CreerCalculVerification()
     Ligne ws, 19, "Largeur du micropieu B", "=" & DONNEES & "D" & LIGNE_PIEU + 11, "m"
     Ligne ws, 20, "Hauteur totale du micropieu dans la couche porteuse D", _
         "=" & DONNEES & "D" & LIGNE_PIEU + 13, "m"
-    Ligne ws, 21, "Aire de la base du micropieu Ab = " & ChrW(960) & ".B² / 4", _
+    Ligne ws, 21, "Hauteur de la couche porteuse (dernière couche)", _
+        "=IFERROR(INDEX(" & DONNEES & "$F$" & lc & ":$F$" & lg & "," & nb & ")*1,"""")", "m"
+    Ligne ws, 22, "Aire de la base du micropieu Ab = " & ChrW(960) & ".B² / 4", _
         "=IF(N(D19)=0,"""",PI()*D19^2/4)", "m²"
-    Ligne ws, 22, "Périmètre du micropieu Pe = " & ChrW(960) & ".B", _
+    Ligne ws, 23, "Périmètre du micropieu Pe = " & ChrW(960) & ".B", _
         "=IF(N(D19)=0,"""",PI()*D19)", "m"
     ' Épaisseur des couches dont le terrain est neutralisé (frottement négligé)
-    Ligne ws, 23, "Frottement négligé (épaisseur des terrains neutralisés)", _
+    Ligne ws, 24, "Frottement négligé (épaisseur des terrains neutralisés)", _
         "=IF(COUNTIF(OFFSET(" & DONNEES & "$I$" & lc & ",0,0," & nb & "),""Oui"")=0,""Non""," & _
         "SUMIF(OFFSET(" & DONNEES & "$I$" & lc & ",0,0," & nb & "),""Oui""," & _
         "OFFSET(" & DONNEES & "$F$" & lc & ",0,0," & nb & ")))", "m"
-    ws.Range("D19:D23").NumberFormat = "0.000"
+    ' Coefficients de modèle (tableau F.2.1) : ligne 3 pour les catégories 10, 15 et
+    ' 17 à 20, ligne 2 si la couche porteuse est de la craie, ligne 1 sinon ;
+    ' colonnes compression / traction selon le mode de fonctionnement
+    ligneF21 = "IF(OR(" & cat & "=10," & cat & "=15," & cat & ">=17),3,IF(INDEX(" & DONNEES & _
+        "$D$" & lc & ":$D$" & lg & "," & nb & ")=""Craies"",2,1))"
+    Ligne ws, 25, ChrW(947) & "R;d1 (tableau F.2.1)", "=IFERROR(INDEX(" & zF21 & "," & ligneF21 & _
+        ",IF($D$14=""Traction"",2,1)),"""")", ""
+    Ligne ws, 26, ChrW(947) & "R;d2 (tableau F.2.1)", "=IFERROR(INDEX(" & zF21 & "," & ligneF21 & _
+        ",IF($D$14=""Traction"",4,3)),"""")", ""
+    ws.Range("D19:D24").NumberFormat = "0.000"
+    ws.Range("D25:D26").NumberFormat = "0.00"
 
-    ' --- Frottement axial unitaire par couche ---
+    ' --- Frottement axial unitaire par couche (notations de la NF P94-262) ---
     etape = "frottement par couche"
-    r = 26
-    SousTitre ws, r, "Frottement axial unitaire par couche (méthode pressiométrique)"
-    ws.Range("B" & r + 1 & ":L" & r + 1).Value = Array("N°", "Nom de couche", "Catégorie de sol", _
-        "Épaisseur (m)", "pl* (MPa)", "Terrain neutralisé", "Courbe", ChrW(945) & " pieu-sol", _
-        "fsol (kPa)", ChrW(945) & " x fsol (kPa)", "qs max (kPa)")
-    ws.Range("M" & r + 1).Value = "qs retenu (kPa)"
+    r = 29
+    SousTitre ws, r, "Frottement axial unitaire et résistance par couche (méthode pressiométrique)"
+    ws.Range("B" & r + 1 & ":P" & r + 1).Value = Array("N°", "Nom de couche", "Catégorie de sol", _
+        "hi (m)", "pl*,i (MPa)", "Courbe fsol", ChrW(945) & "pieu-sol", "fsol,i (kPa)", _
+        ChrW(945) & "pieu-sol x fsol,i (kPa)", "qs,max (kPa)", "qs,i (kPa)", "As,i = Pe x hi (m²)", _
+        "qs,i,k = qs,i / (" & ChrW(947) & "R;d1 x " & ChrW(947) & "R;d2) (kPa)", _
+        "Rs,i,k = qs,i,k x As,i (kN)", "Terrain neutralisé")
     For i = 1 To MAX_COUCHES
         CoucheLigne ws, r + 1 + i, i, lc + i - 1, nb, cat, zAlpha, zABC, zQs
     Next i
+    ' Total des résistances par couche
+    lt = r + 2 + MAX_COUCHES
+    ws.Range("B" & lt).Value = "Rs,k = " & ChrW(931) & " Rs,i,k (kN)"
+    ws.Range("B" & lt & ":N" & lt).Merge
+    ws.Range("O" & lt).Formula = "=SUM(O" & r + 2 & ":O" & lt - 1 & ")"
+    ws.Range("O" & lt).NumberFormat = "0.0"
+    ws.Range("B" & lt & ":O" & lt).Font.Bold = True
 
     ' --- Mise en forme ---
     etape = "mise en forme"
-    With ws.Range("B4:E5,B8:E11,B14:E16,B19:E23,B" & r + 1 & ":M" & r + 1 + MAX_COUCHES)
+    With ws.Range("B4:E5,B8:E11,B14:E16,B19:E26,B" & r + 1 & ":P" & lt - 1 & ",B" & lt & ":O" & lt)
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    With ws.Range("B" & r + 1 & ":M" & r + 1)
+    With ws.Range("B" & r + 1 & ":P" & r + 1)
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
         .Interior.Color = RGB(217, 225, 242)
     End With
-    ws.Range("D4:E23,B" & r + 2 & ":B" & r + 1 + MAX_COUCHES & ",E" & r + 2 & ":M" & _
-        r + 1 + MAX_COUCHES).HorizontalAlignment = xlCenter
+    ws.Range("D4:E26,B" & r + 2 & ":B" & lt - 1 & ",E" & r + 2 & ":P" & lt).HorizontalAlignment = xlCenter
+    ws.Range("B" & lt).HorizontalAlignment = xlRight
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 30
     ws.Columns("D").ColumnWidth = 30
-    ws.Columns("E:M").ColumnWidth = 12
+    ws.Columns("E:P").ColumnWidth = 12
     ws.Activate
 
 Fin:
@@ -199,7 +223,8 @@ Private Function FormuleQs(produit As String, qsmax As String) As String
 End Function
 
 ' Ligne du tableau par couche (couche n° i, ligne ld dans « Données du projet ») ;
-' vide au-delà du nombre de couches
+' vide au-delà du nombre de couches. Pe en D23, gamma R;d1 et R;d2 en D25 et D26.
+' Terrain neutralisé : frottement négligé, Rs,i,k = 0.
 Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, nb As String, _
         cat As String, zAlpha As String, zABC As String, zQs As String)
     Dim cond As String, sol As String, pl As String
@@ -213,19 +238,27 @@ Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, nb As
         DONNEES & "$F$" & ld & ",""""))"
     ws.Range("F" & r).Formula = cond & "IF(ISNUMBER(" & DONNEES & "$G$" & ld & ")," & _
         DONNEES & "$G$" & ld & ",""""))"
-    ws.Range("G" & r).Formula = cond & DONNEES & "$I$" & ld & "&"""")"
-    ws.Range("H" & r).Formula = Replace(FormuleABC(zABC, 1, sol), "=", cond, 1, 1) & ")"
-    ws.Range("I" & r).Formula = Replace(FormuleAlpha(zAlpha, cat, sol), "=", cond, 1, 1) & ")"
-    ' fsol avec a, b, c lus directement dans le tableau F.5.2.2
-    ws.Range("J" & r).Formula = "=IF(OR(B" & r & "="""",F" & r & "="""",H" & r & "=""""),""""," & _
+    ws.Range("G" & r).Formula = Replace(FormuleABC(zABC, 1, sol), "=", cond, 1, 1) & ")"
+    ws.Range("H" & r).Formula = Replace(FormuleAlpha(zAlpha, cat, sol), "=", cond, 1, 1) & ")"
+    ' fsol,i avec a, b, c lus directement dans le tableau F.5.2.2
+    ws.Range("I" & r).Formula = "=IF(OR(B" & r & "="""",F" & r & "="""",G" & r & "=""""),""""," & _
         "1000*(INDEX(" & zABC & ",2," & Rang5(sol) & ")*" & pl & "+INDEX(" & zABC & ",3," & _
         Rang5(sol) & "))*(1-EXP(-INDEX(" & zABC & ",4," & Rang5(sol) & ")*" & pl & ")))"
-    ws.Range("K" & r).Formula = FormuleProduit("$I$" & r, "$J$" & r)
-    ws.Range("L" & r).Formula = Replace(FormuleQsMax(zQs, cat, sol), "=", cond, 1, 1) & ")"
-    ws.Range("M" & r).Formula = FormuleQs("$K$" & r, "$L$" & r)
+    ws.Range("J" & r).Formula = FormuleProduit("$H$" & r, "$I$" & r)
+    ws.Range("K" & r).Formula = Replace(FormuleQsMax(zQs, cat, sol), "=", cond, 1, 1) & ")"
+    ws.Range("L" & r).Formula = FormuleQs("$J$" & r, "$K$" & r)
+    ws.Range("M" & r).Formula = "=IF(OR(B" & r & "="""",E" & r & "="""",N($D$23)=0),""""," & _
+        "$D$23*E" & r & ")"
+    ws.Range("N" & r).Formula = "=IF(AND(ISNUMBER(L" & r & "),N($D$25)>0,N($D$26)>0)," & _
+        "L" & r & "/($D$25*$D$26),IF(B" & r & "="""","""",""-""))"
+    ws.Range("O" & r).Formula = "=IF(AND(ISNUMBER(N" & r & "),ISNUMBER(M" & r & "))," & _
+        "IF(P" & r & "=""Oui"",0,N" & r & "*M" & r & "),IF(B" & r & "="""","""",""-""))"
+    ws.Range("P" & r).Formula = cond & DONNEES & "$I$" & ld & "&"""")"
     ws.Range("E" & r & ":F" & r).NumberFormat = "0.00"
-    ws.Range("I" & r).NumberFormat = "0.00"
-    ws.Range("J" & r & ":M" & r).NumberFormat = "0.0"
+    ws.Range("H" & r).NumberFormat = "0.00"
+    ws.Range("I" & r & ":L" & r).NumberFormat = "0.0"
+    ws.Range("M" & r).NumberFormat = "0.000"
+    ws.Range("N" & r & ":O" & r).NumberFormat = "0.0"
 End Sub
 
 ' Adresse absolue (avec le nom de la feuille) des valeurs d'un tableau de la feuille
