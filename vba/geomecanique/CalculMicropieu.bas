@@ -9,15 +9,15 @@ Option Explicit
 '   B7  : Caractéristiques du micropieu, en 3 groupes séparés par 2 lignes vides :
 '         abréviation, norme, classe, catégorie ; mode de fonctionnement (compression
 '         / traction), résistance de pointe, type de mise en oeuvre ; caractéristiques
-'         mécaniques (B, D, hauteur de la couche porteuse, Ab, Pe, frottement négligé,
-'         coefficients de modèle gamma R;d1 et R;d2)
-'   B28 : Coefficients de modèle (tableau F.2.1 recopié sur la feuille, utilisé pour
-'         gamma R;d1 et R;d2)
-'   B35 : Frottement axial unitaire et résistance par couche, notations de la norme :
+'         mécaniques (B, D, hauteur de la couche porteuse, Ab, Pe, frottement négligé)
+'   B26 : Coefficients de modèle gamma R;d1 et R;d2 (tableaux F.2.1 et G.2.1 recopiés
+'         sur la feuille et utilisés dans le calcul de qs,i, selon la méthode de calcul)
+'   B37 : Frottement axial unitaire et résistance par couche (calculés si le nom et la
+'         catégorie de la couche sont renseignés), notations de la norme : profondeur,
 '         hi, pl*,i, courbe et a, b, c (F.5.2.2), alpha pieu-sol (F.5.2.1), fsol,i,
 '         qs,max (F.5.2.3), qs = min(alpha x fsol,i ; qs,max), As,i = Pe x hi,
 '         qs,i = qs / (gamma R;d1 x gamma R;d2), Rs,i = qs,i x As,i (0 si le terrain
-'         est neutralisé), total Rs
+'         est neutralisé)
 ' Méthode pressiométrique (annexe F) : fsol = (a.pl* + b)(1 - exp(-c.pl*)), pl* en
 ' MPa, fsol en kPa ; qs = min(alpha pieu-sol x fsol ; qs max).
 ' Catégories de sol de la feuille « Données du projet » -> colonnes des tableaux :
@@ -32,7 +32,7 @@ Private Const TABLEAUX As String = "Tableaux NF P94-262"
 Public Sub CreerCalculVerification()
     Dim ws As Worksheet, wt As Worksheet, r As Long, i As Long, lc As Long
     Dim zAlpha As String, zABC As String, zQs As String, nb As String, cat As String
-    Dim lg As Long, etape As String, zF21 As String, ligneF21 As String, lt As Long
+    Dim lg As Long, etape As String, zF21 As String, ligneF21 As String, lt As Long, gamma As String
 
     Application.ScreenUpdating = False
     On Error GoTo Erreur
@@ -107,72 +107,66 @@ Public Sub CreerCalculVerification()
         "=IF(COUNTIF(OFFSET(" & DONNEES & "$I$" & lc & ",0,0," & nb & "),""Oui"")=0,""Non""," & _
         "SUMIF(OFFSET(" & DONNEES & "$I$" & lc & ",0,0," & nb & "),""Oui""," & _
         "OFFSET(" & DONNEES & "$F$" & lc & ",0,0," & nb & ")))", "m"
-    zF21 = "$D$30:$G$32"                     ' tableau des coefficients de modèle (ligne 28)
-    ' Coefficients de modèle (tableau F.2.1) : ligne 3 pour les catégories 10, 15 et
-    ' 17 à 20, ligne 2 si la couche porteuse est de la craie, ligne 1 sinon ;
-    ' colonnes compression / traction selon le mode de fonctionnement
+    ws.Range("D19:D24").NumberFormat = "0.000"
+
+    ' --- Coefficients de modèle (NF P94-262, tableaux F.2.1 et G.2.1) ---
+    etape = "coefficients de modèle"
+    SousTitre ws, 26, "Coefficients de modèle (NF P94-262, tableaux F.2.1 et G.2.1)"
+    For i = 0 To 1                           ' 0 : pressiomètre (F.2.1), 1 : pénétromètre (G.2.1)
+        r = 27 + 5 * i
+        ws.Range("B" & r & ":F" & r).Value = Array(IIf(i = 0, "Méthode pressiométrique (F.2.1)", _
+            "Méthode pénétrométrique (G.2.1)"), "", ChrW(947) & "R;d1 compression", _
+            ChrW(947) & "R;d1 traction", ChrW(947) & "R;d2")
+        ws.Range("B" & r + 1 & ":F" & r + 1).Value = Array("Classes 1 à 7 (hors catégories 10 et 15)", _
+            "", IIf(i = 0, 1.15, 1.18), IIf(i = 0, 1.4, 1.45), 1.1)
+        ws.Range("B" & r + 2 & ":F" & r + 2).Value = Array("Classes 1 à 7 ancrées dans la craie", _
+            "", IIf(i = 0, 1.4, 1.45), IIf(i = 0, 1.7, 1.75), 1.1)
+        ws.Range("B" & r + 3 & ":F" & r + 3).Value = Array("Catégories 10, 15, 17 à 20", "", 2, 2, 1.1)
+        For lt = r To r + 3
+            ws.Range("B" & lt & ":C" & lt).Merge
+        Next lt
+    Next i
+    ws.Range("D28:F30,D33:F35").NumberFormat = "0.00"
+    ' gamma R;d1 et R;d2 lus dans ces tableaux : tableau selon la méthode de calcul ;
+    ' ligne 3 pour les catégories 10, 15 et 17 à 20, ligne 2 si la dernière couche est
+    ' de la craie, ligne 1 sinon ; colonne compression / traction selon le mode
+    zF21 = "IF($D$5=""Méthode pénétrométrique"",$D$33:$F$35,$D$28:$F$30)"
     ligneF21 = "IF(OR(" & cat & "=10," & cat & "=15," & cat & ">=17),3,IF(INDEX(" & DONNEES & _
         "$D$" & lc & ":$D$" & lg & "," & nb & ")=""Craies"",2,1))"
-    Ligne ws, 25, ChrW(947) & "R;d1 (tableau ci-dessous)", "=IFERROR(INDEX(" & zF21 & "," & _
-        ligneF21 & ",IF($D$14=""Traction"",2,1)),"""")", ""
-    Ligne ws, 26, ChrW(947) & "R;d2 (tableau ci-dessous)", "=IFERROR(INDEX(" & zF21 & "," & _
-        ligneF21 & ",IF($D$14=""Traction"",4,3)),"""")", ""
-    ws.Range("D19:D24").NumberFormat = "0.000"
-    ws.Range("D25:D26").NumberFormat = "0.00"
-
-    ' --- Coefficients de modèle (NF P94-262, tableau F.2.1), utilisés ci-dessus ---
-    etape = "coefficients de modèle"
-    SousTitre ws, 28, "Coefficients de modèle - méthode pressiométrique (NF P94-262, tableau F.2.1)"
-    ws.Range("B29:G29").Value = Array("Pieux", "", ChrW(947) & "R;d1 compression", _
-        ChrW(947) & "R;d1 traction", ChrW(947) & "R;d2 compression", ChrW(947) & "R;d2 traction")
-    ws.Range("B30:G30").Value = Array("Pieux non ancrés dans la craie, classes 1 à 7 hors " & _
-        "catégories 10 et 15", "", 1.15, 1.4, 1.1, 1.1)
-    ws.Range("B31:G31").Value = Array("Pieux ancrés dans la craie, classes 1 à 7 hors " & _
-        "catégories 10, 15, 17, 18, 19 et 20", "", 1.4, 1.7, 1.1, 1.1)
-    ws.Range("B32:G32").Value = Array("Pieux de catégories 10, 15, 17, 18, 19 et 20", "", 2, 2, 1.1, 1.1)
-    For i = 29 To 32
-        ws.Range("B" & i & ":C" & i).Merge
-    Next i
-    ws.Range("D30:G32").NumberFormat = "0.00"
+    gamma = "INDEX(" & zF21 & "," & ligneF21 & ",IF($D$14=""Traction"",2,1))*INDEX(" & zF21 & _
+        "," & ligneF21 & ",3)"
 
     ' --- Frottement axial unitaire par couche (notations de la NF P94-262) ---
     etape = "frottement par couche"
-    r = 35
+    r = 37
     SousTitre ws, r, "Frottement axial unitaire et résistance par couche (méthode pressiométrique)"
-    ws.Range("B" & r + 1 & ":P" & r + 1).Value = Array("N°", "Nom de couche", "Catégorie de sol", _
-        "hi (m)", "pl*,i (MPa)", "Courbe fsol", ChrW(945) & "pieu-sol", "fsol,i (kPa)", _
-        ChrW(945) & "pieu-sol x fsol,i (kPa)", "qs,max (kPa)", "qs = min (kPa)", "As,i (m²)", _
-        "qs,i (kPa)", "Rs,i (kN)", "Terrain neutralisé")
+    ws.Range("B" & r + 1 & ":Q" & r + 1).Value = Array("N°", "Nom de couche", "Catégorie de sol", _
+        "Profondeur (m/TN)", "hi (m)", "pl*,i (MPa)", "Courbe fsol", ChrW(945) & "pieu-sol", _
+        "fsol,i (kPa)", ChrW(945) & "pieu-sol x fsol,i (kPa)", "qs,max (kPa)", "qs = min (kPa)", _
+        "As,i (m²)", "qs,i (kPa)", "Rs,i (kN)", "Terrain neutralisé")
     For i = 1 To MAX_COUCHES
-        CoucheLigne ws, r + 1 + i, i, lc + i - 1, nb, cat, zAlpha, zABC, zQs
+        CoucheLigne ws, r + 1 + i, i, lc + i - 1, cat, gamma, zAlpha, zABC, zQs
     Next i
-    ' Total des résistances par couche
-    lt = r + 2 + MAX_COUCHES
-    ws.Range("B" & lt).Value = "Rs = " & ChrW(931) & " Rs,i (kN)"
-    ws.Range("B" & lt & ":N" & lt).Merge
-    ws.Range("O" & lt).Formula = "=SUM(O" & r + 2 & ":O" & lt - 1 & ")"
-    ws.Range("O" & lt).NumberFormat = "0.0"
-    ws.Range("B" & lt & ":O" & lt).Font.Bold = True
+    lt = r + 1 + MAX_COUCHES                 ' dernière ligne du tableau
 
     ' --- Mise en forme ---
     etape = "mise en forme"
-    With ws.Range("B4:E5,B8:E11,B14:E16,B19:E26,B29:G32,B" & r + 1 & ":P" & lt - 1 & ",B" & lt & ":O" & lt)
+    With ws.Range("B4:E5,B8:E11,B14:E16,B19:E24,B27:F30,B32:F35,B" & r + 1 & ":Q" & lt)
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    With ws.Range("B29:G29,B" & r + 1 & ":P" & r + 1)
+    With ws.Range("B27:F27,B32:F32,B" & r + 1 & ":Q" & r + 1)
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
         .Interior.Color = RGB(217, 225, 242)
     End With
-    ws.Range("D4:G32,B" & r + 2 & ":B" & lt - 1 & ",E" & r + 2 & ":P" & lt).HorizontalAlignment = xlCenter
-    ws.Range("B" & lt).HorizontalAlignment = xlRight
+    ws.Range("D4:F35,B" & r + 2 & ":B" & lt & ",E" & r + 2 & ":Q" & lt).HorizontalAlignment = xlCenter
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 30
     ws.Columns("D").ColumnWidth = 30
-    ws.Columns("E:P").ColumnWidth = 12
+    ws.Columns("E:Q").ColumnWidth = 12
     ws.Activate
 
 Fin:
@@ -238,43 +232,43 @@ Private Function FormuleQs(produit As String, qsmax As String) As String
         produit & "," & qsmax & "),IF(" & produit & "="""","""",""-""))"
 End Function
 
-' Ligne du tableau par couche (couche n° i, ligne ld dans « Données du projet ») ;
-' vide au-delà du nombre de couches. Pe en D23, gamma R;d1 et R;d2 en D25 et D26.
-' Terrain neutralisé : frottement négligé, Rs,i = 0.
-Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, nb As String, _
-        cat As String, zAlpha As String, zABC As String, zQs As String)
+' Ligne du tableau par couche (couche n° i, ligne ld dans « Données du projet ») :
+' calculée seulement si le nom et la catégorie de la couche sont renseignés.
+' Pe en D23 ; gamma = gamma R;d1 x gamma R;d2 (formule lue dans les tableaux des
+' coefficients de modèle) ; terrain neutralisé : frottement négligé, Rs,i = 0.
+Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat As String, _
+        gamma As String, zAlpha As String, zABC As String, zQs As String)
     Dim cond As String, sol As String, pl As String
-    cond = "=IF(" & i & ">" & nb & ","""","
+    cond = "=IF(OR(" & DONNEES & "$C$" & ld & "=""""," & DONNEES & "$D$" & ld & "=""""),"""","
     sol = "$D$" & r
-    pl = "$F$" & r
+    pl = "$G$" & r
     ws.Range("B" & r).Formula = cond & i & ")"
-    ws.Range("C" & r).Formula = cond & DONNEES & "$C$" & ld & "&"""")"
-    ws.Range("D" & r).Formula = cond & DONNEES & "$D$" & ld & "&"""")"
-    ws.Range("E" & r).Formula = cond & "IF(ISNUMBER(" & DONNEES & "$F$" & ld & ")," & _
+    ws.Range("C" & r).Formula = cond & DONNEES & "$C$" & ld & ")"
+    ws.Range("D" & r).Formula = cond & DONNEES & "$D$" & ld & ")"
+    ws.Range("E" & r).Formula = cond & "IF(ISNUMBER(" & DONNEES & "$E$" & ld & ")," & _
+        DONNEES & "$E$" & ld & ",""""))"
+    ws.Range("F" & r).Formula = cond & "IF(ISNUMBER(" & DONNEES & "$F$" & ld & ")," & _
         DONNEES & "$F$" & ld & ",""""))"
-    ws.Range("F" & r).Formula = cond & "IF(ISNUMBER(" & DONNEES & "$G$" & ld & ")," & _
+    ws.Range("G" & r).Formula = cond & "IF(ISNUMBER(" & DONNEES & "$G$" & ld & ")," & _
         DONNEES & "$G$" & ld & ",""""))"
-    ws.Range("G" & r).Formula = Replace(FormuleABC(zABC, 1, sol), "=", cond, 1, 1) & ")"
-    ws.Range("H" & r).Formula = Replace(FormuleAlpha(zAlpha, cat, sol), "=", cond, 1, 1) & ")"
+    ws.Range("H" & r).Formula = Replace(FormuleIndex(zABC, "1", Rang5(sol)), "=", cond, 1, 1) & ")"
+    ws.Range("I" & r).Formula = Replace(FormuleIndex(zAlpha, cat, Rang5(sol)), "=", cond, 1, 1) & ")"
     ' fsol,i avec a, b, c lus directement dans le tableau F.5.2.2
-    ws.Range("I" & r).Formula = "=IF(OR(B" & r & "="""",F" & r & "="""",G" & r & "=""""),""""," & _
+    ws.Range("J" & r).Formula = "=IF(OR(B" & r & "="""",G" & r & "="""",H" & r & "=""""),""""," & _
         "1000*(INDEX(" & zABC & ",2," & Rang5(sol) & ")*" & pl & "+INDEX(" & zABC & ",3," & _
         Rang5(sol) & "))*(1-EXP(-INDEX(" & zABC & ",4," & Rang5(sol) & ")*" & pl & ")))"
-    ws.Range("J" & r).Formula = FormuleProduit("$H$" & r, "$I$" & r)
-    ws.Range("K" & r).Formula = Replace(FormuleQsMax(zQs, cat, sol), "=", cond, 1, 1) & ")"
-    ws.Range("L" & r).Formula = FormuleQs("$J$" & r, "$K$" & r)
-    ws.Range("M" & r).Formula = "=IF(OR(B" & r & "="""",E" & r & "="""",N($D$23)=0),""""," & _
-        "$D$23*E" & r & ")"
-    ws.Range("N" & r).Formula = "=IF(AND(ISNUMBER(L" & r & "),N($D$25)>0,N($D$26)>0)," & _
-        "L" & r & "/($D$25*$D$26),IF(B" & r & "="""","""",""-""))"
-    ws.Range("O" & r).Formula = "=IF(AND(ISNUMBER(N" & r & "),ISNUMBER(M" & r & "))," & _
-        "IF(P" & r & "=""Oui"",0,N" & r & "*M" & r & "),IF(B" & r & "="""","""",""-""))"
-    ws.Range("P" & r).Formula = cond & DONNEES & "$I$" & ld & "&"""")"
-    ws.Range("E" & r & ":F" & r).NumberFormat = "0.00"
-    ws.Range("H" & r).NumberFormat = "0.00"
-    ws.Range("I" & r & ":L" & r).NumberFormat = "0.0"
-    ws.Range("M" & r).NumberFormat = "0.000"
-    ws.Range("N" & r & ":O" & r).NumberFormat = "0.0"
+    ws.Range("K" & r).Formula = FormuleProduit("$I$" & r, "$J$" & r)
+    ws.Range("L" & r).Formula = Replace(FormuleIndex(zQs, cat, Rang6(sol)), "=", cond, 1, 1) & ")"
+    ws.Range("M" & r).Formula = FormuleQs("$K$" & r, "$L$" & r)
+    ws.Range("N" & r).Formula = "=IF(OR(B" & r & "="""",F" & r & "="""",N($D$23)=0),""""," & _
+        "$D$23*F" & r & ")"
+    ws.Range("O" & r).Formula = "=IF(B" & r & "="""","""",IFERROR(M" & r & "/(" & gamma & "),""-""))"
+    ws.Range("P" & r).Formula = "=IF(AND(ISNUMBER(O" & r & "),ISNUMBER(N" & r & "))," & _
+        "IF(Q" & r & "=""Oui"",0,O" & r & "*N" & r & "),IF(B" & r & "="""","""",""-""))"
+    ws.Range("Q" & r).Formula = cond & DONNEES & "$I$" & ld & ")"
+    ws.Range("E" & r & ":G" & r & ",I" & r).NumberFormat = "0.00"
+    ws.Range("J" & r & ":M" & r & ",O" & r & ":P" & r).NumberFormat = "0.0"
+    ws.Range("N" & r).NumberFormat = "0.000"
 End Sub
 
 ' Adresse absolue (avec le nom de la feuille) des valeurs d'un tableau de la feuille
