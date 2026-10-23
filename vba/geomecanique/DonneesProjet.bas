@@ -79,7 +79,7 @@ Private Const CATEGORIES_SOL As String = "Argiles et limons," & _
 
 Public Sub CreerDonneesProjet()
     Dim ws As Worksheet, r As Long, normes As Variant, lc As Long, lm As Long, lp As Long
-    Dim la As Long
+    Dim la As Long, c As String
 
     Application.ScreenUpdating = False       ' pas de scintillement pendant l'exécution
     Application.EnableEvents = False         ' pas de Worksheet_Change pendant la création
@@ -212,11 +212,10 @@ Public Sub CreerDonneesProjet()
     Next r
 
     ' --- Caractéristiques des micropieux (sous le tableau précédent) ---
-    ' Intitulé (unité comprise) sur B:C fusionnées, valeur en D. Le type de pieu
-    ' (tableau A.1 de la NF P94-262) remplit la catégorie, la classe et la prise en
-    ' compte de la résistance de pointe ; la norme de référence suit la catégorie
-    ' (voir MajTypePieu). La hauteur totale saisie est multipliée par -1 (voir
-    ' InverserHauteur).
+    ' Intitulé (unité comprise) sur B:C fusionnées, valeur en D. Norme de référence,
+    ' classe, catégorie, abréviation, mode de fonctionnement et résistance de pointe
+    ' sont des formules qui suivent le type de pieu choisi (tableau A.1 de la
+    ' NF P94-262). La hauteur totale saisie est multipliée par -1 (voir InverserHauteur).
     lp = LIGNE_PIEU
     SousTitre ws, lp - 1, "Caractéristiques des micropieux"
     ws.Range("B" & lp & ":B" & lp + 16).Value = Application.Transpose(Array( _
@@ -233,16 +232,25 @@ Public Sub CreerDonneesProjet()
     Liste ws.Range("D" & lp + 1), "Oui,Non"
     Liste ws.Range("D" & lp + 2), "Non,Oui"
     Liste ws.Range("D" & lp + 3), "Non,Oui"
-    ' Norme de référence selon la catégorie (D de la ligne Catégorie)
-    ws.Range("D" & lp + 4).Formula = "=IF(D" & lp + 6 & "="""","""",IF(VALUE(D" & lp + 6 & _
-        "&"""")<=6,""NF EN 1536"",IF(VALUE(D" & lp + 6 & "&"""")<=15,""NF EN 12699""," & _
-        "IF(VALUE(D" & lp + 6 & "&"""")=16,""NF EN 12063"",""NF EN 14199""))))"
-    Liste ws.Range("D" & lp + 5), "1,1bis,2,3,4,5,6,7,8"
-    Liste ws.Range("D" & lp + 6), "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20"
-    ' Abréviation du type de pieu choisi en D de la ligne lp (tableau A.1)
+    ' Tout ce qui suit dépend du type de pieu choisi (tableau A.1 de la NF P94-262) :
+    ' la catégorie est le rang du type dans TypesPieux, le reste s'en déduit
+    c = "D" & lp + 6                         ' cellule de la catégorie
+    ws.Range(c).Formula = "=IFERROR(MATCH(D" & lp & ",{""" & _
+        Replace(TypesPieux(), ",", """,""") & """},0),"""")"
+    ' Norme de référence : 1 à 6 NF EN 1536, 7 à 16 NF EN 12699, 17 à 20 les trois
+    ws.Range("D" & lp + 4).Formula = "=IF(" & c & "="""","""",IF(" & c & "<=6,""NF EN 1536""," & _
+        "IF(" & c & "<=16,""NF EN 12699"",""NF EN 1536 / 14199 / 12699"")))"
+    ' Classe de pieu selon la catégorie
+    ws.Range("D" & lp + 5).Formula = "=IF(" & c & "="""","""",CHOOSE(" & c & _
+        ",""1"",""1"",""1"",""1"",""1"",""2"",""3"",""3"",""4"",""4"",""4"",""4"",""5""," & _
+        """6"",""6"",""7"",""1 bis"",""1 bis"",""8"",""8""))"
     ws.Range("D" & lp + 7).Formula = FormuleAbreviation(lp)
-    Liste ws.Range("D" & lp + 8), "Compression,Traction,Compression et traction"
-    Liste ws.Range("D" & lp + 9), "Oui,Non"
+    ' Mode de fonctionnement (mise en oeuvre, colonnes des tableaux C.2.3 de la norme)
+    ws.Range("D" & lp + 8).Formula = "=IF(" & c & "="""","""",IF(" & c & "=6," & _
+        """Pieu à la tarière continue (CFA)"",IF(AND(" & c & ">=7," & c & "<=16)," & _
+        """Pieu foncé"",""Pieu foré"")))"
+    ' Résistance de pointe : non prise en compte pour les micropieux (catégories 17 à 20)
+    ws.Range("D" & lp + 9).Formula = "=IF(" & c & "="""","""",IF(" & c & ">=17,""Non"",""Oui""))"
     ws.Range("D" & lp + 10 & ":D" & lp + 12).NumberFormat = "0.00"
     ws.Range("D" & lp + 13 & ":D" & lp + 14).NumberFormat = "0"
     Liste ws.Range("D" & lp + 15), "Libre en tête,Encastré en tête"
@@ -251,7 +259,6 @@ Public Sub CreerDonneesProjet()
     For r = lp To lp + 16
         ws.Range("B" & r & ":C" & r).Merge
     Next r
-    MajTypePieu ws
 
     ' --- Hypothèses relatives aux matériaux constitutifs des fondations profondes ---
     ' Intitulé sur B:C fusionnées, valeur en D, unité en E
@@ -325,7 +332,7 @@ Public Sub CreerDonneesProjet()
     ' Cases à remplir (données d'entrée) en jaune ; les valeurs calculées restent blanches
     ws.Range("C4:C9,C12:C16,D28:D29,C32,C" & LIGNE_COUCHES & ":E" & lc & ",G" & LIGNE_COUCHES & _
         ":I" & lc & ",D" & lm + 1 & ":D" & lm + 5 & ",D" & lp & ":D" & lp + 3 & _
-        ",D" & lp + 5 & ":D" & lp + 6 & ",D" & lp + 8 & ":D" & lp + 16 & ",D" & la + 3 & ":D" & la + 5 & _
+        ",D" & lp + 10 & ":D" & lp + 16 & ",D" & la + 3 & ":D" & la + 5 & _
         ",D" & la + 7 & ":D" & la + 9 & _
         ",D" & LIGNE_ACIER & ":D" & LIGNE_ACIER + 1 & ",D" & LIGNE_ACIER + 5 & ":D" & _
         LIGNE_ACIER + 11).Interior.Color = RGB(255, 255, 204)
@@ -356,21 +363,10 @@ Public Sub AfficherCouches(ws As Worksheet)
     If nb < MAX_COUCHES Then ws.Rows(LIGNE_COUCHES + nb).Resize(MAX_COUCHES - nb).Hidden = True
 End Sub
 
-' Type de pieu choisi (D58) : la catégorie est le rang de la technique dans le
-' tableau A.1 (TypesPieux, « Micropieu type I » -> 17), la classe s'en déduit
-' (ClassePieu) et la résistance de pointe est prise en compte (Oui) sauf pour les
-' micropieux, catégories 17 à 20 (Non) ; la norme de référence suit la catégorie
-' par formule. Appelée aussi quand le type change (voir CodeFeuilleDonnees.txt).
+' Conservée pour le code de la feuille (CodeFeuilleDonnees.txt) : catégorie, classe,
+' norme, abréviation, mode de fonctionnement et résistance de pointe sont maintenant
+' des formules qui suivent le type de pieu choisi (D58).
 Public Sub MajTypePieu(ws As Worksheet)
-    Dim categorie As Long, types As Variant, i As Long
-    types = Split(TypesPieux(), ",")
-    For i = 0 To UBound(types)
-        If types(i) = CStr(ws.Range("D" & LIGNE_PIEU).Value) Then categorie = i + 1
-    Next i
-    If categorie = 0 Then Exit Sub
-    ws.Range("D" & LIGNE_PIEU + 6).Value = categorie
-    ws.Range("D" & LIGNE_PIEU + 5).Value = ClassePieu(categorie)
-    ws.Range("D" & LIGNE_PIEU + 9).Value = IIf(categorie >= 17, "Non", "Oui")
 End Sub
 
 ' Hauteur totale du micropieu (D69) : la valeur saisie est multipliée par -1
@@ -418,21 +414,6 @@ Public Sub MajAcier(ws As Worksheet)
         ws.Range("D" & LIGNE_ACIER + 2 & ":D" & LIGNE_ACIER + 4).ClearContents
     End If
 End Sub
-
-' Classe de pieu (NF P94-262, tableau A.1) selon la catégorie 1 à 20
-Public Function ClassePieu(ByVal categorie As Long) As String
-    Select Case categorie
-        Case 1 To 5:   ClassePieu = "1"      ' pieux forés
-        Case 6:        ClassePieu = "2"      ' tarière creuse
-        Case 7, 8:     ClassePieu = "3"      ' vissés
-        Case 9 To 12:  ClassePieu = "4"      ' battus fermés
-        Case 13:       ClassePieu = "5"      ' battu acier ouvert
-        Case 14, 15:   ClassePieu = "6"      ' profilés H
-        Case 16:       ClassePieu = "7"      ' palplanches
-        Case 17, 18:   ClassePieu = "1bis"   ' micropieux types I et II
-        Case 19, 20:   ClassePieu = "8"      ' injectés haute pression (IGU, IRS)
-    End Select
-End Function
 
 ' Formule qui donne l'abréviation (ABREVIATIONS) du type de pieu choisi en D de la
 ' ligne lp, d'après son rang dans la liste TypesPieux ; vide si aucun type.
