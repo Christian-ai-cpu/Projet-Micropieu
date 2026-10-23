@@ -5,14 +5,14 @@ Option Explicit
 ' vérification » des micropieux, à partir des feuilles « Données du projet »
 ' (module DonneesProjet) et « Tableaux NF P94-262 » (module TableauxNFP94262).
 ' Toutes les valeurs sont des formules : elles suivent les saisies de ces feuilles.
-'   B3  : Données du projet (type de pieu, méthode de calcul, sol d'ancrage = dernière
-'         couche du tableau des données géotechniques)
-'   B8  : Caractéristiques du micropieu (abréviation, norme, classe, catégorie, mode
-'         de fonctionnement, résistance de pointe, B, D, Ab, Pe, frottement négligé)
-'   B22 : Caractéristiques de la couche porteuse (valeurs de la dernière couche,
-'         courbe fsol et a, b, c du tableau F.5.2.2, alpha pieu-sol du tableau
-'         F.5.2.1, fsol, alpha x fsol, qs max du tableau F.5.2.3, qs retenu)
-'   B43 : Frottement axial unitaire par couche (mêmes calculs pour chaque couche)
+'   B3  : Données du projet (type de pieu, méthode de calcul)
+'   B7  : Caractéristiques du micropieu, en 3 groupes séparés par 2 lignes vides :
+'         abréviation, norme, classe, catégorie ; mode de fonctionnement (compression
+'         / traction), résistance de pointe, type de mise en oeuvre ; caractéristiques
+'         mécaniques (B, D, Ab, Pe, frottement négligé)
+'   B26 : Frottement axial unitaire par couche (courbe fsol et a, b, c du tableau
+'         F.5.2.2, alpha pieu-sol du tableau F.5.2.1, fsol, alpha x fsol, qs max du
+'         tableau F.5.2.3, qs retenu)
 ' Méthode pressiométrique (annexe F) : fsol = (a.pl* + b)(1 - exp(-c.pl*)), pl* en
 ' MPa, fsol en kPa ; qs = min(alpha pieu-sol x fsol ; qs max).
 ' Catégories de sol de la feuille « Données du projet » -> colonnes des tableaux :
@@ -27,7 +27,7 @@ Private Const TABLEAUX As String = "Tableaux NF P94-262"
 Public Sub CreerCalculVerification()
     Dim ws As Worksheet, wt As Worksheet, r As Long, i As Long, lc As Long
     Dim zAlpha As String, zABC As String, zQs As String, nb As String, cat As String
-    Dim lg As Long, sol As String, pl As String, etape As String
+    Dim lg As Long, etape As String
 
     Application.ScreenUpdating = False
     On Error GoTo Erreur
@@ -74,65 +74,37 @@ Public Sub CreerCalculVerification()
     SousTitre ws, 3, "Données du projet"
     Ligne ws, 4, "Type de pieu", "=" & DONNEES & "D" & LIGNE_PIEU, ""
     Ligne ws, 5, "Méthode de calcul", "=" & DONNEES & "D" & LIGNE_COUCHES + MAX_COUCHES + 5, ""
-    Ligne ws, 6, "Type de sol d'ancrage (dernière couche)", _
-        "=INDEX(" & DONNEES & "$D$" & lc & ":$D$" & lg & "," & nb & ")", ""
 
-    ' --- Caractéristiques du micropieu ---
+    ' --- Caractéristiques du micropieu : 3 groupes séparés par 2 lignes vides ---
     etape = "caractéristiques du micropieu"
-    SousTitre ws, 8, "Caractéristiques du micropieu"
-    Ligne ws, 9, "Abréviation", "=" & DONNEES & "D" & LIGNE_PIEU + 7, ""
-    Ligne ws, 10, "Norme de référence", "=" & DONNEES & "D" & LIGNE_PIEU + 4, ""
-    Ligne ws, 11, "Classe du micropieu", "=" & DONNEES & "D" & LIGNE_PIEU + 5, ""
-    Ligne ws, 12, "Catégorie du micropieu", "=" & DONNEES & "D" & LIGNE_PIEU + 6, ""
-    Ligne ws, 13, "Mode de fonctionnement", "=" & DONNEES & "D" & LIGNE_PIEU + 8, ""
-    Ligne ws, 14, "Prise en compte de la résistance de pointe", "=" & DONNEES & "D" & LIGNE_PIEU + 9, ""
-    Ligne ws, 15, "Largeur du micropieu B", "=" & DONNEES & "D" & LIGNE_PIEU + 10, "m"
-    Ligne ws, 16, "Hauteur totale du micropieu dans la couche porteuse D", _
-        "=" & DONNEES & "D" & LIGNE_PIEU + 12, "m"
-    Ligne ws, 17, "Aire de la base du micropieu Ab = " & ChrW(960) & ".B² / 4", _
-        "=IF(N(D15)=0,"""",PI()*D15^2/4)", "m²"
-    Ligne ws, 18, "Périmètre du micropieu Pe = " & ChrW(960) & ".B", _
-        "=IF(N(D15)=0,"""",PI()*D15)", "m"
+    SousTitre ws, 7, "Caractéristiques du micropieu"
+    Ligne ws, 8, "Abréviation", "=" & DONNEES & "D" & LIGNE_PIEU + 7, ""
+    Ligne ws, 9, "Norme de référence", "=" & DONNEES & "D" & LIGNE_PIEU + 4, ""
+    Ligne ws, 10, "Classe du micropieu", "=" & DONNEES & "D" & LIGNE_PIEU + 5, ""
+    Ligne ws, 11, "Catégorie du micropieu", "=" & DONNEES & "D" & LIGNE_PIEU + 6, ""
+    cat = "$D$11"                            ' catégorie du micropieu (cette feuille)
+
+    Ligne ws, 14, "Mode de fonctionnement", "=" & DONNEES & "D" & LIGNE_PIEU + 8, ""
+    Ligne ws, 15, "Prise en compte de la résistance de pointe", "=" & DONNEES & "D" & LIGNE_PIEU + 9, ""
+    Ligne ws, 16, "Type de mise en oeuvre", "=" & DONNEES & "D" & LIGNE_PIEU + 10, ""
+
+    Ligne ws, 19, "Largeur du micropieu B", "=" & DONNEES & "D" & LIGNE_PIEU + 11, "m"
+    Ligne ws, 20, "Hauteur totale du micropieu dans la couche porteuse D", _
+        "=" & DONNEES & "D" & LIGNE_PIEU + 13, "m"
+    Ligne ws, 21, "Aire de la base du micropieu Ab = " & ChrW(960) & ".B² / 4", _
+        "=IF(N(D19)=0,"""",PI()*D19^2/4)", "m²"
+    Ligne ws, 22, "Périmètre du micropieu Pe = " & ChrW(960) & ".B", _
+        "=IF(N(D19)=0,"""",PI()*D19)", "m"
     ' Épaisseur des couches dont le terrain est neutralisé (frottement négligé)
-    Ligne ws, 19, "Frottement négligé (épaisseur des terrains neutralisés)", _
+    Ligne ws, 23, "Frottement négligé (épaisseur des terrains neutralisés)", _
         "=IF(COUNTIF(OFFSET(" & DONNEES & "$I$" & lc & ",0,0," & nb & "),""Oui"")=0,""Non""," & _
         "SUMIF(OFFSET(" & DONNEES & "$I$" & lc & ",0,0," & nb & "),""Oui""," & _
         "OFFSET(" & DONNEES & "$F$" & lc & ",0,0," & nb & ")))", "m"
-    ws.Range("D15:D19").NumberFormat = "0.000"
-    cat = "$D$12"                            ' catégorie du micropieu (cette feuille)
-
-    ' --- Caractéristiques de la couche porteuse (dernière couche) ---
-    etape = "couche porteuse"
-    SousTitre ws, 21, "Caractéristiques de la couche porteuse"
-    r = 22
-    Ligne ws, r, "N° de couche", "=" & nb, ""
-    Ligne ws, r + 1, "Nom de couche (NF P11-300)", ValeurCouche("C", lc, lg, nb), ""
-    Ligne ws, r + 2, "Catégorie de sol (NF P94-262)", ValeurCouche("D", lc, lg, nb), ""
-    Ligne ws, r + 3, "Profondeur de la base", ValeurCouche("E", lc, lg, nb), "m/TN"
-    Ligne ws, r + 4, "Épaisseur", ValeurCouche("F", lc, lg, nb), "m"
-    Ligne ws, r + 5, "Pression limite pl*", ValeurCouche("G", lc, lg, nb), "MPa"
-    Ligne ws, r + 6, "Module pressiométrique EM", ValeurCouche("H", lc, lg, nb), "MPa"
-    Ligne ws, r + 7, "Terrain neutralisé", ValeurCouche("I", lc, lg, nb), ""
-    sol = "$D$" & r + 2
-    pl = "$D$" & r + 5
-    Ligne ws, r + 8, "Courbe fsol (tableau F.5.2.2)", FormuleABC(zABC, 1, sol), ""
-    Ligne ws, r + 9, "Paramètre a", FormuleABC(zABC, 2, sol), ""
-    Ligne ws, r + 10, "Paramètre b", FormuleABC(zABC, 3, sol), ""
-    Ligne ws, r + 11, "Paramètre c", FormuleABC(zABC, 4, sol), ""
-    Ligne ws, r + 12, ChrW(945) & " pieu-sol (tableau F.5.2.1)", FormuleAlpha(zAlpha, cat, sol), ""
-    Ligne ws, r + 13, "fsol = (a.pl* + b)(1 - exp(-c.pl*))", _
-        FormuleFsol(pl, "$D$" & r + 9, "$D$" & r + 10, "$D$" & r + 11), "kPa"
-    Ligne ws, r + 14, ChrW(945) & " pieu-sol x fsol", FormuleProduit("$D$" & r + 12, "$D$" & r + 13), "kPa"
-    Ligne ws, r + 15, "qs max (tableau F.5.2.3)", FormuleQsMax(zQs, cat, sol), "kPa"
-    Ligne ws, r + 16, "qs retenu = min(" & ChrW(945) & " x fsol ; qs max)", _
-        FormuleQs("$D$" & r + 14, "$D$" & r + 15), "kPa"
-    ws.Range("D" & r + 9 & ":D" & r + 11).NumberFormat = "0.0000"
-    ws.Range("D" & r + 12).NumberFormat = "0.00"
-    ws.Range("D" & r + 13 & ":D" & r + 16).NumberFormat = "0.0"
+    ws.Range("D19:D23").NumberFormat = "0.000"
 
     ' --- Frottement axial unitaire par couche ---
     etape = "frottement par couche"
-    r = 41
+    r = 26
     SousTitre ws, r, "Frottement axial unitaire par couche (méthode pressiométrique)"
     ws.Range("B" & r + 1 & ":L" & r + 1).Value = Array("N°", "Nom de couche", "Catégorie de sol", _
         "Épaisseur (m)", "pl* (MPa)", "Terrain neutralisé", "Courbe", ChrW(945) & " pieu-sol", _
@@ -144,7 +116,7 @@ Public Sub CreerCalculVerification()
 
     ' --- Mise en forme ---
     etape = "mise en forme"
-    With ws.Range("B4:E6,B9:E19,B22:E38,B" & r + 1 & ":M" & r + 1 + MAX_COUCHES)
+    With ws.Range("B4:E5,B8:E11,B14:E16,B19:E23,B" & r + 1 & ":M" & r + 1 + MAX_COUCHES)
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
@@ -154,9 +126,8 @@ Public Sub CreerCalculVerification()
         .HorizontalAlignment = xlCenter
         .Interior.Color = RGB(217, 225, 242)
     End With
-    ws.Range("D4:E38,B" & r + 2 & ":B" & r + 1 + MAX_COUCHES & ",E" & r + 2 & ":M" & _
+    ws.Range("D4:E23,B" & r + 2 & ":B" & r + 1 + MAX_COUCHES & ",E" & r + 2 & ":M" & _
         r + 1 + MAX_COUCHES).HorizontalAlignment = xlCenter
-    ws.Range("D38").Font.Bold = True             ' qs retenu de la couche porteuse
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 30
@@ -191,17 +162,6 @@ Private Sub SousTitre(ws As Worksheet, r As Long, texte As String)
     End With
 End Sub
 
-' Valeur de la dernière couche (rang = nombre de couches) dans la colonne col du
-' tableau des couches de la feuille « Données du projet »
-Private Function ValeurCouche(col As String, lc As Long, lg As Long, nb As String) As String
-    ValeurCouche = "=INDEX(" & DONNEES & "$" & col & "$" & lc & ":$" & col & "$" & lg & _
-        "," & nb & ")&"""""
-    If col >= "E" And col <= "H" Then        ' valeurs numériques
-        ValeurCouche = "=IFERROR(INDEX(" & DONNEES & "$" & col & "$" & lc & ":$" & col & "$" & _
-            lg & "," & nb & ")*1,"""")"
-    End If
-End Function
-
 ' Rang (1 à 6) de la catégorie de sol dans la liste CATEGORIES_SOL (feuille
 ' « Données du projet ») = colonne du tableau qs max
 Private Function Rang6(sol As String) As String
@@ -224,12 +184,6 @@ End Function
 
 Private Function FormuleQsMax(zone As String, cat As String, sol As String) As String
     FormuleQsMax = "=IFERROR(INDEX(" & zone & "," & cat & "," & Rang6(sol) & "),"""")"
-End Function
-
-' fsol en kPa (pl* en MPa, a, b, c du tableau F.5.2.2 donnant fsol en MPa)
-Private Function FormuleFsol(pl As String, a As String, b As String, c As String) As String
-    FormuleFsol = "=IF(OR(" & pl & "="""",NOT(ISNUMBER(" & a & "))),""""," & _
-        "1000*(" & a & "*" & pl & "+" & b & ")*(1-EXP(-" & c & "*" & pl & ")))"
 End Function
 
 ' alpha x fsol ; « - » si alpha n'est pas donné par la norme (catégories 17 et 18 :
