@@ -45,11 +45,11 @@ Public Sub CreerCalculVerification()
         Application.ScreenUpdating = False
         Set wt = ActiveWorkbook.Worksheets(TABLEAUX)
     End If
-    ' Plages de valeurs des tableaux utilisés (adresses absolues sur cette feuille)
-    zAlpha = ZoneTableau(wt, "Tableau F.5.2.1", 0, 20, 5)   ' 20 catégories x 5 sols
-    zABC = ZoneTableau(wt, "Tableau F.5.2.2", 0, 4, 5)      ' courbe, a, b, c x 5 sols
-    zQs = ZoneTableau(wt, "Tableau F.5.2.3", 0, 20, 6)      ' 20 catégories x 6 sols
-    zF21 = ZoneTableau(wt, "Tableau F.2.1", 0, 3, 4)        ' coefficients de modèle
+    ' Plages de valeurs des tableaux utilisés
+    zAlpha = ZoneTableau(wt, "Tableau F.5.2.1", 20, 5)   ' 20 catégories x 5 sols
+    zABC = ZoneTableau(wt, "Tableau F.5.2.2", 4, 5)      ' courbe, a, b, c x 5 sols
+    zQs = ZoneTableau(wt, "Tableau F.5.2.3", 20, 6)      ' 20 catégories x 6 sols
+    zF21 = ZoneTableau(wt, "Tableau F.2.1", 3, 4)        ' coefficients de modèle
 
     etape = "création de la feuille"
     On Error Resume Next
@@ -198,16 +198,9 @@ Private Function Rang5(sol As String) As String
     Rang5 = "CHOOSE(" & Rang6(sol) & ",1,1,2,3,4,5)"
 End Function
 
-Private Function FormuleABC(zone As String, rangee As Long, sol As String) As String
-    FormuleABC = "=IFERROR(INDEX(" & zone & "," & rangee & "," & Rang5(sol) & "),"""")"
-End Function
-
-Private Function FormuleAlpha(zone As String, cat As String, sol As String) As String
-    FormuleAlpha = "=IFERROR(INDEX(" & zone & "," & cat & "," & Rang5(sol) & "),"""")"
-End Function
-
-Private Function FormuleQsMax(zone As String, cat As String, sol As String) As String
-    FormuleQsMax = "=IFERROR(INDEX(" & zone & "," & cat & "," & Rang6(sol) & "),"""")"
+' Valeur d'un tableau de la norme (zone) en ligne lig et colonne col ; vide si erreur
+Private Function FormuleIndex(zone As String, lig As String, col As String) As String
+    FormuleIndex = "=IFERROR(INDEX(" & zone & "," & lig & "," & col & "),"""")"
 End Function
 
 ' alpha x fsol ; « - » si alpha n'est pas donné par la norme (catégories 17 et 18 :
@@ -238,14 +231,14 @@ Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, nb As
         DONNEES & "$F$" & ld & ",""""))"
     ws.Range("F" & r).Formula = cond & "IF(ISNUMBER(" & DONNEES & "$G$" & ld & ")," & _
         DONNEES & "$G$" & ld & ",""""))"
-    ws.Range("G" & r).Formula = Replace(FormuleABC(zABC, 1, sol), "=", cond, 1, 1) & ")"
-    ws.Range("H" & r).Formula = Replace(FormuleAlpha(zAlpha, cat, sol), "=", cond, 1, 1) & ")"
+    ws.Range("G" & r).Formula = Replace(FormuleIndex(zABC, "1", Rang5(sol)), "=", cond, 1, 1) & ")"
+    ws.Range("H" & r).Formula = Replace(FormuleIndex(zAlpha, cat, Rang5(sol)), "=", cond, 1, 1) & ")"
     ' fsol,i avec a, b, c lus directement dans le tableau F.5.2.2
     ws.Range("I" & r).Formula = "=IF(OR(B" & r & "="""",F" & r & "="""",G" & r & "=""""),""""," & _
         "1000*(INDEX(" & zABC & ",2," & Rang5(sol) & ")*" & pl & "+INDEX(" & zABC & ",3," & _
         Rang5(sol) & "))*(1-EXP(-INDEX(" & zABC & ",4," & Rang5(sol) & ")*" & pl & ")))"
     ws.Range("J" & r).Formula = FormuleProduit("$H$" & r, "$I$" & r)
-    ws.Range("K" & r).Formula = Replace(FormuleQsMax(zQs, cat, sol), "=", cond, 1, 1) & ")"
+    ws.Range("K" & r).Formula = Replace(FormuleIndex(zQs, cat, Rang6(sol)), "=", cond, 1, 1) & ")"
     ws.Range("L" & r).Formula = FormuleQs("$J$" & r, "$K$" & r)
     ws.Range("M" & r).Formula = "=IF(OR(B" & r & "="""",E" & r & "="""",N($D$23)=0),""""," & _
         "$D$23*E" & r & ")"
@@ -254,22 +247,18 @@ Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, nb As
     ws.Range("O" & r).Formula = "=IF(AND(ISNUMBER(N" & r & "),ISNUMBER(M" & r & "))," & _
         "IF(P" & r & "=""Oui"",0,N" & r & "*M" & r & "),IF(B" & r & "="""","""",""-""))"
     ws.Range("P" & r).Formula = cond & DONNEES & "$I$" & ld & "&"""")"
-    ws.Range("E" & r & ":F" & r).NumberFormat = "0.00"
-    ws.Range("H" & r).NumberFormat = "0.00"
-    ws.Range("I" & r & ":L" & r).NumberFormat = "0.0"
+    ws.Range("E" & r & ":F" & r & ",H" & r).NumberFormat = "0.00"
+    ws.Range("I" & r & ":L" & r & ",N" & r & ":O" & r).NumberFormat = "0.0"
     ws.Range("M" & r).NumberFormat = "0.000"
-    ws.Range("N" & r & ":O" & r).NumberFormat = "0.0"
 End Sub
 
-' Adresse absolue (avec le nom de la feuille) des valeurs d'un tableau de la feuille
-' « Tableaux NF P94-262 » : le titre commençant par titre est cherché, les valeurs
-' commencent 2 lignes plus bas (sous l'en-tête) et 1 colonne à droite du titre
-' (après la colonne des intitulés de ligne) ; nbLignes x nbCols valeurs.
-Private Function ZoneTableau(wt As Worksheet, titre As String, decalage As Long, _
-        nbLignes As Long, nbCols As Long) As String
+' Adresse (avec la feuille) des nbLignes x nbCols valeurs d'un tableau de la feuille
+' « Tableaux NF P94-262 » : 2 lignes sous son titre, 1 colonne à droite
+Private Function ZoneTableau(wt As Worksheet, titre As String, nbLignes As Long, _
+        nbCols As Long) As String
     Dim c As Range
     Set c = wt.Cells.Find(What:=titre, LookIn:=xlValues, LookAt:=xlPart, MatchCase:=False)
     If c Is Nothing Then Err.Raise vbObjectError + 1, , "« " & titre & " » introuvable " & _
         "dans la feuille « " & wt.Name & " » : relancez CreerTableauxNFP94262."
-    ZoneTableau = "'" & wt.Name & "'!" & c.Offset(2 + decalage, 1).Resize(nbLignes, nbCols).Address
+    ZoneTableau = "'" & wt.Name & "'!" & c.Offset(2, 1).Resize(nbLignes, nbCols).Address
 End Function

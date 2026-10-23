@@ -1,46 +1,25 @@
 Attribute VB_Name = "TableauxNFP94262"
 Option Explicit
 
-' Module « Tableaux NF P94-262 » : crée (ou recrée) la feuille « Tableaux NF P94-262 »
-' avec les tableaux de la norme NF P94-262 (juillet 2012) utiles au calcul des
-' micropieux :
-'   A.1               : classes et catégories de pieux, norme de référence
-'   A.9.1             : quantité de coulis recommandée pour le scellement des micropieux
-'   C.2.3.1 / C.2.3.2 : facteurs partiels de résistance ELU (durable / accidentel)
-'   14.2.1.1 / 14.2.1.2 : facteurs partiels de résistance ELS
-'   C.2.4.1 / C.2.4.2 : facteurs de corrélation xi'
-'   F.2.1 / G.2.1     : coefficients de modèle (pressiomètre / pénétromètre)
-'   F.4.2.1, F.5.2.1, F.5.2.2, F.5.2.3 : méthode pressiométrique (kp max,
-'                       alpha pieu-sol, paramètres de fsol, qs max)
-'   G.4.2.1, G.5.2.1, G.5.2.2, G.5.2.3 : méthode pénétrométrique (kc max,
-'                       alpha pieu-sol, paramètres de fsol, qs max)
-' Disposition : 3 groupes (généralités ; facteurs partiels, de corrélation et de
-' modèle ; méthodes de calcul) et, dans chaque groupe, 3 tableaux côte à côte.
-' « - » : pas de valeur dans la norme. Les notes des tableaux sont résumées sous
-' chaque tableau ; se reporter à la norme pour leur texte complet.
-' Plages nommées créées pour la feuille « Données du projet » : NF_A1_Classe,
-' NF_A1_Categorie, NF_A1_Technique, NF_A1_Abreviation, NF_A1_Norme (tableau A.1) et
-' NF_Sols (catégories de sol, en-têtes des tableaux qs max).
+' Module « Tableaux NF P94-262 » : crée (ou recrée) la feuille des tableaux de la norme
+' NF P94-262 (juillet 2012) utiles aux micropieux, en 3 groupes (généralités ; facteurs
+' partiels, de corrélation et de modèle ; méthodes pressiométrique et pénétrométrique),
+' 3 tableaux côte à côte par rangée. « - » : pas de valeur dans la norme ; notes de
+' la norme résumées sous chaque tableau.
 
 Private Const NOM_FEUILLE As String = "Tableaux NF P94-262"
-' Colonnes de sols : 5 colonnes (pressiomètre, tableaux F.4.2.1, F.5.2.1, F.5.2.2)
-' et 6 colonnes (qs max et méthode pénétrométrique)
+' Colonnes de sols : 5 (F.4.2.1, F.5.2.1, F.5.2.2) ou 6 (qs max, annexe G)
 Private Const SOLS5 As String = "Argile % CaCO3 < 30 % / Limon / Sols intermédiaires|" & _
     "Sols intermédiaires / Sable / Grave|Craie|Marne et calcaire-marneux|" & _
     "Roche altérée ou fragmentée"
 Private Const SOLS6 As String = "Argile % CaCO3 < 30 % / Limon|Sols intermédiaires|" & _
     "Sable / Grave|Craie|Marne et calcaire-marneux|Roche altérée ou fragmentée"
 
-' Disposition des tableaux : par groupes (titre de groupe), 3 tableaux côte à côte
-' par ligne. Chaque emplacement fait LARGEUR_EMPL colonnes (tableau de 8 colonnes
-' au plus + 1 colonne vide), à partir de la colonne B.
-Private Const LARGEUR_EMPL As Long = 9
+Private Const LARGEUR_EMPL As Long = 9      ' emplacement : 8 colonnes au plus + 1 vide
 Private Const NB_PAR_LIGNE As Long = 3
 Private mHaut As Long          ' première ligne de la rangée de tableaux en cours
 Private mBas As Long           ' ligne libre sous le plus long tableau de la rangée
 Private mEmpl As Long          ' emplacement suivant dans la rangée (0 à 2)
-Private mEntete As Range       ' ligne d'en-tête du dernier tableau écrit
-Private mDonnees As Range      ' lignes de données du dernier tableau écrit
 
 Public Sub CreerTableauxNFP94262()
     Dim ws As Worksheet, s As String, g As String, c As Long
@@ -63,9 +42,7 @@ Public Sub CreerTableauxNFP94262()
         .Font.Size = 14
         .HorizontalAlignment = xlCenter
     End With
-    mHaut = 3
-    mBas = 3
-    mEmpl = 0
+    mHaut = 3: mBas = 3: mEmpl = 0
 
     NouveauGroupe ws, "1. GÉNÉRALITÉS", 1
     ' --- Tableau A.1 ---
@@ -90,8 +67,6 @@ Public Sub CreerTableauxNFP94262()
         "Classe|Catégorie|Technique de mise en oeuvre|Abréviation|Norme de référence", s, _
         "La classe 1 bis complète la classe 1. Les micropieux ne correspondant pas exactement " & _
         "aux types I à IV sont considérés par défaut comme de classe 1 bis (A.9.1)."
-    ' Colonnes nommées, utilisées par la feuille « Données du projet »
-    NommerColonnes "NF_A1", Array("Classe", "Categorie", "Technique", "Abreviation", "Norme")
 
     ' --- Tableau A.9.1 ---
     s = "Graves|1,5 Vs|1,7 à 2,4;Graves sableuses|1,5 Vs|1,7 à 2,4;Sables graveleux|1,5 Vs|1,7 à 2,4;" & _
@@ -179,9 +154,6 @@ Public Sub CreerTableauxNFP94262()
         "limite qs (kPa) - Méthode pressiométrique", "Catégorie|" & SOLS6, QsMax(), _
         "Catégories 17 et 18 : prendre les valeurs des techniques les plus proches. " & _
         "BAO, HB, PP vibrofoncés : abattement de 30 % sur qs."
-    ' Catégories de sol (en-têtes du tableau qs max), utilisées par « Données du projet »
-    ActiveWorkbook.Names.Add Name:="NF_Sols", RefersTo:="='" & ws.Name & "'!" & _
-        mEntete.Offset(0, 1).Resize(1, mEntete.Columns.Count - 1).Address
 
     NouveauGroupe ws, "Méthode pénétrométrique (annexe G)", 2
     ' --- Méthode pénétrométrique ---
@@ -215,8 +187,7 @@ Public Sub CreerTableauxNFP94262()
         "limite qs (kPa) - Méthode pénétrométrique", "Catégorie|" & SOLS6, QsMax(), _
         "Mêmes valeurs que le tableau F.5.2.3."
 
-    ' Largeurs : 1re colonne de chaque emplacement large (intitulés), colonnes de
-    ' valeurs étroites, colonne vide entre deux tableaux
+    ' Largeurs : intitulés larges, valeurs étroites, colonne vide entre deux tableaux
     ws.Columns("A").ColumnWidth = 3
     For c = 0 To NB_PAR_LIGNE - 1
         ws.Columns(2 + c * LARGEUR_EMPL).ColumnWidth = 32
@@ -233,9 +204,8 @@ Erreur:
     Resume Fin
 End Sub
 
-
-' Termine la rangée en cours et écrit un titre de groupe (niveau 1, grand, sur fond
-' bleu) ou de sous-groupe (niveau 2, souligné) sur toute la largeur.
+' Termine la rangée en cours ; titre de groupe (niveau 1, fond bleu) ou de
+' sous-groupe (niveau 2, souligné) sur toute la largeur
 Private Sub NouveauGroupe(ws As Worksheet, titre As String, niveau As Long)
     If mEmpl > 0 Then mHaut = mBas
     mEmpl = 0
@@ -259,28 +229,13 @@ End Sub
 ' Place un tableau dans l'emplacement suivant de la rangée (3 par rangée)
 Private Sub Placer(ws As Worksheet, titre As String, entetes As String, donnees As String, _
         note As String)
-    Dim fin As Long
-    fin = EcrireTableau(ws, mHaut, 2 + mEmpl * LARGEUR_EMPL, titre, entetes, donnees, note)
-    If fin > mBas Then mBas = fin
-    mEmpl = mEmpl + 1
-    If mEmpl = NB_PAR_LIGNE Then
-        mEmpl = 0
-        mHaut = mBas
-    End If
+    mBas = Application.Max(mBas, EcrireTableau(ws, mHaut, 2 + mEmpl * LARGEUR_EMPL, titre, _
+        entetes, donnees, note))
+    mEmpl = (mEmpl + 1) Mod NB_PAR_LIGNE
+    If mEmpl = 0 Then mHaut = mBas
 End Sub
 
-' Nomme chaque colonne de données du dernier tableau écrit : prefixe_nom
-' (ex. NF_A1_Technique), pour que les autres feuilles lisent les valeurs de la norme.
-Private Sub NommerColonnes(prefixe As String, noms As Variant)
-    Dim k As Long
-    For k = 0 To UBound(noms)
-        ActiveWorkbook.Names.Add Name:=prefixe & "_" & noms(k), RefersTo:="='" & _
-            mDonnees.Worksheet.Name & "'!" & mDonnees.Columns(k + 1).Address
-    Next k
-End Sub
-
-' Valeurs maximales du frottement axial unitaire limite qs en kPa (tableaux F.5.2.3
-' et G.5.2.3, identiques)
+' qs max en kPa (tableaux F.5.2.3 et G.5.2.3, identiques)
 Private Function QsMax() As String
     QsMax = "1 - FS|90|90|90|200|170|200;2 - FB|90|90|90|200|170|200;" & _
         "3 - FTP|50|50|50|50|90|-;4 - FTR|90|90|90|170|170|-;5 - FSR, FBR, PU|90|90|-|-|-|-;" & _
@@ -293,14 +248,13 @@ Private Function QsMax() As String
         "20 - PIRS, MIRS|200|200|440|440|440|500"
 End Function
 
-' Écrit un tableau à partir de la ligne r et de la colonne c0 : titre (gras,
-' souligné, sur la largeur de l'emplacement), ligne d'en-tête
-' (colonnes séparées par « | »), lignes de données (lignes séparées par « ; »,
-' colonnes par « | », nombres avec un point décimal) puis une note éventuelle en
-' italique. Renvoie la ligne libre suivante (une ligne vide après le tableau).
+' Tableau en (r, c0) : titre, en-tête (colonnes séparées par « | »), données (lignes
+' séparées par « ; », nombres avec un point décimal), note en italique. Renvoie la
+' ligne libre suivante (une ligne vide après le tableau).
 Private Function EcrireTableau(ws As Worksheet, ByVal r As Long, c0 As Long, titre As String, _
         entetes As String, donnees As String, note As String) As Long
     Dim e As Variant, lignes As Variant, cols As Variant, i As Long, j As Long, debut As Long
+    Dim t As String
 
     With ws.Range(ws.Cells(r, c0), ws.Cells(r, c0 + LARGEUR_EMPL - 2))
         .Merge
@@ -314,10 +268,8 @@ Private Function EcrireTableau(ws As Worksheet, ByVal r As Long, c0 As Long, tit
     r = r + 1
     debut = r
     e = Split(entetes, "|")
-    For j = 0 To UBound(e)
-        ws.Cells(r, c0 + j).Value = e(j)
-    Next j
-    With ws.Range(ws.Cells(r, c0), ws.Cells(r, c0 + UBound(e)))
+    With ws.Cells(r, c0).Resize(1, UBound(e) + 1)
+        .Value = e
         .Font.Bold = True
         .Interior.Color = RGB(217, 225, 242)
         .HorizontalAlignment = xlCenter
@@ -327,11 +279,12 @@ Private Function EcrireTableau(ws As Worksheet, ByVal r As Long, c0 As Long, tit
         r = r + 1
         cols = Split(lignes(i), "|")
         For j = 0 To UBound(cols)
-            If j > 0 And EstNombre(CStr(cols(j))) Then
-                ws.Cells(r, c0 + j).Value = Val(cols(j))      ' Val lit le point décimal
+            t = cols(j)
+            If j > 0 And t <> "" And Not t Like "*[!0-9.]*" Then
+                ws.Cells(r, c0 + j).Value = Val(t)            ' Val lit le point décimal
             Else
                 ws.Cells(r, c0 + j).NumberFormat = "@"         ' texte (« 1 bis », « - »)
-                ws.Cells(r, c0 + j).Value = cols(j)
+                ws.Cells(r, c0 + j).Value = t
             End If
         Next j
     Next i
@@ -341,8 +294,6 @@ Private Function EcrireTableau(ws As Worksheet, ByVal r As Long, c0 As Long, tit
         .VerticalAlignment = xlCenter
     End With
     ws.Range(ws.Cells(debut + 1, c0 + 1), ws.Cells(r, c0 + UBound(e))).HorizontalAlignment = xlCenter
-    Set mEntete = ws.Range(ws.Cells(debut, c0), ws.Cells(debut, c0 + UBound(e)))
-    Set mDonnees = ws.Range(ws.Cells(debut + 1, c0), ws.Cells(r, c0 + UBound(e)))
     If note <> "" Then
         r = r + 1
         With ws.Range(ws.Cells(r, c0), ws.Cells(r, c0 + LARGEUR_EMPL - 2))
@@ -355,15 +306,4 @@ Private Function EcrireTableau(ws As Worksheet, ByVal r As Long, c0 As Long, tit
         End With
     End If
     EcrireTableau = r + 2
-End Function
-
-' Vrai si le texte est un nombre écrit avec un point décimal (« 1.15 », « 90 »)
-Private Function EstNombre(t As String) As Boolean
-    Dim i As Long, c As String
-    If t = "" Then Exit Function
-    For i = 1 To Len(t)
-        c = Mid(t, i, 1)
-        If Not (c Like "[0-9]" Or c = ".") Then Exit Function
-    Next i
-    EstNombre = True
 End Function

@@ -1,64 +1,61 @@
 Attribute VB_Name = "DonneesProjet"
 Option Explicit
 
-' Module « Données du projet » : crée (ou recrée) la feuille « Données du projet »
-' avec les hypothèses générales du projet.
-'   B1        : HYPOTHÈSES GÉNÉRALES
-'   B3 à C9   : Synthèse du projet (nom, lieu, maître d'ouvrage, date, numéro,
-'               phase : liste G2-AVP, G2-PRO, G5)
-'   B11 à C16 : Caractérisation générale de l'ouvrage (type d'ouvrage : Bâtiment
-'               ou Pont ; type de fondation, affiché seulement en phase G5 ;
-'               catégorie A à G ; altitude ; zone de sismicité 1 à 5)
-'   B18 à I26 : Références normatives (référence, date, intitulé)
-'   B28 à E29 : Référentiel altimétrique (liste) et niveau du terrain naturel (unité
-'               m + référentiel)
-'   B31 à I48 : Données géotechniques : nombre de couches (C32, 1 à 15) et tableau
-'               des couches de sol (seules les lignes jusqu'à ce nombre sont affichées)
-'   B50 à E55 : Données des micropieux (arase supérieure, base, nappe, méthode,
-'               niveau d'eau ; intitulé sur B:C, valeur en D, unité en E)
-'   B57 à D75 : Caractéristiques des micropieux (type de pieu du tableau A.1 de la
-'               NF P94-262, diamètre constant, incliné, groupe, norme de référence,
-'               classe, catégorie, abréviation, mode de fonctionnement (compression / traction),
-'               résistance de pointe, type de mise en oeuvre, B, hauteurs, nombres,
-'               conditions en tête, essai de contrôle ; intitulé sur B:C, valeur en D)
-'   B77       : HYPOTHÈSES RELATIVES AUX MATÉRIAUX CONSTITUTIFS DES FONDATIONS PROFONDES
-'   B79 à E86 : Caractéristiques du béton (classe d'exposition, classe structurale,
-'               classe de résistance, fc28, coefficients gamma c ELU / accidentel /
-'               sismique)
-'   B88 à E102: Caractéristiques de l'acier (type d'armature tube ou barre, classe,
-'               diamètres et épaisseur du tube, E, fe, coefficients gamma s ELU /
-'               accidentel / sismique, platine (barres GEWI, GEWI Plus, DYWIDAG),
-'               nuance, limite élastique fy et limite de rupture fu)
-' Les valeurs se saisissent dans les cases jaunes. Le type de fondation (ligne 13)
-' s'affiche quand la phase (C9) vaut G5 (AfficherTypeFondation) et le tableau des
-' couches suit le nombre de couches (AfficherCouches) : voir CodeFeuilleDonnees.txt.
-' Les listes de plus de 255 caractères (limite d'Excel, ex. noms des sols de la
-' NF P11-300) sont écrites sur la feuille masquée « Listes » (voir ListeLongue).
+' Module « Données du projet » : crée (ou recrée) la feuille des hypothèses générales.
+'   B1 titre ; B3 synthèse du projet (phase en C9) ; B11 caractérisation de l'ouvrage
+'   (type de fondation en ligne 13, affiché seulement en phase G5) ; B18 références
+'   normatives ; B28 référentiel altimétrique et niveau du TN ; B31 données
+'   géotechniques (nombre de couches en C32, couches en lignes 34 à 48) ; B50 données
+'   des micropieux ; B57 caractéristiques des micropieux (type de pieu en D58, le reste
+'   s'en déduit par formules, tableau A.1 de la NF P94-262) ; B77 matériaux : béton
+'   (B79) et acier (B88, type d'armature en D89).
+' Intitulé sur B:C fusionnées, valeur en D, unité en E ; saisies dans les cases jaunes.
+' Réactions aux saisies : ChangementDonnees (appelée par CodeFeuilleDonnees.txt).
+' Listes de plus de 255 caractères : feuille masquée « Listes » (ListeLongue).
 
-' Constantes publiques : utilisées aussi par le module CalculMicropieu.
 Private Const NOM_FEUILLE As String = "Données du projet"
 Private Const CELLULE_PHASE As String = "C9"
 Private Const LIGNE_FONDATION As Long = 13
-Public Const CELLULE_NB_COUCHES As String = "C32"   ' nombre de couches saisi
+' Constantes publiques : utilisées aussi par le module CalculMicropieu
+Public Const CELLULE_NB_COUCHES As String = "C32"
 Public Const LIGNE_COUCHES As Long = 34       ' première couche de sol
 Public Const MAX_COUCHES As Long = 15         ' lignes prévues (au-delà du nombre : masquées)
-Public Const LIGNE_PIEU As Long = 58          ' type de pieu (caractéristiques des micropieux)
+Public Const LIGNE_PIEU As Long = 58          ' type de pieu
+Private Const LIGNE_ACIER As Long = 89         ' type d'armature
+Public Const CATEGORIES_SOL As String = "Argiles et limons," & _
+    "Sols intermédiaires (sable limoneux / sable argileux / argile sableuse)," & _
+    "Sables et graves,Craies,Marnes et calcaires marneux,Roches"
+' Tableau A.1 de la NF P94-262 : techniques (catégories 1 à 20) et abréviations
+Private Const TYPES_PIEUX As String = "Foré simple (pieux et barrettes)," & _
+    "Foré boue (pieux et barrettes),Foré tubé - virole perdue,Foré tubé - virole récupérée," & _
+    "Foré simple ou boue avec rainurage ou puits,Foré tarière creuse simple ou double rotation," & _
+    "Vissé moulé,Vissé tubé,Battu béton préfabriqué ou précontraint," & _
+    "Battu enrobé - béton / mortier / coulis,Battu moulé,Battu acier fermé,Battu acier ouvert," & _
+    "Profilé H battu,Profilé H battu injecté,Palplanches battues,Micropieu type I," & _
+    "Micropieu type II,Pieu ou micropieu injecté mode IGU - type III," & _
+    "Pieu ou micropieu injecté mode IRS - type IV"
 Private Const ABREVIATIONS As String = "FS|FB|FTP|FTR|FSR, FBR, PU|FTC, FTCD|VM|VT|" & _
-    "BPF, BPR|BE|BM|BAF|BAO|HB|HBi|PP|M1|M2|PIGU, MIGU|PIRS, MIRS"   ' tableau A.1, catégories 1 à 20
-Private Const LIGNE_ACIER As Long = 89         ' type d'armature (caractéristiques de l'acier)
-Private Const CLASSES_EXPOSITION As String = "X0,XC1,XC2,XC3,XC4,XD1,XD2,XD3," & _
-    "XS1,XS2,XS3,XF1,XF2,XF3,XF4,XA1,XA2,XA3"
-' Armatures des micropieux (dimensions courantes, à vérifier auprès du fournisseur).
-' Tube : « Øde x e mm » est lu pour remplir les diamètres et l'épaisseur (MajAcier).
-Private Const TUBES As String = "Ø60.3 x 5.5 mm,Ø73 x 5.5 mm,Ø88.9 x 6.5 mm," & _
-    "Ø88.9 x 9.5 mm,Ø101.6 x 9 mm,Ø114.3 x 9 mm,Ø127 x 9 mm,Ø139.7 x 9 mm," & _
-    "Ø168.3 x 10 mm,Ø177.8 x 10.4 mm"
-' Barre : seulement les aciers HA ; les barres filetées (GEWI, GEWI Plus, DYWIDAG)
-' sont proposées dans la liste des platines.
-Private Const BARRES As String = "Barre HA B500 Ø20,Barre HA B500 Ø25,Barre HA B500 Ø32," & _
-    "Barre HA B500 Ø40"
-' Type de platine : catalogue des barres filetées GEWI (S555/700), GEWI Plus
-' (S670/800) et DYWIDAG (Y1050), diamètres à vérifier sur les fiches fabricant.
+    "BPF, BPR|BE|BM|BAF|BAO|HB|HBi|PP|M1|M2|PIGU, MIGU|PIRS, MIRS"
+' Sols et roches des classes A, B, C, D et R de la NF P11-300 (désignations abrégées)
+Private Const SOLS_NFP11300 As String = "A1 - Limons peu plastiques / loess / sables fins peu pollués," & _
+    "A2 - Sables fins argileux / limons / argiles et marnes peu plastiques," & _
+    "A3 - Argiles et argiles marneuses / limons très plastiques," & _
+    "A4 - Argiles et argiles marneuses très plastiques,B1 - Sables silteux," & _
+    "B2 - Sables argileux (peu argileux),B3 - Graves silteuses,B4 - Graves argileuses (peu argileuses)," & _
+    "B5 - Sables et graves très silteux,B6 - Sables et graves argileux à très argileux," & _
+    "C1 - Sols à fines et gros éléments (argiles à silex / éboulis / moraines)," & _
+    "C2 - Sols à gros éléments dominants avec fines,D1 - Sables alluvionnaires propres / sables de dune," & _
+    "D2 - Graves alluvionnaires propres / sables,D3 - Graves alluvionnaires grossières propres / galets," & _
+    "R1 - Craies,R2 - Calcaires,R3 - Roches argileuses (marnes / argilites / pélites)," & _
+    "R4 - Roches siliceuses (grès / poudingues / brèches),R5 - Roches salines (sel gemme / gypse)," & _
+    "R6 - Roches magmatiques et métamorphiques (granites / basaltes / schistes),Terrain neutralisé"
+Private Const CLASSES_EXPOSITION As String = "X0,XC1,XC2,XC3,XC4,XD1,XD2,XD3,XS1,XS2,XS3," & _
+    "XF1,XF2,XF3,XF4,XA1,XA2,XA3"
+' Armatures (dimensions à vérifier auprès du fournisseur) ; tube : « Øde x e mm » lu
+' par MajAcier ; barres filetées GEWI, GEWI Plus, DYWIDAG dans la liste des platines
+Private Const TUBES As String = "Ø60.3 x 5.5 mm,Ø73 x 5.5 mm,Ø88.9 x 6.5 mm,Ø88.9 x 9.5 mm," & _
+    "Ø101.6 x 9 mm,Ø114.3 x 9 mm,Ø127 x 9 mm,Ø139.7 x 9 mm,Ø168.3 x 10 mm,Ø177.8 x 10.4 mm"
+Private Const BARRES As String = "Barre HA B500 Ø20,Barre HA B500 Ø25,Barre HA B500 Ø32,Barre HA B500 Ø40"
 Private Const PLATINES As String = "GEWI Ø25 (S555/700),GEWI Ø28 (S555/700)," & _
     "GEWI Ø32 (S555/700),GEWI Ø40 (S555/700),GEWI Ø50 (S555/700),GEWI Ø63.5 (S555/700)," & _
     "GEWI Plus Ø18 (S670/800),GEWI Plus Ø22 (S670/800),GEWI Plus Ø25 (S670/800)," & _
@@ -67,26 +64,21 @@ Private Const PLATINES As String = "GEWI Ø25 (S555/700),GEWI Ø28 (S555/700)," 
     "GEWI Plus Ø75 (S670/800),DYWIDAG Ø18 (Y1050),DYWIDAG Ø26.5 (Y1050)," & _
     "DYWIDAG Ø32 (Y1050),DYWIDAG Ø36 (Y1050),DYWIDAG Ø40 (Y1050),DYWIDAG Ø47 (Y1050)," & _
     "DYWIDAG Ø57 (Y1050),DYWIDAG Ø65 (Y1050),DYWIDAG Ø75 (Y1050)"
-' Nuances d'acier (NF EN 10025-2, -3 N/NL, -4 M/ML) avec limite élastique fy et
-' limite de rupture fu en MPa pour une épaisseur <= 40 mm (NF EN 1993-1-1, tab. 3.1)
+' Nuances (NF EN 10025-2, -3 N/NL, -4 M/ML), fy et fu en MPa pour t <= 40 mm
+' (NF EN 1993-1-1, tableau 3.1)
 Private Const NUANCES As String = "S235,S275,S355,S450,S275N,S275NL,S355N,S355NL," & _
     "S420N,S420NL,S460N,S460NL,S275M,S275ML,S355M,S355ML,S420M,S420ML,S460M,S460ML"
 Private Const NUANCES_FY As String = "235,275,355,440,275,275,355,355,420,420,460,460," & _
     "275,275,355,355,420,420,460,460"
 Private Const NUANCES_FU As String = "360,430,510,550,390,390,490,490,520,520,540,540," & _
     "370,370,470,470,520,520,540,540"
-Public Const CATEGORIES_SOL As String = "Argiles et limons," & _
-    "Sols intermédiaires (sable limoneux / sable argileux / argile sableuse)," & _
-    "Sables et graves,Craies,Marnes et calcaires marneux,Roches"
 
 Public Sub CreerDonneesProjet()
-    Dim ws As Worksheet, r As Long, normes As Variant, lc As Long, lm As Long, lp As Long
-    Dim la As Long, c As String
+    Dim ws As Worksheet, r As Long, n As Variant, lc As Long, lm As Long, lp As Long
+    Dim la As Long, c As String, g As String
 
-    Application.ScreenUpdating = False       ' pas de scintillement pendant l'exécution
+    Application.ScreenUpdating = False
     Application.EnableEvents = False         ' pas de Worksheet_Change pendant la création
-
-    ' Feuille créée si elle n'existe pas, sinon vidée
     On Error Resume Next
     Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
     On Error GoTo 0
@@ -96,28 +88,19 @@ Public Sub CreerDonneesProjet()
     End If
     ws.Cells.Clear
     ws.Rows.Hidden = False
+    g = ChrW(947)                            ' gamma
+    Titre ws.Range("B1:I1"), "HYPOTHÈSES GÉNÉRALES"
 
-    ' --- Titre ---
-    With ws.Range("B1:I1")
-        .Merge
-        .Value = "HYPOTHÈSES GÉNÉRALES"
-        .Font.Bold = True
-        .Font.Size = 14
-        .HorizontalAlignment = xlCenter
-    End With
-
-    ' --- Synthèse du projet ---
+    ' --- Synthèse du projet et caractérisation de l'ouvrage (valeur en C) ---
     SousTitre ws, 3, "Synthèse du projet"
-    ws.Range("B4:B9").Value = Application.Transpose(Array("Nom du projet", "Lieu", _
-        "Maître d'ouvrage", "Date", "Numéro du projet", "Phase du projet"))
+    Colonne ws.Range("B4"), Array("Nom du projet", "Lieu", "Maître d'ouvrage", "Date", _
+        "Numéro du projet", "Phase du projet")
     ws.Range("C7").Value = Date
     ws.Range("C7").NumberFormat = "dd/mm/yyyy"
     Liste ws.Range(CELLULE_PHASE), "G2-AVP,G2-PRO,G5"
-
-    ' --- Caractérisation générale de l'ouvrage ---
     SousTitre ws, 11, "Caractérisation générale de l'ouvrage"
-    ws.Range("B12:B16").Value = Application.Transpose(Array("Type d'ouvrage", _
-        "Type de fondation", "Catégorie de bâtiment", "Altitude", "Zone de sismicité"))
+    Colonne ws.Range("B12"), Array("Type d'ouvrage", "Type de fondation", _
+        "Catégorie de bâtiment", "Altitude", "Zone de sismicité")
     Liste ws.Range("C12"), "Bâtiment,Pont"
     Liste ws.Range("C13"), "Fondations superficielles,Fondations semi-profondes," & _
         "Fondations profondes (pieux),Micropieux,Radier"
@@ -125,130 +108,97 @@ Public Sub CreerDonneesProjet()
     Liste ws.Range("C15"), "<=1000 m,>1000 m"
     Liste ws.Range("C16"), "1,2,3,4,5"
 
-    ' --- Références normatives : référence (date), intitulé fusionné de D à I ---
+    ' --- Références normatives : référence, date, intitulé (fusionné de D à I) ---
     SousTitre ws, 18, "Références normatives"
-    ws.Range("B19:D19").Value = Array("Référence", "Date", "Intitulé")
-    normes = Array( _
-        Array("NF EN 1990", "mars 2003", _
-            "Eurocode 0 - Bases de calcul des structures"), _
-        Array("NF EN 1992-1-1", "octobre 2005", _
-            "Eurocode 2 - Calcul des structures en béton - Partie 1-1 : règles générales et règles pour les bâtiments"), _
-        Array("NF P22-311-1", "octobre 2005", _
-            "Eurocode 3 (NF EN 1993-1-1) - Calcul des structures en acier - Partie 1-1 : règles générales et règles pour les bâtiments"), _
-        Array("NF P94-251-1", "juin 2005", _
-            "Eurocode 7 (NF EN 1997-1) - Calcul géotechnique - Partie 1 : règles générales"), _
-        Array("NF P94-262", "juillet 2012", _
-            "Justification des ouvrages géotechniques - Norme d'application nationale de l'Eurocode 7 - Fondations profondes"), _
-        Array("NF EN 1998-1", "septembre 2005", _
-            "Eurocode 8 - Calcul des structures pour leur résistance aux séismes - Partie 1 : règles générales, actions sismiques et règles pour les bâtiments"), _
-        Array("NF EN 1998-5", "septembre 2005", _
-            "Eurocode 8 - Partie 5 : fondations, ouvrages de soutènement et aspects géotechniques"))
-    For r = 0 To UBound(normes)
-        ws.Range("B" & 20 + r & ":D" & 20 + r).Value = normes(r)
-    Next r
-    For r = 19 To 26
-        ws.Range("D" & r & ":I" & r).Merge
+    n = Array("Référence|Date|Intitulé", _
+        "NF EN 1990|mars 2003|Eurocode 0 - Bases de calcul des structures", _
+        "NF EN 1992-1-1|octobre 2005|Eurocode 2 - Calcul des structures en béton - Partie 1-1 : " & _
+            "règles générales et règles pour les bâtiments", _
+        "NF P22-311-1|octobre 2005|Eurocode 3 (NF EN 1993-1-1) - Calcul des structures en acier - " & _
+            "Partie 1-1 : règles générales et règles pour les bâtiments", _
+        "NF P94-251-1|juin 2005|Eurocode 7 (NF EN 1997-1) - Calcul géotechnique - Partie 1 : règles générales", _
+        "NF P94-262|juillet 2012|Justification des ouvrages géotechniques - Norme d'application " & _
+            "nationale de l'Eurocode 7 - Fondations profondes", _
+        "NF EN 1998-1|septembre 2005|Eurocode 8 - Calcul des structures pour leur résistance aux " & _
+            "séismes - Partie 1 : règles générales, actions sismiques et règles pour les bâtiments", _
+        "NF EN 1998-5|septembre 2005|Eurocode 8 - Partie 5 : fondations, ouvrages de soutènement " & _
+            "et aspects géotechniques")
+    For r = 0 To UBound(n)
+        ws.Range("B" & 19 + r & ":D" & 19 + r).Value = Split(n(r), "|")
+        ws.Range("D" & 19 + r & ":I" & 19 + r).Merge
     Next r
 
-    ' --- Référentiel altimétrique et niveau du terrain naturel ---
-    ' Intitulé sur B:C fusionnées, valeur en D, unité en E (m + référentiel choisi)
-    ws.Range("B28").Value = "Référentiel altimétrique"
-    ws.Range("B29").Value = "Niveau du terrain naturel"
+    ' --- Référentiel altimétrique et niveau du terrain naturel (m + référentiel) ---
+    Colonne ws.Range("B28"), Array("Référentiel altimétrique", "Niveau du terrain naturel"), True
     Liste ws.Range("D28"), "NGF-IGN69,NGF-IGN78,NVP,IGN,Local"
     ws.Range("D29").NumberFormat = "0.00"
     ws.Range("E29").Formula = "=""m ""&D28"
     ws.Range("D28:E29").HorizontalAlignment = xlCenter
-    ws.Range("B28:C28").Merge
-    ws.Range("B29:C29").Merge
 
-    ' --- Données géotechniques : nombre de couches puis tableau des couches ---
+    ' --- Données géotechniques : nombre de couches puis une ligne par couche ---
     SousTitre ws, 31, "Données géotechniques"
     ws.Range("B32").Value = "Nombre de couches"
     With ws.Range(CELLULE_NB_COUCHES)
         .Value = 3
-        .Validation.Delete
         .Validation.Add xlValidateWholeNumber, xlValidAlertStop, xlBetween, "1", CStr(MAX_COUCHES)
-        .Validation.ErrorMessage = "Entrer un nombre de couches entre 1 et " & MAX_COUCHES & "."
         .HorizontalAlignment = xlCenter
     End With
-    ws.Range("B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).Value = Array("N° de couche", _
-        "Nom de couche (NF P11-300)", "Catégorie de sol (NF P94-262)", "Prof. bas (m/TN)", _
-        "Épaisseur (m)", "Pression limite pl* (MPa)", "Module pressiométrique EM (MPa)", _
-        "Terrain neutralisé")
-    For r = LIGNE_COUCHES To LIGNE_COUCHES + MAX_COUCHES - 1
-        ws.Range("B" & r).Value = r - LIGNE_COUCHES + 1
-        ListeLongue ws.Range("C" & r), SolsNFP11300(), "Sols NF P11-300"
-        ws.Range("C" & r).ClearContents      ' nom de couche à choisir
-        Liste ws.Range("D" & r), CATEGORIES_SOL
-        ws.Range("D" & r).ClearContents      ' catégorie à choisir
-        ' Épaisseur = différence entre la base de la couche et celle de la couche
-        ' au-dessus (TN pour la première couche)
-        If r = LIGNE_COUCHES Then
-            ws.Range("F" & r).Formula = "=IF(E" & r & "="""","""",ABS(E" & r & "))"
-        Else
-            ws.Range("F" & r).Formula = "=IF(E" & r & "="""","""",ABS(E" & r & "-E" & r - 1 & "))"
-        End If
-        Liste ws.Range("I" & r), "Non,Oui"
-    Next r
+    ws.Range("B33:I33").Value = Array("N° de couche", "Nom de couche (NF P11-300)", _
+        "Catégorie de sol (NF P94-262)", "Prof. bas (m/TN)", "Épaisseur (m)", _
+        "Pression limite pl* (MPa)", "Module pressiométrique EM (MPa)", "Terrain neutralisé")
     lc = LIGNE_COUCHES + MAX_COUCHES - 1
-    ws.Range("E" & LIGNE_COUCHES & ":F" & lc).NumberFormat = "0.00"
-    ws.Range("G" & LIGNE_COUCHES & ":H" & lc).NumberFormat = "0.00"
+    For r = LIGNE_COUCHES To lc
+        ws.Range("B" & r).Value = r - LIGNE_COUCHES + 1
+        ListeLongue ws.Range("C" & r), SOLS_NFP11300, "Sols NF P11-300"
+        Liste ws.Range("D" & r), CATEGORIES_SOL
+        ws.Range("C" & r & ":D" & r).ClearContents      ' nom et catégorie à choisir
+        Liste ws.Range("I" & r), "Non,Oui"
+        ' Épaisseur = différence avec la base de la couche au-dessus (TN pour la 1re)
+        ws.Range("F" & r).Formula = "=IF(E" & r & "="""","""",ABS(E" & r & _
+            IIf(r = LIGNE_COUCHES, "", "-E" & r - 1) & "))"
+    Next r
+    ws.Range("E" & LIGNE_COUCHES & ":H" & lc).NumberFormat = "0.00"
     ws.Range("B" & LIGNE_COUCHES & ":B" & lc & ",E" & LIGNE_COUCHES & ":I" & lc).HorizontalAlignment = xlCenter
 
-    ' --- Données des micropieux : intitulé sur B:C fusionnées, valeur en D, unité en E ---
-    lm = lc + 2                              ' sous-titre
+    ' --- Données des micropieux ---
+    lm = lc + 2
     SousTitre ws, lm, "Données des micropieux"
-    ws.Range("B" & lm + 1 & ":B" & lm + 5).Value = Application.Transpose(Array( _
-        "Cote de l'arase supérieure des micropieux", "Base des micropieux", _
-        "Présence de nappe phréatique", "Méthode de calcul retenue pour les pieux", _
-        "Niveau de l'eau"))
-    ws.Range("E" & lm + 1 & ":E" & lm + 5).Value = Application.Transpose(Array( _
-        "m/TN", "m/TN", "", "", "m"))
-    ws.Range("D" & lm + 1 & ":D" & lm + 2 & ",D" & lm + 5).NumberFormat = "0.00"
-    ws.Range("D" & lm + 1 & ":E" & lm + 5).HorizontalAlignment = xlCenter
+    Colonne ws.Range("B" & lm + 1), Array("Cote de l'arase supérieure des micropieux", _
+        "Base des micropieux", "Présence de nappe phréatique", _
+        "Méthode de calcul retenue pour les pieux", "Niveau de l'eau"), True
+    ws.Range("E" & lm + 1 & ":E" & lm + 5).Value = Application.Transpose(Array("m/TN", "m/TN", "", "", "m"))
+    ws.Range("D" & lm + 1 & ":D" & lm + 5).NumberFormat = "0.00"
     Liste ws.Range("D" & lm + 3), "Non,Oui"
     Liste ws.Range("D" & lm + 4), "Méthode pressiométrique,Méthode pénétrométrique," & _
         "Essais de chargement statique"
-    For r = lm + 1 To lm + 5
-        ws.Range("B" & r & ":C" & r).Merge
-    Next r
 
-    ' --- Caractéristiques des micropieux (sous le tableau précédent) ---
-    ' Intitulé (unité comprise) sur B:C fusionnées, valeur en D. Norme de référence,
-    ' classe, catégorie, abréviation, résistance de pointe et type de mise en oeuvre
-    ' sont des formules qui suivent le type de pieu choisi (tableau A.1 de la
-    ' NF P94-262) ; le mode de fonctionnement (compression / traction) se choisit. La hauteur totale saisie est multipliée par -1 (voir InverserHauteur).
+    ' --- Caractéristiques des micropieux : tout se déduit du type de pieu choisi
+    ' (catégorie = rang dans TYPES_PIEUX), sauf le mode de fonctionnement ---
     lp = LIGNE_PIEU
     SousTitre ws, lp - 1, "Caractéristiques des micropieux"
-    ws.Range("B" & lp & ":B" & lp + 17).Value = Application.Transpose(Array( _
-        "Type de pieu - technique de mise en oeuvre (NF P94-262, tableau A.1)", _
-        "Diamètre constant", "Incliné", "Groupe", "Norme de référence", _
-        "Classe du micropieu", "Catégorie du micropieu", _
+    Colonne ws.Range("B" & lp), Array("Type de pieu - technique de mise en oeuvre " & _
+        "(NF P94-262, tableau A.1)", "Diamètre constant", "Incliné", "Groupe", _
+        "Norme de référence", "Classe du micropieu", "Catégorie du micropieu", _
         "Abréviation du type de pieu (NF P94-262, tableau A.1)", "Mode de fonctionnement", _
         "Prise en compte de la résistance de pointe", "Type de mise en oeuvre", _
-        "Diamètre du micropieu B (m)", _
-        "Hauteur totale du micropieu (m)", "Hauteur totale du micropieu dans la couche porteuse D (m)", _
+        "Diamètre du micropieu B (m)", "Hauteur totale du micropieu (m)", _
+        "Hauteur totale du micropieu dans la couche porteuse D (m)", _
         "Nombre de micropieux / appui du bâtiment", "Nombre total de micropieux", _
-        "Conditions en tête du micropieu", "Essai de contrôle"))
-    ListeLongue ws.Range("D" & lp), TypesPieux(), "Pieux NF P94-262"
-    ws.Range("D" & lp).Value = Split(TypesPieux(), ",")(16)   ' micropieu type I (cat. 17)
+        "Conditions en tête du micropieu", "Essai de contrôle"), True
+    ListeLongue ws.Range("D" & lp), TYPES_PIEUX, "Pieux NF P94-262"
+    ws.Range("D" & lp).Value = Split(TYPES_PIEUX, ",")(16)   ' micropieu type I (cat. 17)
     Liste ws.Range("D" & lp + 1), "Oui,Non"
     Liste ws.Range("D" & lp + 2), "Non,Oui"
     Liste ws.Range("D" & lp + 3), "Non,Oui"
-    ' Tout ce qui suit dépend du type de pieu choisi (tableau A.1 de la NF P94-262) :
-    ' la catégorie est le rang du type dans TypesPieux, le reste s'en déduit
-    c = "D" & lp + 6                         ' cellule de la catégorie
-    ws.Range(c).Formula = "=IFERROR(MATCH(D" & lp & ",{""" & _
-        Replace(TypesPieux(), ",", """,""") & """},0),"""")"
-    ' Norme de référence : 1 à 6 NF EN 1536, 7 à 16 NF EN 12699, 17 à 20 les trois
+    c = "D" & lp + 6                         ' catégorie
+    ws.Range(c).Formula = "=IFERROR(MATCH(D" & lp & "," & Tableau(TYPES_PIEUX, ",") & ",0),"""")"
+    ' Norme : 1 à 6 NF EN 1536, 7 à 16 NF EN 12699, 17 à 20 les trois
     ws.Range("D" & lp + 4).Formula = "=IF(" & c & "="""","""",IF(" & c & "<=6,""NF EN 1536""," & _
         "IF(" & c & "<=16,""NF EN 12699"",""NF EN 1536 / 14199 / 12699"")))"
-    ' Classe de pieu selon la catégorie
-    ws.Range("D" & lp + 5).Formula = "=IF(" & c & "="""","""",CHOOSE(" & c & _
-        ",""1"",""1"",""1"",""1"",""1"",""2"",""3"",""3"",""4"",""4"",""4"",""4"",""5""," & _
-        """6"",""6"",""7"",""1 bis"",""1 bis"",""8"",""8""))"
-    ws.Range("D" & lp + 7).Formula = FormuleAbreviation(lp)
-    ' Mode de fonctionnement du micropieu choisi : compression ou traction
+    ws.Range("D" & lp + 5).Formula = "=IF(" & c & "="""","""",INDEX(" & _
+        Tableau("1,1,1,1,1,2,3,3,4,4,4,4,5,6,6,7,1 bis,1 bis,8,8", ",") & "," & c & "))"
+    ws.Range("D" & lp + 7).Formula = "=IF(" & c & "="""","""",INDEX(" & Tableau(ABREVIATIONS, "|") & _
+        "," & c & "))"
     Liste ws.Range("D" & lp + 8), "Compression,Traction"
     ' Résistance de pointe : non prise en compte pour les micropieux (catégories 17 à 20)
     ws.Range("D" & lp + 9).Formula = "=IF(" & c & "="""","""",IF(" & c & ">=17,""Non"",""Oui""))"
@@ -260,91 +210,69 @@ Public Sub CreerDonneesProjet()
     ws.Range("D" & lp + 14 & ":D" & lp + 15).NumberFormat = "0"
     Liste ws.Range("D" & lp + 16), "Libre en tête,Encastré en tête"
     Liste ws.Range("D" & lp + 17), "Non,Oui"
-    ws.Range("D" & lp & ":D" & lp + 17).HorizontalAlignment = xlCenter
-    For r = lp To lp + 17
-        ws.Range("B" & r & ":C" & r).Merge
-    Next r
 
-    ' --- Hypothèses relatives aux matériaux constitutifs des fondations profondes ---
-    ' Intitulé sur B:C fusionnées, valeur en D, unité en E
-    la = lp + 19                             ' titre de la partie matériaux
-    With ws.Range("B" & la & ":I" & la)
-        .Merge
-        .Value = "HYPOTHÈSES RELATIVES AUX MATÉRIAUX CONSTITUTIFS DES FONDATIONS PROFONDES"
-        .Font.Bold = True
-        .Font.Size = 14
-        .HorizontalAlignment = xlCenter
-    End With
+    ' --- Matériaux : béton puis acier ---
+    la = lp + 19
+    Titre ws.Range("B" & la & ":I" & la), "HYPOTHÈSES RELATIVES AUX MATÉRIAUX CONSTITUTIFS DES " & _
+        "FONDATIONS PROFONDES"
     SousTitre ws, la + 2, "Caractéristiques du béton"
-    ws.Range("B" & la + 3 & ":B" & la + 9).Value = Application.Transpose(Array( _
-        "Classe d'exposition du béton", "Classe structurale", _
+    Colonne ws.Range("B" & la + 3), Array("Classe d'exposition du béton", "Classe structurale", _
         "Classe de résistance nominale du béton", "Résistance du béton à 28 jours fc28", _
-        "Coefficient " & ChrW(947) & "c - combinaison ELU fondamentale", _
-        "Coefficient " & ChrW(947) & "c - combinaison accidentelle", _
-        "Coefficient " & ChrW(947) & "c - combinaison sismique"))
+        "Coefficient " & g & "c - combinaison ELU fondamentale", _
+        "Coefficient " & g & "c - combinaison accidentelle", _
+        "Coefficient " & g & "c - combinaison sismique"), True
     ws.Range("E" & la + 6).Value = "MPa"
     Liste ws.Range("D" & la + 3), CLASSES_EXPOSITION
-    Liste ws.Range("D" & la + 4), "S1,S2,S3,S4,S5,S6"
-    ws.Range("D" & la + 4).Value = "S4"
-    Liste ws.Range("D" & la + 5), "C20/25,C25/30,C30/37,C35/45,C40/50,C45/55,C50/60"
-    ws.Range("D" & la + 5).Value = "C25/30"
-    ' fc28 = résistance caractéristique sur cylindre de la classe (C25/30 -> 25 MPa)
+    Liste ws.Range("D" & la + 4), "S1,S2,S3,S4,S5,S6", "S4"
+    Liste ws.Range("D" & la + 5), "C20/25,C25/30,C30/37,C35/45,C40/50,C45/55,C50/60", "C25/30"
+    ' fc28 = résistance sur cylindre de la classe (C25/30 -> 25 MPa)
     ws.Range("D" & la + 6).Formula = "=VALUE(MID(D" & la + 5 & ",2,FIND(""/"",D" & la + 5 & ")-2))"
     ws.Range("D" & la + 7 & ":D" & la + 9).Value = Application.Transpose(Array(1.5, 1.2, 1.3))
     ws.Range("D" & la + 6 & ":D" & la + 9).NumberFormat = "0.00"
 
-    ' Acier : la liste des classes dépend du type d'armature, les dimensions du tube
-    ' choisi sont remplies (voir MajArmature et MajAcier)
     SousTitre ws, LIGNE_ACIER - 1, "Caractéristiques de l'acier"
-    ws.Range("B" & LIGNE_ACIER & ":B" & LIGNE_ACIER + 13).Value = Application.Transpose(Array( _
-        "Type d'armature", "Classe de l'acier", "Diamètre extérieur", "Épaisseur e", _
-        "Diamètre intérieur", "Module de Young E", "Contrainte de l'acier fe", _
-        "Coefficient " & ChrW(947) & "s - combinaison ELU fondamentale", _
-        "Coefficient " & ChrW(947) & "s - combinaison accidentelle", _
-        "Coefficient " & ChrW(947) & "s - combinaison sismique", _
+    Colonne ws.Range("B" & LIGNE_ACIER), Array("Type d'armature", "Classe de l'acier", _
+        "Diamètre extérieur", "Épaisseur e", "Diamètre intérieur", "Module de Young E", _
+        "Contrainte de l'acier fe", "Coefficient " & g & "s - combinaison ELU fondamentale", _
+        "Coefficient " & g & "s - combinaison accidentelle", _
+        "Coefficient " & g & "s - combinaison sismique", _
         "Type de platine (liaison micropieu / structure)", "Nuance de l'acier de la platine", _
-        "Limite élastique de l'acier fy", "Limite de rupture de l'acier fu"))
+        "Limite élastique de l'acier fy", "Limite de rupture de l'acier fu"), True
     ws.Range("E" & LIGNE_ACIER + 2 & ":E" & LIGNE_ACIER + 13).Value = Application.Transpose(Array( _
         "mm", "mm", "mm", "MPa", "MPa", "", "", "", "", "", "MPa", "MPa"))
     Liste ws.Range("D" & LIGNE_ACIER), "Tube,Barre"
     ws.Range("D" & LIGNE_ACIER + 2 & ":D" & LIGNE_ACIER + 4).NumberFormat = "0.0"
-    ws.Range("D" & LIGNE_ACIER + 5).Value = 210000
-    ws.Range("D" & LIGNE_ACIER + 6).Value = 500
-    ws.Range("D" & LIGNE_ACIER + 5 & ":D" & LIGNE_ACIER + 6).NumberFormat = "0"
-    ws.Range("D" & LIGNE_ACIER + 7 & ":D" & LIGNE_ACIER + 9).Value = Application.Transpose(Array(1.15, 1, 1))
+    ws.Range("D" & LIGNE_ACIER + 5 & ":D" & LIGNE_ACIER + 9).Value = _
+        Application.Transpose(Array(210000, 500, 1.15, 1, 1))
     ws.Range("D" & LIGNE_ACIER + 7 & ":D" & LIGNE_ACIER + 9).NumberFormat = "0.00"
     ListeLongue ws.Range("D" & LIGNE_ACIER + 10), PLATINES, "Platines"
-    Liste ws.Range("D" & LIGNE_ACIER + 11), NUANCES
-    ws.Range("D" & LIGNE_ACIER + 11).Value = "S355"
-    ' fy et fu de la nuance choisie (tables NUANCES_FY et NUANCES_FU)
-    ws.Range("D" & LIGNE_ACIER + 12).Formula = FormuleNuance(NUANCES_FY, LIGNE_ACIER + 11)
-    ws.Range("D" & LIGNE_ACIER + 13).Formula = FormuleNuance(NUANCES_FU, LIGNE_ACIER + 11)
-    ws.Range("D" & la + 3 & ":E" & LIGNE_ACIER + 13).HorizontalAlignment = xlCenter
-    For r = la + 3 To LIGNE_ACIER + 13
-        If r <> LIGNE_ACIER - 1 And r <> LIGNE_ACIER - 2 Then ws.Range("B" & r & ":C" & r).Merge
+    Liste ws.Range("D" & LIGNE_ACIER + 11), NUANCES, "S355"
+    ' fy et fu de la nuance choisie
+    For r = 12 To 13
+        ws.Range("D" & LIGNE_ACIER + r).Formula = "=INDEX({" & IIf(r = 12, NUANCES_FY, NUANCES_FU) & _
+            "},MATCH(D" & LIGNE_ACIER + 11 & "," & Tableau(NUANCES, ",") & ",0))"
     Next r
 
     ' --- Mise en forme ---
-    With ws.Range("B4:C9,B12:C16,B19:I26,B28:E29,B32:C32,B" & LIGNE_COUCHES - 1 & ":I" & lc & _
-            ",B" & lm + 1 & ":E" & lm + 5 & ",B" & lp & ":D" & lp + 17 & _
-            ",B" & la + 3 & ":E" & la + 9 & ",B" & LIGNE_ACIER & ":E" & LIGNE_ACIER + 13)
+    With ws.Range("B4:C9,B12:C16,B19:I26,B28:E29,B32:C32,B33:I" & lc & ",B" & lm + 1 & ":E" & _
+            lm + 5 & ",B" & lp & ":D" & lp + 17 & ",B" & la + 3 & ":E" & la + 9 & ",B" & _
+            LIGNE_ACIER & ":E" & LIGNE_ACIER + 13)
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).Font.Bold = True
-    ws.Range("B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).HorizontalAlignment = xlCenter
-    ' Cases à remplir (données d'entrée) en jaune ; les valeurs calculées restent blanches
+    ws.Range("B19:I19,B33:I33").Font.Bold = True
+    ws.Range("B33:I33,D" & lm + 1 & ":E" & LIGNE_ACIER + 13).HorizontalAlignment = xlCenter
+    ' Cases à remplir en jaune ; les valeurs calculées restent blanches
     ws.Range("C4:C9,C12:C16,D28:D29,C32,C" & LIGNE_COUCHES & ":E" & lc & ",G" & LIGNE_COUCHES & _
-        ":I" & lc & ",D" & lm + 1 & ":D" & lm + 5 & ",D" & lp & ":D" & lp + 3 & _
-        ",D" & lp + 8 & ",D" & lp + 11 & ":D" & lp + 17 & ",D" & la + 3 & ":D" & la + 5 & _
-        ",D" & la + 7 & ":D" & la + 9 & _
-        ",D" & LIGNE_ACIER & ":D" & LIGNE_ACIER + 1 & ",D" & LIGNE_ACIER + 5 & ":D" & _
+        ":I" & lc & ",D" & lm + 1 & ":D" & lm + 5 & ",D" & lp & ":D" & lp + 3 & ",D" & lp + 8 & _
+        ",D" & lp + 11 & ":D" & lp + 17 & ",D" & la + 3 & ":D" & la + 5 & ",D" & la + 7 & ":D" & _
+        la + 9 & ",D" & LIGNE_ACIER & ":D" & LIGNE_ACIER + 1 & ",D" & LIGNE_ACIER + 5 & ":D" & _
         LIGNE_ACIER + 11).Interior.Color = RGB(255, 255, 204)
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 40
-    ws.Columns("D").ColumnWidth = 28         ' valeurs des micropieux, catégorie de sol
+    ws.Columns("D").ColumnWidth = 28
     ws.Columns("E:I").ColumnWidth = 14
     ws.Rows("19:" & LIGNE_ACIER + 13).AutoFit
 
@@ -356,61 +284,38 @@ Public Sub CreerDonneesProjet()
     Application.ScreenUpdating = True
 End Sub
 
-' Appelée par le code de la feuille « Données du projet » (CodeFeuilleDonnees.txt)
-' à chaque modification : les adresses des cellules suivies sont tenues ici, d'après
-' les constantes du module, pour ne plus avoir à modifier le code de la feuille quand
-' la disposition change.
-'   phase (C9) -> type de fondation ; nombre de couches -> lignes de couches ;
-'   hauteur totale du micropieu -> x (-1) ; type d'armature -> liste des classes
-'   d'acier ; classe de l'acier -> dimensions du tube
+' Appelée par le code de la feuille (CodeFeuilleDonnees.txt) à chaque modification :
+' phase -> type de fondation ; nombre de couches -> lignes de couches ; hauteur totale
+' -> x (-1) ; type d'armature -> classes d'acier ; classe de l'acier -> dimensions.
 Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
     On Error GoTo Fin
     Application.EnableEvents = False
     If Not Intersect(Target, ws.Range(CELLULE_PHASE)) Is Nothing Then AfficherTypeFondation ws
     If Not Intersect(Target, ws.Range(CELLULE_NB_COUCHES)) Is Nothing Then AfficherCouches ws
-    If Not Intersect(Target, ws.Range("D" & LIGNE_PIEU + 12)) Is Nothing Then _
-        InverserHauteur ws.Range("D" & LIGNE_PIEU + 12)
+    With ws.Range("D" & LIGNE_PIEU + 12)     ' hauteur totale : valeur saisie x (-1)
+        If Not Intersect(Target, .Cells) Is Nothing And IsNumeric(.Value) And Not IsEmpty(.Value) Then _
+            .Value = -.Value
+    End With
     If Not Intersect(Target, ws.Range("D" & LIGNE_ACIER)) Is Nothing Then MajArmature ws
     If Not Intersect(Target, ws.Range("D" & LIGNE_ACIER + 1)) Is Nothing Then MajAcier ws
 Fin:
     Application.EnableEvents = True
 End Sub
 
-' Affiche autant de lignes de couches que le nombre saisi en C32 (1 à MAX_COUCHES),
-' les autres lignes du tableau sont masquées. Appelée aussi quand C32 change
-' (voir CodeFeuilleDonnees.txt).
+' Ligne « Type de fondation » affichée seulement en phase G5
+Public Sub AfficherTypeFondation(ws As Worksheet)
+    ws.Rows(LIGNE_FONDATION).Hidden = (ws.Range(CELLULE_PHASE).Value <> "G5")
+End Sub
+
+' Autant de lignes de couches affichées que le nombre saisi (1 à MAX_COUCHES)
 Public Sub AfficherCouches(ws As Worksheet)
     Dim nb As Long
-    nb = Val(ws.Range(CELLULE_NB_COUCHES).Value)
-    If nb < 1 Then nb = 1
-    If nb > MAX_COUCHES Then nb = MAX_COUCHES
+    nb = Application.Max(1, Application.Min(MAX_COUCHES, Val(ws.Range(CELLULE_NB_COUCHES).Value)))
     ws.Rows(LIGNE_COUCHES).Resize(MAX_COUCHES).Hidden = False
     If nb < MAX_COUCHES Then ws.Rows(LIGNE_COUCHES + nb).Resize(MAX_COUCHES - nb).Hidden = True
 End Sub
 
-' Conservée pour le code de la feuille (CodeFeuilleDonnees.txt) : catégorie, classe,
-' norme, abréviation, résistance de pointe et type de mise en oeuvre sont maintenant
-' des formules qui suivent le type de pieu choisi (D58).
-Public Sub MajTypePieu(ws As Worksheet)
-End Sub
-
-' Hauteur totale du micropieu (D70) : la valeur saisie est multipliée par -1
-' (ex. cote -12 saisie -> 12 m). Appelée quand la cellule change
-' (voir CodeFeuilleDonnees.txt).
-Public Sub InverserHauteur(c As Range)
-    If IsNumeric(c.Value) And Not IsEmpty(c.Value) Then c.Value = -c.Value
-End Sub
-
-' Formule qui donne la valeur de la table valeurs (même ordre que NUANCES) pour
-' la nuance choisie en D de la ligne indiquée.
-Private Function FormuleNuance(valeurs As String, ligne As Long) As String
-    FormuleNuance = "=INDEX({" & valeurs & "},MATCH(D" & ligne & ",{""" & _
-        Replace(NUANCES, ",", """,""") & """},0))"
-End Function
-
-' Type d'armature choisi (D89) : la liste « Classe de l'acier » propose les tubes
-' (TUBES) ou les barres (BARRES) ; diamètres et épaisseur ne sont affichés que pour
-' un tube. Appelée aussi quand le type change (voir CodeFeuilleDonnees.txt).
+' Type d'armature : liste des tubes ou des barres HA ; dimensions affichées pour un tube
 Public Sub MajArmature(ws As Worksheet)
     Dim tube As Boolean, liste As String
     tube = (ws.Range("D" & LIGNE_ACIER).Value = "Tube")
@@ -424,9 +329,7 @@ Public Sub MajArmature(ws As Worksheet)
     MajAcier ws
 End Sub
 
-' Classe de l'acier choisie (D90) : pour un tube « Øde x e mm », diamètre
-' extérieur de et épaisseur e sont lus dans la désignation, diamètre intérieur =
-' de - 2 e. Appelée aussi quand la classe change (voir CodeFeuilleDonnees.txt).
+' Tube « Øde x e mm » : diamètre extérieur, épaisseur, diamètre intérieur = de - 2 e
 Public Sub MajAcier(ws As Worksheet)
     Dim nom As String, p As Long
     nom = CStr(ws.Range("D" & LIGNE_ACIER + 1).Value)
@@ -440,115 +343,62 @@ Public Sub MajAcier(ws As Worksheet)
     End If
 End Sub
 
-' Formule qui donne l'abréviation (ABREVIATIONS) du type de pieu choisi en D de la
-' ligne lp, d'après son rang dans la liste TypesPieux ; vide si aucun type.
-Private Function FormuleAbreviation(lp As Long) As String
-    FormuleAbreviation = "=IFERROR(INDEX({""" & Replace(ABREVIATIONS, "|", """,""") & _
-        """},MATCH(D" & lp & ",{""" & Replace(TypesPieux(), ",", """,""") & """},0)),"""")"
+' Constante de tableau pour une formule : "a,b" -> {"a","b"} (séparateur sep)
+Private Function Tableau(liste As String, sep As String) As String
+    Tableau = "{""" & Replace(liste, sep, """,""") & """}"
 End Function
 
-' Techniques de mise en oeuvre des pieux (NF P94-262, tableau A.1), dans l'ordre
-' des catégories 1 à 20. Désignations abrégées, à vérifier sur la norme.
-Private Function TypesPieux() As String
-    Dim s As String
-    s = "Foré simple (pieux et barrettes)"
-    s = s & ",Foré boue (pieux et barrettes)"
-    s = s & ",Foré tubé - virole perdue"
-    s = s & ",Foré tubé - virole récupérée"
-    s = s & ",Foré simple ou boue avec rainurage ou puits"
-    s = s & ",Foré tarière creuse simple ou double rotation"
-    s = s & ",Vissé moulé"
-    s = s & ",Vissé tubé"
-    s = s & ",Battu béton préfabriqué ou précontraint"
-    s = s & ",Battu enrobé - béton / mortier / coulis"
-    s = s & ",Battu moulé"
-    s = s & ",Battu acier fermé"
-    s = s & ",Battu acier ouvert"
-    s = s & ",Profilé H battu"
-    s = s & ",Profilé H battu injecté"
-    s = s & ",Palplanches battues"
-    s = s & ",Micropieu type I"
-    s = s & ",Micropieu type II"
-    s = s & ",Pieu ou micropieu injecté mode IGU - type III"
-    s = s & ",Pieu ou micropieu injecté mode IRS - type IV"
-    TypesPieux = s
-End Function
-
-' Affiche la ligne « Type de fondation » juste sous le type d'ouvrage seulement
-' quand la phase du projet est G5. Appelée aussi quand la phase change
-' (voir CodeFeuilleDonnees.txt).
-Public Sub AfficherTypeFondation(ws As Worksheet)
-    ws.Rows(LIGNE_FONDATION).Hidden = (ws.Range(CELLULE_PHASE).Value <> "G5")
+' Intitulés écrits en colonne à partir de la cellule c ; fusion avec la colonne
+' suivante si fusion (intitulé sur B:C, valeur en D)
+Private Sub Colonne(c As Range, intitules As Variant, Optional fusion As Boolean = False)
+    Dim k As Long
+    For k = 0 To UBound(intitules)
+        c.Offset(k).Value = intitules(k)
+        If fusion Then c.Offset(k).Resize(1, 2).Merge
+    Next k
 End Sub
 
-' Noms des sols et roches des classes A, B, C, D et R de la NF P11-300 (GTR).
-' Désignations abrégées, à compléter si besoin.
-Private Function SolsNFP11300() As String
-    Dim s As String
-    s = "A1 - Limons peu plastiques / loess / sables fins peu pollués"
-    s = s & ",A2 - Sables fins argileux / limons / argiles et marnes peu plastiques"
-    s = s & ",A3 - Argiles et argiles marneuses / limons très plastiques"
-    s = s & ",A4 - Argiles et argiles marneuses très plastiques"
-    s = s & ",B1 - Sables silteux"
-    s = s & ",B2 - Sables argileux (peu argileux)"
-    s = s & ",B3 - Graves silteuses"
-    s = s & ",B4 - Graves argileuses (peu argileuses)"
-    s = s & ",B5 - Sables et graves très silteux"
-    s = s & ",B6 - Sables et graves argileux à très argileux"
-    s = s & ",C1 - Sols à fines et gros éléments (argiles à silex / éboulis / moraines)"
-    s = s & ",C2 - Sols à gros éléments dominants avec fines"
-    s = s & ",D1 - Sables alluvionnaires propres / sables de dune"
-    s = s & ",D2 - Graves alluvionnaires propres / sables"
-    s = s & ",D3 - Graves alluvionnaires grossières propres / galets"
-    s = s & ",R1 - Craies"
-    s = s & ",R2 - Calcaires"
-    s = s & ",R3 - Roches argileuses (marnes / argilites / pélites)"
-    s = s & ",R4 - Roches siliceuses (grès / poudingues / brèches)"
-    s = s & ",R5 - Roches salines (sel gemme / gypse)"
-    s = s & ",R6 - Roches magmatiques et métamorphiques (granites / basaltes / schistes)"
-    s = s & ",Terrain neutralisé"
-    SolsNFP11300 = s
-End Function
+' Grand titre centré sur la plage
+Private Sub Titre(plage As Range, texte As String)
+    plage.Merge
+    plage.Value = texte
+    plage.Font.Bold = True
+    plage.Font.Size = 14
+    plage.HorizontalAlignment = xlCenter
+End Sub
 
 ' Sous-titre en gras, souligné, en colonne B
 Private Sub SousTitre(ws As Worksheet, ligne As Long, texte As String)
-    With ws.Range("B" & ligne)
-        .Value = texte
-        .Font.Bold = True
-        .Font.Underline = xlUnderlineStyleSingle
-        .Font.Size = 12
+    With ws.Range("B" & ligne).Font
+        .Bold = True
+        .Underline = xlUnderlineStyleSingle
+        .Size = 12
     End With
+    ws.Range("B" & ligne).Value = texte
 End Sub
 
-' Liste déroulante sur une cellule, premier choix sélectionné
-Private Sub Liste(c As Range, choix As String)
+' Liste déroulante sur une cellule ; valeur de départ = premier choix ou valeur
+Private Sub Liste(c As Range, choix As String, Optional valeur As String = "")
     c.Validation.Delete
     c.Validation.Add xlValidateList, xlValidAlertStop, , choix
-    c.Value = Split(choix, ",")(0)
+    c.Value = IIf(valeur = "", Split(choix, ",")(0), valeur)
     c.HorizontalAlignment = xlCenter
 End Sub
 
-' Liste déroulante de plus de 255 caractères : les choix sont écrits dans une
-' colonne de la feuille masquée « Listes » (titre nom en ligne 1) et la liste
-' déroulante renvoie à cette colonne.
+' Liste de plus de 255 caractères : choix écrits dans une colonne de la feuille masquée
+' « Listes » (titre nom en ligne 1), la liste déroulante y renvoie
 Private Sub ListeLongue(c As Range, choix As String, nom As String)
-    Dim wl As Worksheet, wb As Workbook, t As Variant, col As Long
-
-    If Len(choix) <= 255 Then
-        Liste c, choix
-        Exit Sub
-    End If
-    Set wb = c.Worksheet.Parent
+    Dim wl As Worksheet, t As Variant, col As Long
+    If Len(choix) <= 255 Then Liste c, choix: Exit Sub
     On Error Resume Next
-    Set wl = wb.Worksheets("Listes")
+    Set wl = c.Worksheet.Parent.Worksheets("Listes")
     On Error GoTo 0
     If wl Is Nothing Then
-        Set wl = wb.Worksheets.Add(After:=wb.Worksheets(wb.Worksheets.Count))
+        Set wl = c.Worksheet.Parent.Worksheets.Add(After:=c.Worksheet.Parent.Worksheets(c.Worksheet.Parent.Worksheets.Count))
         wl.Name = "Listes"
         wl.Visible = xlSheetHidden
         c.Worksheet.Activate                 ' la feuille ajoutée était devenue active
     End If
-    ' Colonne de cette liste (même titre), sinon la première colonne libre
     col = 1
     Do While wl.Cells(1, col).Value <> "" And wl.Cells(1, col).Value <> nom
         col = col + 1
@@ -556,9 +406,8 @@ Private Sub ListeLongue(c As Range, choix As String, nom As String)
     t = Split(choix, ",")
     wl.Columns(col).ClearContents
     wl.Cells(1, col).Value = nom
-    wl.Cells(2, col).Resize(UBound(t) + 1, 1).Value = Application.Transpose(t)
+    wl.Cells(2, col).Resize(UBound(t) + 1).Value = Application.Transpose(t)
     c.Validation.Delete
-    c.Validation.Add xlValidateList, xlValidAlertStop, , "=Listes!" & _
-        wl.Cells(2, col).Resize(UBound(t) + 1, 1).Address
+    c.Validation.Add xlValidateList, xlValidAlertStop, , "=Listes!" & wl.Cells(2, col).Resize(UBound(t) + 1).Address
     c.Value = t(0)
 End Sub
