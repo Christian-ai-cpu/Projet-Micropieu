@@ -32,7 +32,7 @@ Private Const TABLEAUX As String = "Tableaux NF P94-262"
 ' Thème vert : saisies en vert, valeurs non saisies (calculées) en jaune, en-têtes et
 ' titres en vert (couleurs RGB écrites en nombre : rouge + 256 x vert + 65536 x bleu)
 Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
-Private Const JAUNE_CALCUL As Long = 13431551  ' RGB(255, 242, 204)
+Private Const JAUNE_CALCUL As Long = 13434879  ' RGB(255, 255, 204), jaune clair
 Private Const VERT_ENTETE As Long = 14348258   ' RGB(226, 239, 218)
 Private Const VERT_FONCE As Long = 2315831     ' RGB(55, 86, 35)
 Public Sub CreerCalculVerification()
@@ -168,9 +168,9 @@ Public Sub CreerCalculVerification()
         .HorizontalAlignment = xlCenter
         .Interior.Color = VERT_ENTETE
     End With
-    ' Valeurs non saisies (reprises ou calculées) en jaune
-    ws.Range("D4:D5,D8:D11,D14:D16,D19:D24,D28:F30,D33:F35,B" & r + 2 & ":Q" & lt).Interior.Color = _
-        JAUNE_CALCUL
+    ' Valeurs non saisies (reprises ou calculées) en jaune ; tableau du frottement axial
+    ' sans couleur
+    ws.Range("D4:D5,D8:D11,D14:D16,D19:D24,D28:F30,D33:F35").Interior.Color = JAUNE_CALCUL
     ws.Range("D4:F35,B" & r + 2 & ":B" & lt & ",E" & r + 2 & ":Q" & lt).HorizontalAlignment = xlCenter
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
