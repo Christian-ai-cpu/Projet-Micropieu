@@ -208,16 +208,9 @@ Private Function Rang5(sol As String) As String
     Rang5 = "CHOOSE(" & Rang6(sol) & ",1,1,2,3,4,5)"
 End Function
 
-Private Function FormuleABC(zone As String, rangee As Long, sol As String) As String
-    FormuleABC = "=IFERROR(INDEX(" & zone & "," & rangee & "," & Rang5(sol) & "),"""")"
-End Function
-
-Private Function FormuleAlpha(zone As String, cat As String, sol As String) As String
-    FormuleAlpha = "=IFERROR(INDEX(" & zone & "," & cat & "," & Rang5(sol) & "),"""")"
-End Function
-
-Private Function FormuleQsMax(zone As String, cat As String, sol As String) As String
-    FormuleQsMax = "=IFERROR(INDEX(" & zone & "," & cat & "," & Rang6(sol) & "),"""")"
+' Valeur d'un tableau de la norme (zone) en ligne lig et colonne col ; vide si erreur
+Private Function FormuleIndex(zone As String, lig As String, col As String) As String
+    FormuleIndex = "=IFERROR(INDEX(" & zone & "," & lig & "," & col & "),"""")"
 End Function
 
 ' alpha x fsol ; « - » si alpha n'est pas donné par la norme (catégories 17 et 18 :
