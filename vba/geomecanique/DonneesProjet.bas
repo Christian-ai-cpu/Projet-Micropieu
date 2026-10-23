@@ -41,6 +41,8 @@ Private Const CELLULE_NB_COUCHES As String = "C32"   ' nombre de couches saisi
 Private Const LIGNE_COUCHES As Long = 34       ' première couche de sol
 Private Const MAX_COUCHES As Long = 15         ' lignes prévues (au-delà du nombre : masquées)
 Private Const LIGNE_PIEU As Long = 58          ' type de pieu (caractéristiques des micropieux)
+Private Const ABREVIATIONS As String = "FS|FB|FTP|FTR|FSR, FBR, PU|FTC, FTCD|VM|VT|" & _
+    "BPF, BPR|BE|BM|BAF|BAO|HB|HBi|PP|M1|M2|PIGU, MIGU|PIRS, MIRS"   ' tableau A.1, catégories 1 à 20
 Private Const LIGNE_ACIER As Long = 88         ' type d'armature (caractéristiques de l'acier)
 Private Const CLASSES_EXPOSITION As String = "X0,XC1,XC2,XC3,XC4,XD1,XD2,XD3," & _
     "XS1,XS2,XS3,XF1,XF2,XF3,XF4,XA1,XA2,XA3"
@@ -221,7 +223,7 @@ Public Sub CreerDonneesProjet()
         "Type de pieu - technique de mise en oeuvre (NF P94-262, tableau A.1)", _
         "Diamètre constant", "Incliné", "Groupe", "Norme de référence", _
         "Classe du micropieu", "Catégorie du micropieu", _
-        "Abréviation de la catégorie (NF P94-262, tableau A.1)", "Mode de fonctionnement", _
+        "Abréviation du type de pieu (NF P94-262, tableau A.1)", "Mode de fonctionnement", _
         "Prise en compte de la résistance de pointe", "Diamètre du micropieu B (m)", _
         "Hauteur totale du micropieu (m)", "Hauteur du micropieu dans la couche porteuse h (m)", _
         "Nombre de micropieux / appui du bâtiment", "Nombre total de micropieux", _
@@ -237,11 +239,8 @@ Public Sub CreerDonneesProjet()
         "IF(VALUE(D" & lp + 6 & "&"""")=16,""NF EN 12063"",""NF EN 14199""))))"
     Liste ws.Range("D" & lp + 5), "1,1bis,2,3,4,5,6,7,8"
     Liste ws.Range("D" & lp + 6), "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20"
-    ' Abréviation de la catégorie choisie (NF P94-262, tableau A.1)
-    ws.Range("D" & lp + 7).Formula = "=IF(D" & lp + 6 & "="""","""",CHOOSE(VALUE(D" & lp + 6 & _
-        "&""""),""FS"",""FB"",""FTP"",""FTR"",""FSR, FBR, PU"",""FTC, FTCD"",""VM"",""VT""," & _
-        """BPF, BPR"",""BE"",""BM"",""BAF"",""BAO"",""HB"",""HBi"",""PP"",""M1"",""M2""," & _
-        """PIGU, MIGU"",""PIRS, MIRS""))"
+    ' Abréviation du type de pieu choisi en D de la ligne lp (tableau A.1)
+    ws.Range("D" & lp + 7).Formula = FormuleAbreviation(lp)
     Liste ws.Range("D" & lp + 8), "Compression,Traction,Compression et traction"
     Liste ws.Range("D" & lp + 9), "Oui,Non"
     ws.Range("D" & lp + 10 & ":D" & lp + 12).NumberFormat = "0.00"
@@ -358,7 +357,7 @@ Public Sub AfficherCouches(ws As Worksheet)
 End Sub
 
 ' Type de pieu choisi (D58) : la catégorie est le rang de la technique dans le
-' tableau A.1 (TypesPieux, « Micropieu type I (M1) » -> 17), la classe s'en déduit
+' tableau A.1 (TypesPieux, « Micropieu type I » -> 17), la classe s'en déduit
 ' (ClassePieu) et la résistance de pointe est prise en compte (Oui) sauf pour les
 ' micropieux, catégories 17 à 20 (Non) ; la norme de référence suit la catégorie
 ' par formule. Appelée aussi quand le type change (voir CodeFeuilleDonnees.txt).
@@ -435,30 +434,37 @@ Public Function ClassePieu(ByVal categorie As Long) As String
     End Select
 End Function
 
+' Formule qui donne l'abréviation (ABREVIATIONS) du type de pieu choisi en D de la
+' ligne lp, d'après son rang dans la liste TypesPieux ; vide si aucun type.
+Private Function FormuleAbreviation(lp As Long) As String
+    FormuleAbreviation = "=IFERROR(INDEX({""" & Replace(ABREVIATIONS, "|", """,""") & _
+        """},MATCH(D" & lp & ",{""" & Replace(TypesPieux(), ",", """,""") & """},0)),"""")"
+End Function
+
 ' Techniques de mise en oeuvre des pieux (NF P94-262, tableau A.1), dans l'ordre
 ' des catégories 1 à 20. Désignations abrégées, à vérifier sur la norme.
 Private Function TypesPieux() As String
     Dim s As String
-    s = "Foré simple (pieux et barrettes) (FS)"
-    s = s & ",Foré boue (pieux et barrettes) (FB)"
-    s = s & ",Foré tubé - virole perdue (FTP)"
-    s = s & ",Foré tubé - virole récupérée (FTR)"
-    s = s & ",Foré simple ou boue avec rainurage ou puits (FSR / FBR / PU)"
-    s = s & ",Foré tarière creuse simple ou double rotation (FTC / FTCD)"
-    s = s & ",Vissé moulé (VM)"
-    s = s & ",Vissé tubé (VT)"
-    s = s & ",Battu béton préfabriqué ou précontraint (BPF / BPR)"
-    s = s & ",Battu enrobé - béton / mortier / coulis (BE)"
-    s = s & ",Battu moulé (BM)"
-    s = s & ",Battu acier fermé (BAF)"
-    s = s & ",Battu acier ouvert (BAO)"
-    s = s & ",Profilé H battu (HB)"
-    s = s & ",Profilé H battu injecté (HBi)"
-    s = s & ",Palplanches battues (PP)"
-    s = s & ",Micropieu type I (M1)"
-    s = s & ",Micropieu type II (M2)"
-    s = s & ",Pieu ou micropieu injecté mode IGU - type III (PIGU / MIGU)"
-    s = s & ",Pieu ou micropieu injecté mode IRS - type IV (PIRS / MIRS)"
+    s = "Foré simple (pieux et barrettes)"
+    s = s & ",Foré boue (pieux et barrettes)"
+    s = s & ",Foré tubé - virole perdue"
+    s = s & ",Foré tubé - virole récupérée"
+    s = s & ",Foré simple ou boue avec rainurage ou puits"
+    s = s & ",Foré tarière creuse simple ou double rotation"
+    s = s & ",Vissé moulé"
+    s = s & ",Vissé tubé"
+    s = s & ",Battu béton préfabriqué ou précontraint"
+    s = s & ",Battu enrobé - béton / mortier / coulis"
+    s = s & ",Battu moulé"
+    s = s & ",Battu acier fermé"
+    s = s & ",Battu acier ouvert"
+    s = s & ",Profilé H battu"
+    s = s & ",Profilé H battu injecté"
+    s = s & ",Palplanches battues"
+    s = s & ",Micropieu type I"
+    s = s & ",Micropieu type II"
+    s = s & ",Pieu ou micropieu injecté mode IGU - type III"
+    s = s & ",Pieu ou micropieu injecté mode IRS - type IV"
     TypesPieux = s
 End Function
 
