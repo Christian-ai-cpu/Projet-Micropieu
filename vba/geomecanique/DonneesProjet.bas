@@ -34,13 +34,14 @@ Option Explicit
 ' Les listes de plus de 255 caractères (limite d'Excel, ex. noms des sols de la
 ' NF P11-300) sont écrites sur la feuille masquée « Listes » (voir ListeLongue).
 
+' Constantes publiques : utilisées aussi par le module CalculMicropieu.
 Private Const NOM_FEUILLE As String = "Données du projet"
 Private Const CELLULE_PHASE As String = "C9"
 Private Const LIGNE_FONDATION As Long = 13
-Private Const CELLULE_NB_COUCHES As String = "C32"   ' nombre de couches saisi
-Private Const LIGNE_COUCHES As Long = 34       ' première couche de sol
-Private Const MAX_COUCHES As Long = 15         ' lignes prévues (au-delà du nombre : masquées)
-Private Const LIGNE_PIEU As Long = 58          ' type de pieu (caractéristiques des micropieux)
+Public Const CELLULE_NB_COUCHES As String = "C32"   ' nombre de couches saisi
+Public Const LIGNE_COUCHES As Long = 34       ' première couche de sol
+Public Const MAX_COUCHES As Long = 15         ' lignes prévues (au-delà du nombre : masquées)
+Public Const LIGNE_PIEU As Long = 58          ' type de pieu (caractéristiques des micropieux)
 Private Const ABREVIATIONS As String = "FS|FB|FTP|FTR|FSR, FBR, PU|FTC, FTCD|VM|VT|" & _
     "BPF, BPR|BE|BM|BAF|BAO|HB|HBi|PP|M1|M2|PIGU, MIGU|PIRS, MIRS"   ' tableau A.1, catégories 1 à 20
 Private Const LIGNE_ACIER As Long = 88         ' type d'armature (caractéristiques de l'acier)
@@ -73,7 +74,7 @@ Private Const NUANCES_FY As String = "235,275,355,440,275,275,355,355,420,420,46
     "275,275,355,355,420,420,460,460"
 Private Const NUANCES_FU As String = "360,430,510,550,390,390,490,490,520,520,540,540," & _
     "370,370,470,470,520,520,540,540"
-Private Const CATEGORIES_SOL As String = "Argiles et limons," & _
+Public Const CATEGORIES_SOL As String = "Argiles et limons," & _
     "Sols intermédiaires (sable limoneux / sable argileux / argile sableuse)," & _
     "Sables et graves,Craies,Marnes et calcaires marneux,Roches"
 
@@ -224,7 +225,7 @@ Public Sub CreerDonneesProjet()
         "Classe du micropieu", "Catégorie du micropieu", _
         "Abréviation du type de pieu (NF P94-262, tableau A.1)", "Mode de fonctionnement", _
         "Prise en compte de la résistance de pointe", "Diamètre du micropieu B (m)", _
-        "Hauteur totale du micropieu (m)", "Hauteur du micropieu dans la couche porteuse h (m)", _
+        "Hauteur totale du micropieu (m)", "Hauteur totale du micropieu dans la couche porteuse D (m)", _
         "Nombre de micropieux / appui du bâtiment", "Nombre total de micropieux", _
         "Conditions en tête du micropieu", "Essai de contrôle"))
     ListeLongue ws.Range("D" & lp), TypesPieux(), "Pieux NF P94-262"
