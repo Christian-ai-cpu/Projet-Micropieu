@@ -29,6 +29,12 @@ Private Const NOM_FEUILLE As String = "Calcul et vérification"
 Private Const DONNEES As String = "'Données du projet'!"
 Private Const TABLEAUX As String = "Tableaux NF P94-262"
 
+' Thème vert : saisies en vert, valeurs non saisies (calculées) en jaune, en-têtes et
+' titres en vert (couleurs RGB écrites en nombre : rouge + 256 x vert + 65536 x bleu)
+Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
+Private Const JAUNE_CALCUL As Long = 13431551  ' RGB(255, 242, 204)
+Private Const VERT_ENTETE As Long = 14348258   ' RGB(226, 239, 218)
+Private Const VERT_FONCE As Long = 2315831     ' RGB(55, 86, 35)
 Public Sub CreerCalculVerification()
     Dim ws As Worksheet, wt As Worksheet, r As Long, i As Long, lc As Long
     Dim zAlpha As String, zABC As String, zQs As String, nb As String, cat As String
@@ -70,6 +76,7 @@ Public Sub CreerCalculVerification()
         .Merge
         .Value = "CALCUL ET VÉRIFICATION DES MICROPIEUX"
         .Font.Bold = True
+        .Font.Color = VERT_FONCE
         .Font.Size = 14
         .HorizontalAlignment = xlCenter
     End With
@@ -159,8 +166,11 @@ Public Sub CreerCalculVerification()
     With ws.Range("B27:F27,B32:F32,B" & r + 1 & ":Q" & r + 1)
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
-        .Interior.Color = RGB(217, 225, 242)
+        .Interior.Color = VERT_ENTETE
     End With
+    ' Valeurs non saisies (reprises ou calculées) en jaune
+    ws.Range("D4:D5,D8:D11,D14:D16,D19:D24,D28:F30,D33:F35,B" & r + 2 & ":Q" & lt).Interior.Color = _
+        JAUNE_CALCUL
     ws.Range("D4:F35,B" & r + 2 & ":B" & lt & ",E" & r + 2 & ":Q" & lt).HorizontalAlignment = xlCenter
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
@@ -193,6 +203,7 @@ Private Sub SousTitre(ws As Worksheet, r As Long, texte As String)
         .Font.Bold = True
         .Font.Underline = xlUnderlineStyleSingle
         .Font.Size = 12
+        .Font.Color = VERT_FONCE
     End With
 End Sub
 

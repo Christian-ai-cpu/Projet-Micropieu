@@ -79,6 +79,12 @@ Public Const CATEGORIES_SOL As String = "Argiles et limons," & _
     "Sols intermédiaires (sable limoneux / sable argileux / argile sableuse)," & _
     "Sables et graves,Craies,Marnes et calcaires marneux,Roches"
 
+' Thème vert : saisies en vert, valeurs non saisies (calculées) en jaune, en-têtes et
+' titres en vert (couleurs RGB écrites en nombre : rouge + 256 x vert + 65536 x bleu)
+Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
+Private Const JAUNE_CALCUL As Long = 13431551  ' RGB(255, 242, 204)
+Private Const VERT_ENTETE As Long = 14348258   ' RGB(226, 239, 218)
+Private Const VERT_FONCE As Long = 2315831     ' RGB(55, 86, 35)
 Public Sub CreerDonneesProjet()
     Dim ws As Worksheet, r As Long, normes As Variant, lc As Long, lm As Long, lp As Long
     Dim la As Long, c As String
@@ -102,6 +108,7 @@ Public Sub CreerDonneesProjet()
         .Merge
         .Value = "HYPOTHÈSES GÉNÉRALES"
         .Font.Bold = True
+        .Font.Color = VERT_FONCE
         .Font.Size = 14
         .HorizontalAlignment = xlCenter
     End With
@@ -272,6 +279,7 @@ Public Sub CreerDonneesProjet()
         .Merge
         .Value = "HYPOTHÈSES RELATIVES AUX MATÉRIAUX CONSTITUTIFS DES FONDATIONS PROFONDES"
         .Font.Bold = True
+        .Font.Color = VERT_FONCE
         .Font.Size = 14
         .HorizontalAlignment = xlCenter
     End With
@@ -333,14 +341,18 @@ Public Sub CreerDonneesProjet()
         .WrapText = True
     End With
     ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).Font.Bold = True
+    ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).Interior.Color = VERT_ENTETE
     ws.Range("B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).HorizontalAlignment = xlCenter
-    ' Cases à remplir (données d'entrée) en jaune ; les valeurs calculées restent blanches
+    ' Cases à remplir (données d'entrée) en vert ; valeurs calculées en jaune
     ws.Range("C4:C9,C12:C16,D28:D29,C32,C" & LIGNE_COUCHES & ":E" & lc & ",G" & LIGNE_COUCHES & _
         ":I" & lc & ",D" & lm + 1 & ":D" & lm + 5 & ",D" & lp & ":D" & lp + 3 & _
         ",D" & lp + 8 & ",D" & lp + 11 & ":D" & lp + 17 & ",D" & la + 3 & ":D" & la + 5 & _
         ",D" & la + 7 & ":D" & la + 9 & _
         ",D" & LIGNE_ACIER & ":D" & LIGNE_ACIER + 1 & ",D" & LIGNE_ACIER + 5 & ":D" & _
-        LIGNE_ACIER + 11).Interior.Color = RGB(255, 255, 204)
+        LIGNE_ACIER + 11).Interior.Color = VERT_SAISIE
+    ws.Range("F" & LIGNE_COUCHES & ":F" & lc & ",D" & lp + 4 & ":D" & lp + 7 & ",D" & lp + 9 & _
+        ":D" & lp + 10 & ",D" & la + 6 & ",D" & LIGNE_ACIER + 2 & ":D" & LIGNE_ACIER + 4 & _
+        ",D" & LIGNE_ACIER + 12 & ":D" & LIGNE_ACIER + 13).Interior.Color = JAUNE_CALCUL
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 40
@@ -517,6 +529,7 @@ Private Sub SousTitre(ws As Worksheet, ligne As Long, texte As String)
         .Font.Bold = True
         .Font.Underline = xlUnderlineStyleSingle
         .Font.Size = 12
+        .Font.Color = VERT_FONCE
     End With
 End Sub
 

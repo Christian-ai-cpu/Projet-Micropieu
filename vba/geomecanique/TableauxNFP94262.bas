@@ -42,6 +42,12 @@ Private mEmpl As Long          ' emplacement suivant dans la rangée (0 à 2)
 Private mEntete As Range       ' ligne d'en-tête du dernier tableau écrit
 Private mDonnees As Range      ' lignes de données du dernier tableau écrit
 
+' Thème vert : saisies en vert, valeurs non saisies (calculées) en jaune, en-têtes et
+' titres en vert (couleurs RGB écrites en nombre : rouge + 256 x vert + 65536 x bleu)
+Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
+Private Const JAUNE_CALCUL As Long = 13431551  ' RGB(255, 242, 204)
+Private Const VERT_ENTETE As Long = 14348258   ' RGB(226, 239, 218)
+Private Const VERT_FONCE As Long = 2315831     ' RGB(55, 86, 35)
 Public Sub CreerTableauxNFP94262()
     Dim ws As Worksheet, s As String, g As String, c As Long
 
@@ -60,6 +66,7 @@ Public Sub CreerTableauxNFP94262()
         .Merge
         .Value = "TABLEAUX DE LA NORME NF P94-262 (juillet 2012) - MICROPIEUX"
         .Font.Bold = True
+        .Font.Color = VERT_FONCE
         .Font.Size = 14
         .HorizontalAlignment = xlCenter
     End With
@@ -246,10 +253,11 @@ Private Sub NouveauGroupe(ws As Worksheet, titre As String, niveau As Long)
         If niveau = 1 Then
             .Font.Size = 13
             .Font.Color = RGB(255, 255, 255)
-            .Interior.Color = RGB(47, 84, 150)
+            .Interior.Color = VERT_FONCE
         Else
             .Font.Size = 11
             .Font.Underline = xlUnderlineStyleSingle
+            .Font.Color = VERT_FONCE
         End If
     End With
     mHaut = mHaut + 2
@@ -307,6 +315,7 @@ Private Function EcrireTableau(ws As Worksheet, ByVal r As Long, c0 As Long, tit
         .Value = titre
         .Font.Bold = True
         .Font.Underline = xlUnderlineStyleSingle
+        .Font.Color = VERT_FONCE
         .WrapText = True
         .VerticalAlignment = xlBottom
     End With
@@ -319,7 +328,7 @@ Private Function EcrireTableau(ws As Worksheet, ByVal r As Long, c0 As Long, tit
     Next j
     With ws.Range(ws.Cells(r, c0), ws.Cells(r, c0 + UBound(e)))
         .Font.Bold = True
-        .Interior.Color = RGB(217, 225, 242)
+        .Interior.Color = VERT_ENTETE
         .HorizontalAlignment = xlCenter
     End With
     lignes = Split(donnees, ";")
