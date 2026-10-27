@@ -3,7 +3,7 @@ Option Explicit
 
 ' Module « Tableaux NF P94-262 » : crée (ou recrée) la feuille « Tableaux NF P94-262 »
 ' avec les tableaux de la norme NF P94-262 (juillet 2012) utiles au calcul des
-' micropieux :
+' fondations :
 '   A.1               : classes et catégories de pieux, norme de référence
 '   A.9.1             : quantité de coulis recommandée pour le scellement des micropieux
 '   C.2.3.1 / C.2.3.2 : facteurs partiels de résistance ELU (durable / accidentel)
@@ -64,7 +64,7 @@ Public Sub CreerTableauxNFP94262()
 
     With ws.Range(ws.Cells(1, 2), ws.Cells(1, 1 + LARGEUR_EMPL * NB_PAR_LIGNE - 1))
         .Merge
-        .Value = "TABLEAUX DE LA NORME NF P94-262 (juillet 2012) - MICROPIEUX"
+        .Value = "TABLEAUX DE LA NORME NF P94-262 (juillet 2012) - FONDATIONS PROFONDES"
         .Font.Bold = True
         .Font.Color = VERT_FONCE
         .Font.Size = 14

@@ -14,41 +14,41 @@ Option Explicit
 '               m + référentiel)
 '   B31 à I48 : Données géotechniques : nombre de couches (C32, 1 à 15) et tableau
 '               des couches de sol (seules les lignes jusqu'à ce nombre sont affichées)
-'   B50 à E55 : Données des micropieux (arase supérieure, base, nappe, méthode,
+'   B50 à E55 : Données de la fondation (arase supérieure, base, nappe, méthode,
 '               niveau d'eau ; intitulé sur B:C, valeur en D, unité en E)
-'   B57 à D75 : Caractéristiques des micropieux (type de pieu du tableau A.1 de la
+'   B57 à D73 : Caractéristiques de la fondation (type de pieu du tableau A.1 de la
 '               NF P94-262, diamètre constant, incliné, groupe, norme de référence,
 '               classe, catégorie, abréviation, mode de fonctionnement (compression / traction),
-'               résistance de pointe, type de mise en oeuvre, B, hauteurs, nombres,
+'               résistance de pointe, type de mise en oeuvre, B, nombres,
 '               conditions en tête, essai de contrôle ; intitulé sur B:C, valeur en D)
-'   B77       : HYPOTHÈSES RELATIVES AUX MATÉRIAUX CONSTITUTIFS DES FONDATIONS PROFONDES
-'   B79 à E86 : Caractéristiques du béton (classe d'exposition, classe structurale,
+'   B75       : HYPOTHÈSES RELATIVES AUX MATÉRIAUX CONSTITUTIFS DES FONDATIONS PROFONDES
+'   B77 à E84 : Caractéristiques du béton (classe d'exposition, classe structurale,
 '               classe de résistance, fc28, coefficients gamma c ELU / accidentel /
 '               sismique)
-'   B88 à E102: Caractéristiques de l'acier (type d'armature tube ou barre, classe,
+'   B86 à E100: Caractéristiques de l'acier (type d'armature tube ou barre, classe,
 '               diamètres et épaisseur du tube, E, fe, coefficients gamma s ELU /
 '               accidentel / sismique, platine (barres GEWI, GEWI Plus, DYWIDAG),
 '               nuance, limite élastique fy et limite de rupture fu)
-' Les valeurs se saisissent dans les cases jaunes. Le type de fondation (ligne 13)
+' Les valeurs se saisissent dans les cases vertes. Le type de fondation (ligne 13)
 ' s'affiche quand la phase (C9) vaut G5 (AfficherTypeFondation) et le tableau des
 ' couches suit le nombre de couches (AfficherCouches) : voir CodeFeuilleDonnees.txt.
 ' Les listes de plus de 255 caractères (limite d'Excel, ex. noms des sols de la
 ' NF P11-300) sont écrites sur la feuille masquée « Listes » (voir ListeLongue).
 
-' Constantes publiques : utilisées aussi par le module CalculMicropieu.
+' Constantes publiques : utilisées aussi par le module CalculFondation.
 Private Const NOM_FEUILLE As String = "Données du projet"
 Private Const CELLULE_PHASE As String = "C9"
 Private Const LIGNE_FONDATION As Long = 13
 Public Const CELLULE_NB_COUCHES As String = "C32"   ' nombre de couches saisi
 Public Const LIGNE_COUCHES As Long = 34       ' première couche de sol
 Public Const MAX_COUCHES As Long = 15         ' lignes prévues (au-delà du nombre : masquées)
-Public Const LIGNE_PIEU As Long = 58          ' type de pieu (caractéristiques des micropieux)
+Public Const LIGNE_PIEU As Long = 58          ' type de pieu (caractéristiques de la fondation)
 Private Const ABREVIATIONS As String = "FS|FB|FTP|FTR|FSR, FBR, PU|FTC, FTCD|VM|VT|" & _
     "BPF, BPR|BE|BM|BAF|BAO|HB|HBi|PP|M1|M2|PIGU, MIGU|PIRS, MIRS"   ' tableau A.1, catégories 1 à 20
-Private Const LIGNE_ACIER As Long = 89         ' type d'armature (caractéristiques de l'acier)
+Private Const LIGNE_ACIER As Long = 87         ' type d'armature (caractéristiques de l'acier)
 Private Const CLASSES_EXPOSITION As String = "X0,XC1,XC2,XC3,XC4,XD1,XD2,XD3," & _
     "XS1,XS2,XS3,XF1,XF2,XF3,XF4,XA1,XA2,XA3"
-' Armatures des micropieux (dimensions courantes, à vérifier auprès du fournisseur).
+' Armatures de la fondation (dimensions courantes, à vérifier auprès du fournisseur).
 ' Tube : « Øde x e mm » est lu pour remplir les diamètres et l'épaisseur (MajAcier).
 Private Const TUBES As String = "Ø60.3 x 5.5 mm,Ø73 x 5.5 mm,Ø88.9 x 6.5 mm," & _
     "Ø88.9 x 9.5 mm,Ø101.6 x 9 mm,Ø114.3 x 9 mm,Ø127 x 9 mm,Ø139.7 x 9 mm," & _
@@ -202,12 +202,12 @@ Public Sub CreerDonneesProjet()
     ws.Range("G" & LIGNE_COUCHES & ":H" & lc).NumberFormat = "0.00"
     ws.Range("B" & LIGNE_COUCHES & ":B" & lc & ",E" & LIGNE_COUCHES & ":I" & lc).HorizontalAlignment = xlCenter
 
-    ' --- Données des micropieux : intitulé sur B:C fusionnées, valeur en D, unité en E ---
+    ' --- Données de la fondation : intitulé sur B:C fusionnées, valeur en D, unité en E ---
     lm = lc + 2                              ' sous-titre
-    SousTitre ws, lm, "Données des micropieux"
+    SousTitre ws, lm, "Données de la fondation"
     ws.Range("B" & lm + 1 & ":B" & lm + 5).Value = Application.Transpose(Array( _
-        "Cote de l'arase supérieure des micropieux", "Base des micropieux", _
-        "Présence de nappe phréatique", "Méthode de calcul retenue pour les pieux", _
+        "Cote de l'arase supérieure de la fondation", "Base de la fondation", _
+        "Présence de nappe phréatique", "Méthode de calcul retenue pour la fondation", _
         "Niveau de l'eau"))
     ws.Range("E" & lm + 1 & ":E" & lm + 5).Value = Application.Transpose(Array( _
         "m/TN", "m/TN", "", "", "m"))
@@ -220,23 +220,23 @@ Public Sub CreerDonneesProjet()
         ws.Range("B" & r & ":C" & r).Merge
     Next r
 
-    ' --- Caractéristiques des micropieux (sous le tableau précédent) ---
+    ' --- Caractéristiques de la fondation (sous le tableau précédent) ---
     ' Intitulé (unité comprise) sur B:C fusionnées, valeur en D. Norme de référence,
     ' classe, catégorie, abréviation, résistance de pointe et type de mise en oeuvre
     ' sont des formules qui suivent le type de pieu choisi (tableau A.1 de la
-    ' NF P94-262) ; le mode de fonctionnement (compression / traction) se choisit. La hauteur totale saisie est multipliée par -1 (voir InverserHauteur).
+    ' NF P94-262) ; le mode de fonctionnement (compression / traction) se choisit.
+    ' Les hauteurs de la fondation sont calculées dans « Calcul et vérification ».
     lp = LIGNE_PIEU
-    SousTitre ws, lp - 1, "Caractéristiques des micropieux"
-    ws.Range("B" & lp & ":B" & lp + 17).Value = Application.Transpose(Array( _
+    SousTitre ws, lp - 1, "Caractéristiques de la fondation"
+    ws.Range("B" & lp & ":B" & lp + 15).Value = Application.Transpose(Array( _
         "Type de pieu - technique de mise en oeuvre (NF P94-262, tableau A.1)", _
         "Diamètre constant", "Incliné", "Groupe", "Norme de référence", _
-        "Classe du micropieu", "Catégorie du micropieu", _
+        "Classe de la fondation", "Catégorie de la fondation", _
         "Abréviation du type de pieu (NF P94-262, tableau A.1)", "Mode de fonctionnement", _
         "Prise en compte de la résistance de pointe", "Type de mise en oeuvre", _
-        "Diamètre du micropieu B (m)", _
-        "Hauteur totale du micropieu (m)", "Hauteur totale du micropieu dans la couche porteuse D (m)", _
-        "Nombre de micropieux / appui du bâtiment", "Nombre total de micropieux", _
-        "Conditions en tête du micropieu", "Essai de contrôle"))
+        "Diamètre de la fondation B (m)", _
+        "Nombre de fondations / appui du bâtiment", "Nombre total de fondations", _
+        "Conditions en tête de la fondation", "Essai de contrôle"))
     ListeLongue ws.Range("D" & lp), TypesPieux(), "Pieux NF P94-262"
     ws.Range("D" & lp).Value = Split(TypesPieux(), ",")(16)   ' micropieu type I (cat. 17)
     Liste ws.Range("D" & lp + 1), "Oui,Non"
@@ -255,7 +255,7 @@ Public Sub CreerDonneesProjet()
         ",""1"",""1"",""1"",""1"",""1"",""2"",""3"",""3"",""4"",""4"",""4"",""4"",""5""," & _
         """6"",""6"",""7"",""1 bis"",""1 bis"",""8"",""8""))"
     ws.Range("D" & lp + 7).Formula = FormuleAbreviation(lp)
-    ' Mode de fonctionnement du micropieu choisi : compression ou traction
+    ' Mode de fonctionnement de la fondation : compression ou traction
     Liste ws.Range("D" & lp + 8), "Compression,Traction"
     ' Résistance de pointe : non prise en compte pour les micropieux (catégories 17 à 20)
     ws.Range("D" & lp + 9).Formula = "=IF(" & c & "="""","""",IF(" & c & ">=17,""Non"",""Oui""))"
@@ -263,18 +263,18 @@ Public Sub CreerDonneesProjet()
     ws.Range("D" & lp + 10).Formula = "=IF(" & c & "="""","""",IF(" & c & "=6," & _
         """Pieu à la tarière continue (CFA)"",IF(AND(" & c & ">=7," & c & "<=16)," & _
         """Pieu foncé"",""Pieu foré"")))"
-    ws.Range("D" & lp + 11 & ":D" & lp + 13).NumberFormat = "0.00"
-    ws.Range("D" & lp + 14 & ":D" & lp + 15).NumberFormat = "0"
-    Liste ws.Range("D" & lp + 16), "Libre en tête,Encastré en tête"
-    Liste ws.Range("D" & lp + 17), "Non,Oui"
-    ws.Range("D" & lp & ":D" & lp + 17).HorizontalAlignment = xlCenter
-    For r = lp To lp + 17
+    ws.Range("D" & lp + 11).NumberFormat = "0.00"
+    ws.Range("D" & lp + 12 & ":D" & lp + 13).NumberFormat = "0"
+    Liste ws.Range("D" & lp + 14), "Libre en tête,Encastré en tête"
+    Liste ws.Range("D" & lp + 15), "Non,Oui"
+    ws.Range("D" & lp & ":D" & lp + 15).HorizontalAlignment = xlCenter
+    For r = lp To lp + 15
         ws.Range("B" & r & ":C" & r).Merge
     Next r
 
     ' --- Hypothèses relatives aux matériaux constitutifs des fondations profondes ---
     ' Intitulé sur B:C fusionnées, valeur en D, unité en E
-    la = lp + 19                             ' titre de la partie matériaux
+    la = lp + 17                             ' titre de la partie matériaux
     With ws.Range("B" & la & ":I" & la)
         .Merge
         .Value = "HYPOTHÈSES RELATIVES AUX MATÉRIAUX CONSTITUTIFS DES FONDATIONS PROFONDES"
@@ -310,7 +310,7 @@ Public Sub CreerDonneesProjet()
         "Coefficient " & ChrW(947) & "s - combinaison ELU fondamentale", _
         "Coefficient " & ChrW(947) & "s - combinaison accidentelle", _
         "Coefficient " & ChrW(947) & "s - combinaison sismique", _
-        "Type de platine (liaison micropieu / structure)", "Nuance de l'acier de la platine", _
+        "Type de platine (liaison fondation / structure)", "Nuance de l'acier de la platine", _
         "Limite élastique de l'acier fy", "Limite de rupture de l'acier fu"))
     ws.Range("E" & LIGNE_ACIER + 2 & ":E" & LIGNE_ACIER + 13).Value = Application.Transpose(Array( _
         "mm", "mm", "mm", "MPa", "MPa", "", "", "", "", "", "MPa", "MPa"))
@@ -334,7 +334,7 @@ Public Sub CreerDonneesProjet()
 
     ' --- Mise en forme ---
     With ws.Range("B4:C9,B12:C16,B19:I26,B28:E29,B32:C32,B" & LIGNE_COUCHES - 1 & ":I" & lc & _
-            ",B" & lm + 1 & ":E" & lm + 5 & ",B" & lp & ":D" & lp + 17 & _
+            ",B" & lm + 1 & ":E" & lm + 5 & ",B" & lp & ":D" & lp + 15 & _
             ",B" & la + 3 & ":E" & la + 9 & ",B" & LIGNE_ACIER & ":E" & LIGNE_ACIER + 13)
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
@@ -344,7 +344,7 @@ Public Sub CreerDonneesProjet()
     ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).Interior.Color = VERT_ENTETE
     ws.Range("B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).HorizontalAlignment = xlCenter
     ' Cases à remplir en vert, valeurs calculées en jaune ; sans couleur : données
-    ' géotechniques (laboratoire), données et caractéristiques des micropieux
+    ' géotechniques (laboratoire), données et caractéristiques de la fondation
     ws.Range("C4:C9,C12:C16,D28:D29,C32,D" & la + 3 & ":D" & la + 5 & _
         ",D" & la + 7 & ":D" & la + 9 & _
         ",D" & LIGNE_ACIER & ":D" & LIGNE_ACIER + 1 & ",D" & LIGNE_ACIER + 5 & ":D" & _
@@ -354,7 +354,7 @@ Public Sub CreerDonneesProjet()
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 40
-    ws.Columns("D").ColumnWidth = 28         ' valeurs des micropieux, catégorie de sol
+    ws.Columns("D").ColumnWidth = 28         ' valeurs de la fondation, catégorie de sol
     ws.Columns("E:I").ColumnWidth = 14
     ws.Rows("19:" & LIGNE_ACIER + 13).AutoFit
 
@@ -371,15 +371,13 @@ End Sub
 ' les constantes du module, pour ne plus avoir à modifier le code de la feuille quand
 ' la disposition change.
 '   phase (C9) -> type de fondation ; nombre de couches -> lignes de couches ;
-'   hauteur totale du micropieu -> x (-1) ; type d'armature -> liste des classes
-'   d'acier ; classe de l'acier -> dimensions du tube
+'   type d'armature -> liste des classes d'acier ; classe de l'acier -> dimensions
+'   du tube
 Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
     On Error GoTo Fin
     Application.EnableEvents = False
     If Not Intersect(Target, ws.Range(CELLULE_PHASE)) Is Nothing Then AfficherTypeFondation ws
     If Not Intersect(Target, ws.Range(CELLULE_NB_COUCHES)) Is Nothing Then AfficherCouches ws
-    If Not Intersect(Target, ws.Range("D" & LIGNE_PIEU + 12)) Is Nothing Then _
-        InverserHauteur ws.Range("D" & LIGNE_PIEU + 12)
     If Not Intersect(Target, ws.Range("D" & LIGNE_ACIER)) Is Nothing Then MajArmature ws
     If Not Intersect(Target, ws.Range("D" & LIGNE_ACIER + 1)) Is Nothing Then MajAcier ws
 Fin:
@@ -396,19 +394,6 @@ Public Sub AfficherCouches(ws As Worksheet)
     If nb > MAX_COUCHES Then nb = MAX_COUCHES
     ws.Rows(LIGNE_COUCHES).Resize(MAX_COUCHES).Hidden = False
     If nb < MAX_COUCHES Then ws.Rows(LIGNE_COUCHES + nb).Resize(MAX_COUCHES - nb).Hidden = True
-End Sub
-
-' Conservée pour le code de la feuille (CodeFeuilleDonnees.txt) : catégorie, classe,
-' norme, abréviation, résistance de pointe et type de mise en oeuvre sont maintenant
-' des formules qui suivent le type de pieu choisi (D58).
-Public Sub MajTypePieu(ws As Worksheet)
-End Sub
-
-' Hauteur totale du micropieu (D70) : la valeur saisie est multipliée par -1
-' (ex. cote -12 saisie -> 12 m). Appelée quand la cellule change
-' (voir CodeFeuilleDonnees.txt).
-Public Sub InverserHauteur(c As Range)
-    If IsNumeric(c.Value) And Not IsEmpty(c.Value) Then c.Value = -c.Value
 End Sub
 
 ' Formule qui donne la valeur de la table valeurs (même ordre que NUANCES) pour

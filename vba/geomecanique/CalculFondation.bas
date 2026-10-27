@@ -1,12 +1,12 @@
-Attribute VB_Name = "CalculMicropieu"
+Attribute VB_Name = "CalculFondation"
 Option Explicit
 
 ' Module « Calcul et vérification » : crée (ou recrée) la feuille « Calcul et
-' vérification » des micropieux, à partir des feuilles « Données du projet »
+' vérification » de la fondation, à partir des feuilles « Données du projet »
 ' (module DonneesProjet) et « Tableaux NF P94-262 » (module TableauxNFP94262).
 ' Toutes les valeurs sont des formules : elles suivent les saisies de ces feuilles.
 '   B3  : Données du projet (type de pieu, méthode de calcul)
-'   B7  : Caractéristiques du micropieu, en 3 groupes séparés par 2 lignes vides :
+'   B7  : Caractéristiques de la fondation, en 3 groupes séparés par 2 lignes vides :
 '         abréviation, norme, classe, catégorie ; mode de fonctionnement (compression
 '         / traction), résistance de pointe, type de mise en oeuvre ; caractéristiques
 '         mécaniques (B, D, hauteur de la couche porteuse, Ab, Pe, frottement négligé)
@@ -18,6 +18,11 @@ Option Explicit
 '         qs,max (F.5.2.3), qs = min(alpha x fsol,i ; qs,max), As,i = Pe x hi,
 '         qs,i = qs / (gamma R;d1 x gamma R;d2), Rs,i = qs,i x As,i (0 si le terrain
 '         est neutralisé)
+'   S3  : à droite, détermination du sol d'ancrage (dernière couche renseignée), de la
+'         pression limite nette équivalente ple* = somme(pl*,i x dz) / (b + 3a) sur
+'         [D-b ; D+3a] et de la hauteur d'encastrement équivalente Def = somme(pl*,i x
+'         dz) / ple* sur [D-10B ; D], avec a = max(B/2 ; 0,5 m), b = min(a ; h),
+'         D = somme des épaisseurs, h = épaisseur de la dernière couche
 ' Méthode pressiométrique (annexe F) : fsol = (a.pl* + b)(1 - exp(-c.pl*)), pl* en
 ' MPa, fsol en kPa ; qs = min(alpha pieu-sol x fsol ; qs max).
 ' Catégories de sol de la feuille « Données du projet » -> colonnes des tableaux :
@@ -74,7 +79,7 @@ Public Sub CreerCalculVerification()
 
     With ws.Range("B1:I1")
         .Merge
-        .Value = "CALCUL ET VÉRIFICATION DES MICROPIEUX"
+        .Value = "CALCUL ET VÉRIFICATION DES FONDATIONS"
         .Font.Bold = True
         .Font.Color = VERT_FONCE
         .Font.Size = 14
@@ -87,27 +92,28 @@ Public Sub CreerCalculVerification()
     Ligne ws, 4, "Type de pieu", "=" & DONNEES & "D" & LIGNE_PIEU, ""
     Ligne ws, 5, "Méthode de calcul", "=" & DONNEES & "D" & LIGNE_COUCHES + MAX_COUCHES + 5, ""
 
-    ' --- Caractéristiques du micropieu : 3 groupes séparés par 2 lignes vides ---
-    etape = "caractéristiques du micropieu"
-    SousTitre ws, 7, "Caractéristiques du micropieu"
+    ' --- Caractéristiques de la fondation : 3 groupes séparés par 2 lignes vides ---
+    etape = "caractéristiques de la fondation"
+    SousTitre ws, 7, "Caractéristiques de la fondation"
     Ligne ws, 8, "Abréviation", "=" & DONNEES & "D" & LIGNE_PIEU + 7, ""
     Ligne ws, 9, "Norme de référence", "=" & DONNEES & "D" & LIGNE_PIEU + 4, ""
-    Ligne ws, 10, "Classe du micropieu", "=" & DONNEES & "D" & LIGNE_PIEU + 5, ""
-    Ligne ws, 11, "Catégorie du micropieu", "=" & DONNEES & "D" & LIGNE_PIEU + 6, ""
-    cat = "$D$11"                            ' catégorie du micropieu (cette feuille)
+    Ligne ws, 10, "Classe de la fondation", "=" & DONNEES & "D" & LIGNE_PIEU + 5, ""
+    Ligne ws, 11, "Catégorie de la fondation", "=" & DONNEES & "D" & LIGNE_PIEU + 6, ""
+    cat = "$D$11"                            ' catégorie de la fondation (cette feuille)
 
     Ligne ws, 14, "Mode de fonctionnement", "=" & DONNEES & "D" & LIGNE_PIEU + 8, ""
     Ligne ws, 15, "Prise en compte de la résistance de pointe", "=" & DONNEES & "D" & LIGNE_PIEU + 9, ""
     Ligne ws, 16, "Type de mise en oeuvre", "=" & DONNEES & "D" & LIGNE_PIEU + 10, ""
 
-    Ligne ws, 19, "Largeur du micropieu B", "=" & DONNEES & "D" & LIGNE_PIEU + 11, "m"
-    Ligne ws, 20, "Hauteur totale du micropieu dans la couche porteuse D", _
-        "=" & DONNEES & "D" & LIGNE_PIEU + 13, "m"
-    Ligne ws, 21, "Hauteur de la couche porteuse (dernière couche)", _
-        "=IFERROR(INDEX(" & DONNEES & "$F$" & lc & ":$F$" & lg & "," & nb & ")*1,"""")", "m"
-    Ligne ws, 22, "Aire de la base du micropieu Ab = " & ChrW(960) & ".B² / 4", _
+    Ligne ws, 19, "Largeur de la fondation B", "=" & DONNEES & "D" & LIGNE_PIEU + 11, "m"
+    ' D = somme des épaisseurs des couches du tableau du frottement axial (lignes 39 à 53)
+    Ligne ws, 20, "Hauteur totale de la fondation D (somme des épaisseurs)", _
+        "=IF(COUNT($F$39:$F$53)=0,"""",SUM($F$39:$F$53))", "m"
+    ' h = épaisseur de la dernière couche renseignée du tableau du frottement axial
+    Ligne ws, 21, "Hauteur de la couche porteuse h", Derniere("F"), "m"
+    Ligne ws, 22, "Aire de la base de la fondation Ab = " & ChrW(960) & ".B² / 4", _
         "=IF(N(D19)=0,"""",PI()*D19^2/4)", "m²"
-    Ligne ws, 23, "Périmètre du micropieu Pe = " & ChrW(960) & ".B", _
+    Ligne ws, 23, "Périmètre de la fondation Pe = " & ChrW(960) & ".B", _
         "=IF(N(D19)=0,"""",PI()*D19)", "m"
     ' Épaisseur des couches dont le terrain est neutralisé (frottement négligé)
     Ligne ws, 24, "Frottement négligé (épaisseur des terrains neutralisés)", _
@@ -138,8 +144,7 @@ Public Sub CreerCalculVerification()
     ' ligne 3 pour les catégories 10, 15 et 17 à 20, ligne 2 si la dernière couche est
     ' de la craie, ligne 1 sinon ; colonne compression / traction selon le mode
     zF21 = "IF($D$5=""Méthode pénétrométrique"",$D$33:$F$35,$D$28:$F$30)"
-    ligneF21 = "IF(OR(" & cat & "=10," & cat & "=15," & cat & ">=17),3,IF(INDEX(" & DONNEES & _
-        "$D$" & lc & ":$D$" & lg & "," & nb & ")=""Craies"",2,1))"
+    ligneF21 = "IF(OR(" & cat & "=10," & cat & "=15," & cat & ">=17),3,IF($U$5=""Craies"",2,1))"
     gamma = "INDEX(" & zF21 & "," & ligneF21 & ",IF($D$14=""Traction"",2,1))*INDEX(" & zF21 & _
         "," & ligneF21 & ",3)"
 
@@ -156,27 +161,77 @@ Public Sub CreerCalculVerification()
     Next i
     lt = r + 1 + MAX_COUCHES                 ' dernière ligne du tableau
 
+    ' --- À droite (colonnes S à X) : sol d'ancrage, pression limite nette équivalente
+    ' ple* et hauteur d'encastrement équivalente Def (NF P94-262, annexe F), d'après les
+    ' couches du tableau du frottement axial (lignes 39 à 53, dernière couche = ancrage)
+    etape = "ancrage"
+    SousTitre ws, 3, "Détermination du sol d'ancrage", "S"
+    LigneD ws, 4, "Couche d'ancrage (dernière couche renseignée)", Derniere("C"), ""
+    LigneD ws, 5, "Catégorie de sol", Derniere("D"), ""
+    LigneD ws, 6, "Pression limite pl*", Derniere("G"), "MPa"
+    LigneD ws, 7, "Hauteur de la couche porteuse h", "=$D$21", "m"
+    ' Couches traversées par les intervalles [D-b ; D+3a] (ple*) et [D-10B ; D] (Def) ;
+    ' la dernière couche est supposée se prolonger sous la base de la fondation
+    SousTitre ws, 9, "Détermination de la pression limite nette équivalente ple*", "S"
+    SousTitre ws, 28, "Détermination de la hauteur d'encastrement équivalente Def", "S"
+    For i = 0 To 1
+        r = IIf(i = 0, 10, 29)               ' ligne d'en-tête
+        ws.Range("S" & r & ":X" & r).Value = Array("N°", "Couche", "z haut (m)", "z bas (m)", _
+            IIf(i = 0, ChrW(916) & "z dans [D-b ; D+3a] (m)", ChrW(916) & "z dans [D-10B ; D] (m)"), _
+            IIf(i = 0, "pl*,i x " & ChrW(916) & "z (MPa.m)", "pl*,i x " & ChrW(916) & "z / ple* (m)"))
+        For lt = 1 To MAX_COUCHES
+            AncrageLigne ws, r + lt, 38 + lt, i = 0
+        Next lt
+        lt = r + MAX_COUCHES + 1             ' ligne du résultat
+        ws.Range("S" & lt).Value = IIf(i = 0, "ple* = " & ChrW(931) & " (pl*,i x " & ChrW(916) & _
+            "z) / (b + 3a)  (MPa)", "Def = " & ChrW(931) & " (pl*,i x " & ChrW(916) & "z) / ple*  (m)")
+        ws.Range("S" & lt & ":W" & lt).Merge
+        ws.Range("X" & lt).Formula = IIf(i = 0, "=IF(OR(COUNT(X11:X25)=0,N(U52)=0),"""",SUM(X11:X25)/U52)", _
+            "=IF(COUNT(X30:X44)=0,"""",SUM(X30:X44))")
+        ws.Range("S" & lt & ":X" & lt).Font.Bold = True
+    Next i
+    ws.Range("U11:X26,U30:X45").NumberFormat = "0.00"
+
+    ' Paramètres des intervalles (en tête : nom de la couche d'ancrage)
+    LigneD ws, 47, "Paramètres de calcul de ple*", "=$U$4", ""
+    LigneD ws, 48, "a = max(B/2 ; 0,5 m)", "=IF(N($D$19)=0,"""",MAX($D$19/2,0.5))", "m"
+    LigneD ws, 49, "b = min(a ; h)", "=IF(OR(U48="""",N($D$21)=0),"""",MIN(U48,$D$21))", "m"
+    LigneD ws, 50, "D - b", "=IF(OR(U49="""",$D$20=""""),"""",$D$20-U49)", "m"
+    LigneD ws, 51, "D + 3a", "=IF(OR(U48="""",$D$20=""""),"""",$D$20+3*U48)", "m"
+    LigneD ws, 52, "b + 3a", "=IF(U49="""","""",U49+3*U48)", "m"
+    LigneD ws, 54, "Paramètres de calcul de Def", "=$U$4", ""
+    LigneD ws, 55, "10 B", "=IF(N($D$19)=0,"""",10*$D$19)", "m"
+    LigneD ws, 56, "D - 10 B", "=IF(OR(U55="""",$D$20=""""),"""",$D$20-U55)", "m"
+    ws.Range("U48:U52,U55:U56").NumberFormat = "0.00"
+
     ' --- Mise en forme ---
     etape = "mise en forme"
-    With ws.Range("B4:E5,B8:E11,B14:E16,B19:E24,B27:F30,B32:F35,B" & r + 1 & ":Q" & lt)
+    r = 37
+    lt = r + 1 + MAX_COUCHES
+    With ws.Range("B4:E5,B8:E11,B14:E16,B19:E24,B27:F30,B32:F35,B" & r + 1 & ":Q" & lt & _
+            ",S4:V7,S10:X26,S29:X45,S47:V52,S54:V56")
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    With ws.Range("B27:F27,B32:F32,B" & r + 1 & ":Q" & r + 1)
+    With ws.Range("B27:F27,B32:F32,B" & r + 1 & ":Q" & r + 1 & ",S10:X10,S29:X29,S47:V47,S54:V54")
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
         .Interior.Color = VERT_ENTETE
     End With
     ' Valeurs non saisies (reprises ou calculées) en jaune ; tableau du frottement axial
     ' sans couleur
-    ws.Range("D4:D5,D8:D11,D14:D16,D19:D24,D28:F30,D33:F35").Interior.Color = JAUNE_CALCUL
-    ws.Range("D4:F35,B" & r + 2 & ":B" & lt & ",E" & r + 2 & ":Q" & lt).HorizontalAlignment = xlCenter
+    ws.Range("D4:D5,D8:D11,D14:D16,D19:D24,D28:F30,D33:F35,U4:U7,U48:U52,U55:U56,X26,X45").Interior.Color = _
+        JAUNE_CALCUL
+    ws.Range("D4:F35,B" & r + 2 & ":B" & lt & ",E" & r + 2 & ":Q" & lt & _
+        ",U4:V56,S11:S25,U11:X25,S30:S44,U30:X44").HorizontalAlignment = xlCenter
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 30
     ws.Columns("D").ColumnWidth = 30
     ws.Columns("E:Q").ColumnWidth = 12
+    ws.Columns("R").ColumnWidth = 3
+    ws.Columns("S:X").ColumnWidth = 16
     ws.Activate
 
 Fin:
@@ -188,6 +243,43 @@ Erreur:
     Resume Fin
 End Sub
 
+' Valeur de la colonne col pour la dernière couche renseignée (nom en colonne C) du
+' tableau du frottement axial (lignes 39 à 53)
+Private Function Derniere(col As String) As String
+    Derniere = "=IFERROR(LOOKUP(2,1/($C$39:$C$53<>""""),$" & col & "$39:$" & col & "$53),"""")"
+End Function
+
+' Une ligne « intitulé (S:T fusionnées) | valeur (U) | unité (V) » à droite
+Private Sub LigneD(ws As Worksheet, r As Long, intitule As String, formule As String, unite As String)
+    ws.Range("S" & r).Value = intitule
+    ws.Range("S" & r & ":T" & r).Merge
+    ws.Range("U" & r).Formula = formule
+    ws.Range("V" & r).Value = unite
+End Sub
+
+' Ligne r d'un tableau ple* (ple = True) ou Def pour la couche de la ligne fr du
+' tableau du frottement axial : z haut et z bas cumulés depuis le TN, épaisseur
+' comprise dans l'intervalle [D-b ; D+3a] (ple*) ou [D-10B ; D] (Def)
+Private Sub AncrageLigne(ws As Worksheet, r As Long, fr As Long, ple As Boolean)
+    Dim cond As String, zbas As String
+    cond = "=IF($C$" & fr & "="""","""","
+    ws.Range("S" & r).Formula = cond & "$B$" & fr & ")"
+    ws.Range("T" & r).Formula = cond & "$C$" & fr & ")"
+    ws.Range("V" & r).Formula = cond & "SUM($F$39:$F$" & fr & "))"
+    ws.Range("U" & r).Formula = cond & "V" & r & "-N($F$" & fr & "))"
+    If ple Then
+        ' dernière couche : prolongée sous la base (z bas très grand)
+        If fr = 53 Then zbas = "1E+9" Else zbas = "IF(COUNTIF($C$" & fr + 1 & ":$C$53,""?*"")=0,1E+9,V" & r & ")"
+        ws.Range("W" & r).Formula = cond & "IFERROR(MAX(0,MIN(" & zbas & ",$U$51)-MAX(U" & r & ",$U$50)),""""))"
+        ws.Range("X" & r).Formula = "=IF(OR(W" & r & "="""",NOT(ISNUMBER($G$" & fr & "))),""""," & _
+            "$G$" & fr & "*W" & r & ")"
+    Else
+        ws.Range("W" & r).Formula = cond & "IFERROR(MAX(0,MIN(V" & r & ",$D$20)-MAX(U" & r & ",$U$56)),""""))"
+        ws.Range("X" & r).Formula = "=IF(OR(W" & r & "="""",NOT(ISNUMBER($G$" & fr & ")),N($X$26)=0)," & _
+            """"",$G$" & fr & "*W" & r & "/$X$26)"
+    End If
+End Sub
+
 ' Une ligne « intitulé (B:C fusionnées) | valeur ou formule (D) | unité (E) »
 Private Sub Ligne(ws As Worksheet, r As Long, intitule As String, formule As String, unite As String)
     ws.Range("B" & r).Value = intitule
@@ -197,8 +289,8 @@ Private Sub Ligne(ws As Worksheet, r As Long, intitule As String, formule As Str
 End Sub
 
 ' Sous-titre en gras, souligné, en colonne B
-Private Sub SousTitre(ws As Worksheet, r As Long, texte As String)
-    With ws.Range("B" & r)
+Private Sub SousTitre(ws As Worksheet, r As Long, texte As String, Optional col As String = "B")
+    With ws.Range(col & r)
         .Value = texte
         .Font.Bold = True
         .Font.Underline = xlUnderlineStyleSingle

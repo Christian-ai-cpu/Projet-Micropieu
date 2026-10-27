@@ -4,7 +4,6 @@
 ' Toutes les réactions aux saisies sont dans ChangementDonnees (module DonneesProjet) :
 ' - phase du projet : la ligne « Type de fondation » s'affiche seulement pour G5 ;
 ' - nombre de couches : le tableau des couches affiche ce nombre de lignes ;
-' - hauteur totale du micropieu : valeur saisie multipliée par -1 ;
 ' - type d'armature : liste des classes d'acier (tubes ou barres HA) ;
 ' - classe de l'acier : diamètres et épaisseur du tube remplis.
 ' Ce code n'a plus à être modifié quand la disposition de la feuille change.
