@@ -10,14 +10,18 @@ Option Explicit
 '         abréviation, norme, classe, catégorie ; mode de fonctionnement (compression
 '         / traction), résistance de pointe, type de mise en oeuvre ; caractéristiques
 '         mécaniques (B, D, hauteur de la couche porteuse, Ab, Pe, frottement négligé)
-'   B26 : Coefficients de modèle gamma R;d1 et R;d2 (tableaux F.2.1 et G.2.1 recopiés
-'         sur la feuille et utilisés dans le calcul de qs,i, selon la méthode de calcul)
+'   B26 : Facteurs partiels de résistance ELU (C.2.3.1, C.2.3.2) et ELS (14.2.1.1,
+'         14.2.1.2) ; les coefficients de modèle gamma R;d1 et R;d2 du calcul de qs,i
+'         sont lus dans la feuille « Tableaux NF P94-262 » (F.2.1 ou G.2.1)
 '   B37 : Frottement axial unitaire et résistance par couche (calculés si le nom et la
 '         catégorie de la couche sont renseignés), notations de la norme : profondeur,
 '         hi, pl*,i, courbe et a, b, c (F.5.2.2), alpha pieu-sol (F.5.2.1), fsol,i,
 '         qs,max (F.5.2.3), qs = min(alpha x fsol,i ; qs,max), As,i = Pe x hi,
 '         qs,i = qs / (gamma R;d1 x gamma R;d2), Rs,i = qs,i x As,i (0 si le terrain
 '         est neutralisé)
+'   B56 : valeurs caractéristiques (Rb,k, Rs,k, Rc,k, Rt,k, Rc;cr,k, Rt;cr,k) puis
+'         valeurs de calcul ELU fondamental / accidentel et ELS caractéristique /
+'         quasi permanent (compression et traction)
 '   U3  : à droite, détermination du sol d'ancrage (dernière couche renseignée), de la
 '         pression limite nette équivalente ple* = somme(pl*,i x dz) / (b + 3a) sur
 '         [D-b ; D+3a] et de la hauteur d'encastrement équivalente Def = somme(pl*,i x
@@ -46,7 +50,7 @@ Public Sub CreerCalculVerification()
     Dim ws As Worksheet, wt As Worksheet, r As Long, i As Long, lc As Long
     Dim zAlpha As String, zABC As String, zQs As String, nb As String, cat As String
     Dim lg As Long, etape As String, zF21 As String, ligneF21 As String, lt As Long, gamma As String
-    Dim zKp As String
+    Dim zKp As String, c As String
 
     Application.ScreenUpdating = False
     On Error GoTo Erreur
@@ -126,31 +130,33 @@ Public Sub CreerCalculVerification()
         "OFFSET(" & DONNEES & "$F$" & lc & ",0,0," & nb & ")))", "m"
     ws.Range("D19:D24").NumberFormat = "0.000"
 
-    ' --- Coefficients de modèle (NF P94-262, tableaux F.2.1 et G.2.1) ---
-    etape = "coefficients de modèle"
-    SousTitre ws, 26, "Coefficients de modèle (NF P94-262, tableaux F.2.1 et G.2.1)"
-    For i = 0 To 1                           ' 0 : pressiomètre (F.2.1), 1 : pénétromètre (G.2.1)
-        r = 27 + 5 * i
-        ws.Range("B" & r & ":F" & r).Value = Array(IIf(i = 0, "Méthode pressiométrique (F.2.1)", _
-            "Méthode pénétrométrique (G.2.1)"), "", ChrW(947) & "R;d1 compression", _
-            ChrW(947) & "R;d1 traction", ChrW(947) & "R;d2")
-        ws.Range("B" & r + 1 & ":F" & r + 1).Value = Array("Classes 1 à 7 (hors catégories 10 et 15)", _
-            "", IIf(i = 0, 1.15, 1.18), IIf(i = 0, 1.4, 1.45), 1.1)
-        ws.Range("B" & r + 2 & ":F" & r + 2).Value = Array("Classes 1 à 7 ancrées dans la craie", _
-            "", IIf(i = 0, 1.4, 1.45), IIf(i = 0, 1.7, 1.75), 1.1)
-        ws.Range("B" & r + 3 & ":F" & r + 3).Value = Array("Catégories 10, 15, 17 à 20", "", 2, 2, 1.1)
-        For lt = r To r + 3
-            ws.Range("B" & lt & ":C" & lt).Merge
-        Next lt
+    ' --- Facteurs partiels de résistance (NF P94-262) : ELU (tableaux C.2.3.1 et
+    ' C.2.3.2) et ELS (tableaux 14.2.1.1 et 14.2.1.2), utilisés pour les valeurs de calcul
+    etape = "facteurs partiels"
+    SousTitre ws, 26, "Facteurs partiels de résistance (NF P94-262)"
+    ws.Range("B27:E27").Value = Array("ELU (tableaux C.2.3.1 et C.2.3.2)", "", _
+        "Situations durables et transitoires", "Situations accidentelles")
+    ws.Range("B28:E28").Value = Array("Pointe " & ChrW(947) & "b", "", 1.1, 1)
+    ws.Range("B29:E29").Value = Array("Fût en compression " & ChrW(947) & "s", "", 1.1, 1)
+    ws.Range("B30:E30").Value = Array("Total en compression " & ChrW(947) & "t", "", 1.1, 1)
+    ws.Range("B31:E31").Value = Array("Fût en traction " & ChrW(947) & "s;t", "", 1.15, 1.05)
+    ws.Range("B33:E33").Value = Array("ELS (tableaux 14.2.1.1 et 14.2.1.2)", "", _
+        "Combinaisons caractéristiques", "Combinaisons quasi permanentes")
+    ws.Range("B34:E34").Value = Array("Fût en compression " & ChrW(947) & "cr", "", 0.9, 1.1)
+    ws.Range("B35:E35").Value = Array("Fût en traction " & ChrW(947) & "s;cr", "", 1.1, 1.5)
+    For i = 27 To 35
+        If i <> 32 Then ws.Range("B" & i & ":C" & i).Merge
     Next i
-    ws.Range("D28:F30,D33:F35").NumberFormat = "0.00"
-    ' gamma R;d1 et R;d2 lus dans ces tableaux : tableau selon la méthode de calcul ;
-    ' ligne 3 pour les catégories 10, 15 et 17 à 20, ligne 2 si la dernière couche est
-    ' de la craie, ligne 1 sinon ; colonne compression / traction selon le mode
-    zF21 = "IF($D$5=""Méthode pénétrométrique"",$D$33:$F$35,$D$28:$F$30)"
+    ws.Range("D28:E31,D34:E35").NumberFormat = "0.00"
+    ' Coefficients de modèle gamma R;d1 et R;d2 lus dans la feuille « Tableaux NF P94-262 »
+    ' (tableau F.2.1 ou G.2.1 selon la méthode de calcul) : ligne 3 pour les catégories
+    ' 10, 15 et 17 à 20, ligne 2 si le sol d'ancrage est de la craie, ligne 1 sinon ;
+    ' colonnes compression / traction selon le mode de fonctionnement
+    zF21 = "IF($D$5=""Méthode pénétrométrique""," & ZoneTableau(wt, "Tableau G.2.1", 0, 3, 4) & "," & _
+        ZoneTableau(wt, "Tableau F.2.1", 0, 3, 4) & ")"
     ligneF21 = "IF(OR(" & cat & "=10," & cat & "=15," & cat & ">=17),3,IF($W$5=""Craies"",2,1))"
     gamma = "INDEX(" & zF21 & "," & ligneF21 & ",IF($D$14=""Traction"",2,1))*INDEX(" & zF21 & _
-        "," & ligneF21 & ",3)"
+        "," & ligneF21 & ",IF($D$14=""Traction"",4,3))"
 
     ' --- Frottement axial unitaire par couche (notations de la NF P94-262) ---
     etape = "frottement par couche"
@@ -225,26 +231,66 @@ Public Sub CreerCalculVerification()
     ws.Range("W60:W65").NumberFormat = "0.00"
     ws.Range("U65:X65").Font.Bold = True
 
+    ' --- Sous le frottement axial : valeurs caractéristiques puis valeurs de calcul ---
+    etape = "valeurs caractéristiques"
+    SousTitre ws, 56, "Valeurs caractéristiques des résistances"
+    ' Rb,k = Rb / (gamma R;d1 x gamma R;d2) si la résistance de pointe est prise en compte
+    Ligne ws, 57, "Résistance de pointe Rb,k = Rb / (" & ChrW(947) & "R;d1 x " & ChrW(947) & "R;d2)", _
+        "=IF($D$15<>""Oui"",0,IFERROR($W$65/(" & gamma & "),""""))", "kN"
+    Ligne ws, 58, "Résistance de frottement Rs,k = " & ChrW(931) & " Rs,i", _
+        "=IF(COUNT($P$39:$P$53)=0,"""",SUM($P$39:$P$53))", "kN"
+    Ligne ws, 60, "Portance Rc,k = Rb,k + Rs,k (compression)", _
+        "=IF(AND($D$14=""Compression"",ISNUMBER(D58)),N(D57)+D58,"""")", "kN"
+    Ligne ws, 61, "Résistance en traction Rt,k = Rs,k", "=IF(ISNUMBER(D58),D58,"""")", "kN"
+    Ligne ws, 62, "Charge de fluage en compression Rc;cr,k = 0,5 Rb,k + 0,7 Rs,k", _
+        "=IF(AND($D$14=""Compression"",ISNUMBER(D58)),0.5*N(D57)+0.7*D58,"""")", "kN"
+    Ligne ws, 63, "Charge de fluage en traction Rt;cr,k = 0,7 Rt,k", _
+        "=IF(ISNUMBER(D61),0.7*D61,"""")", "kN"
+    ws.Range("D57:D63").NumberFormat = "0.0"
+
+    etape = "valeurs de calcul"
+    SousTitre ws, 65, "Valeurs de calcul des résistances"
+    ws.Range("B66:E66").Value = Array("Combinaison", "", "Compression (kN)", "Traction (kN)")
+    ' ELU : Rc,d = Rb,k / gamma b + Rs,k / gamma s ; Rt,d = Rt,k / gamma s;t
+    ' ELS : Rc;cr,d = Rc;cr,k / gamma cr ; Rt;cr,d = Rt;cr,k / gamma s;cr
+    For i = 0 To 3
+        r = 67 + i
+        c = Chr(Asc("D") + (i Mod 2))        ' colonne du facteur : D (durable / caract.), E
+        ws.Range("B" & r).Value = Array("ELU fondamental (C.2.3.1)", "ELU accidentel (C.2.3.2)", _
+            "ELS caractéristique (14.2.1.1)", "ELS quasi permanent (14.2.1.2)")(i)
+        ws.Range("B" & r & ":C" & r).Merge
+        If i < 2 Then
+            ws.Range("D" & r).Formula = "=IF(D60="""","""",N(D57)/" & c & "28+D58/" & c & "29)"
+            ws.Range("E" & r).Formula = "=IF(D61="""","""",D61/" & c & "31)"
+        Else
+            ws.Range("D" & r).Formula = "=IF(D62="""","""",D62/" & c & "34)"
+            ws.Range("E" & r).Formula = "=IF(D63="""","""",D63/" & c & "35)"
+        End If
+    Next i
+    ws.Range("D67:E70").NumberFormat = "0.0"
+
+
     ' --- Mise en forme ---
     etape = "mise en forme"
     r = 37
     lt = r + 1 + MAX_COUCHES
-    With ws.Range("B4:E5,B8:E11,B14:E16,B19:E24,B27:F30,B32:F35,B" & r + 1 & ":Q" & lt & _
-            ",U4:X7,U10:Z26,U29:Z45,U47:X52,U54:X56,U59:X65")
+    With ws.Range("B4:E5,B8:E11,B14:E16,B19:E24,B27:E31,B33:E35,B" & r + 1 & ":Q" & lt & _
+            ",B57:E58,B60:E63,B66:E70,U4:X7,U10:Z26,U29:Z45,U47:X52,U54:X56,U59:X65")
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    With ws.Range("B27:F27,B32:F32,B" & r + 1 & ":Q" & r + 1 & ",U10:Z10,U29:Z29,U47:X47,U54:X54")
+    With ws.Range("B27:E27,B33:E33,B66:E66,B" & r + 1 & ":Q" & r + 1 & ",U10:Z10,U29:Z29,U47:X47,U54:X54")
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
         .Interior.Color = VERT_ENTETE
     End With
     ' Valeurs non saisies (reprises ou calculées) en jaune ; tableau du frottement axial
     ' sans couleur
-    ws.Range("D4:D5,D8:D11,D14:D16,D19:D24,D28:F30,D33:F35,W4:W7,W48:W52,W55:W56,Z26,Z45,W59:W65").Interior.Color = _
+    ws.Range("D4:D5,D8:D11,D14:D16,D19:D24,D28:E31,D34:E35,D57:D58,D60:D63,D67:E70,W4:W7,W48:W52," & _
+        "W55:W56,Z26,Z45,W59:W65").Interior.Color = _
         JAUNE_CALCUL
-    ws.Range("D4:F35,B" & r + 2 & ":B" & lt & ",E" & r + 2 & ":Q" & lt & _
+    ws.Range("D4:F35,D57:E70,B" & r + 2 & ":B" & lt & ",E" & r + 2 & ":Q" & lt & _
         ",W4:X65,U11:U25,W11:Z25,U30:U44,W30:Z44").HorizontalAlignment = xlCenter
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
@@ -393,7 +439,9 @@ Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat A
     ws.Range("M" & r).Formula = FormuleQs("$K$" & r, "$L$" & r)
     ws.Range("N" & r).Formula = "=IF(OR(B" & r & "="""",F" & r & "="""",N($D$23)=0),""""," & _
         "$D$23*F" & r & ")"
-    ws.Range("O" & r).Formula = "=IF(B" & r & "="""","""",IFERROR(M" & r & "/(" & gamma & "),""-""))"
+    ' qs,i = qs / (gamma R;d1 x gamma R;d2) ; 0 si le terrain est neutralisé
+    ws.Range("O" & r).Formula = "=IF(B" & r & "="""","""",IF(Q" & r & "=""Oui"",0," & _
+        "IFERROR(M" & r & "/(" & gamma & "),""-"")))"
     ws.Range("P" & r).Formula = "=IF(AND(ISNUMBER(O" & r & "),ISNUMBER(N" & r & "))," & _
         "IF(Q" & r & "=""Oui"",0,O" & r & "*N" & r & "),IF(B" & r & "="""","""",""-""))"
     ws.Range("Q" & r).Formula = cond & DONNEES & "$I$" & ld & ")"
