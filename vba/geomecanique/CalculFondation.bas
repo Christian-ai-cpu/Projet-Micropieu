@@ -29,10 +29,8 @@ Option Explicit
 '         D = somme des épaisseurs, h = épaisseur de la dernière couche
 '         puis kp (kp max du tableau F.4.2.1 et Def/B) et Rb = Ab x kp x ple* ;
 '         colonnes masquées pour les micropieux (catégories 17 à 20)
-' Méthode pressiométrique (annexe F, pl*) ou pénétrométrique (annexe G, qc) selon le
-' choix de « Données du projet » : fsol = (a.X + b)(1 - exp(-c.X)), X = pl* ou qc en
-' MPa, fsol en kPa ; qs = min(alpha pieu-sol x fsol ; qs max) ; ple* devient qce et
-' kp devient kc (k0 + (kc max - k0) x Def/B / 5).
+' Méthode pressiométrique (annexe F) : fsol = (a.pl* + b)(1 - exp(-c.pl*)), pl* en
+' MPa, fsol en kPa ; qs = min(alpha pieu-sol x fsol ; qs max).
 ' Catégories de sol de la feuille « Données du projet » -> colonnes des tableaux :
 '   tableaux à 5 colonnes (F.5.2.1, F.5.2.2) : argiles et sols intermédiaires -> 1re
 '   colonne, sables et graves -> 2e, craies -> 3e, marnes -> 4e, roches -> 5e ;
@@ -41,10 +39,6 @@ Option Explicit
 Private Const NOM_FEUILLE As String = "Calcul et vérification"
 Private Const DONNEES As String = "'Données du projet'!"
 Private Const TABLEAUX As String = "Tableaux NF P94-262"
-' Méthode de calcul choisie (D5) : pénétrométrique (annexe G, qc) ou pressiométrique
-' (annexe F, pl*) ; les tableaux de la norme, les colonnes de sols, les libellés et
-' les formules suivent ce choix
-Private Const PENETRO As String = "$D$5=""Méthode pénétrométrique"""
 
 ' Thème vert : saisies en vert, valeurs non saisies (calculées) en jaune, en-têtes et
 ' titres en vert (couleurs RGB écrites en nombre : rouge + 256 x vert + 65536 x bleu)
@@ -72,11 +66,10 @@ Public Sub CreerCalculVerification()
         Set wt = ActiveWorkbook.Worksheets(TABLEAUX)
     End If
     ' Plages de valeurs des tableaux utilisés (adresses absolues sur cette feuille)
-    ' (annexe G si la méthode est pénétrométrique, annexe F sinon)
-    zAlpha = Zone2(wt, "5.2.1", 20)          ' alpha pieu-sol, 20 catégories
-    zABC = Zone2(wt, "5.2.2", 4)             ' courbe, a, b, c
-    zQs = Zone2(wt, "5.2.3", 20)             ' qs max, 20 catégories
-    zKp = Zone2(wt, "4.2.1", 8)              ' kp max ou kc max, 8 classes
+    zAlpha = ZoneTableau(wt, "Tableau F.5.2.1", 0, 20, 5)   ' 20 catégories x 5 sols
+    zABC = ZoneTableau(wt, "Tableau F.5.2.2", 0, 4, 5)      ' courbe, a, b, c x 5 sols
+    zQs = ZoneTableau(wt, "Tableau F.5.2.3", 0, 20, 6)      ' 20 catégories x 6 sols
+    zKp = ZoneTableau(wt, "Tableau F.4.2.1", 0, 8, 5)       ' 8 classes x 5 sols
 
     etape = "création de la feuille"
     On Error Resume Next
@@ -174,7 +167,6 @@ Public Sub CreerCalculVerification()
         "Profondeur (m/TN)", "hi (m)", "pl*,i (MPa)", "Courbe fsol", ChrW(945) & "pieu-sol", _
         "fsol,i (kPa)", ChrW(945) & "pieu-sol x fsol,i (kPa)", "qs,max (kPa)", "qs = min (kPa)", _
         "As,i (m²)", "qs,i (kPa)", "Rs,i (kN)", "Terrain neutralisé")
-    ws.Range("G" & r + 1).Formula = Texte("pl*,i (MPa)", "qc,i (MPa)")
     For i = 1 To MAX_COUCHES
         CoucheLigne ws, r + 1 + i, i, lc + i - 1, cat, gamma, zAlpha, zABC, zQs
     Next i
@@ -189,43 +181,32 @@ Public Sub CreerCalculVerification()
     SousTitre ws, 3, "Détermination du sol d'ancrage", "U"
     LigneD ws, 4, "Couche d'ancrage (dernière couche renseignée)", Derniere("C"), ""
     LigneD ws, 5, "Catégorie de sol", Derniere("D"), ""
-    LigneD ws, 6, Texte("Pression limite pl*", "Résistance de pointe qc"), Derniere("G"), "MPa"
+    LigneD ws, 6, "Pression limite pl*", Derniere("G"), "MPa"
     LigneD ws, 7, "Hauteur de la couche porteuse h", "=$D$21", "m"
     ' Couches traversées par les intervalles [D-b ; D+3a] (ple*) et [D-10B ; D] (Def) ;
     ' la dernière couche est supposée se prolonger sous la base de la fondation
-    SousTitre ws, 9, Texte("Détermination de la pression limite nette équivalente ple*", _
-        "Détermination de la résistance de pointe équivalente qce"), "U"
+    SousTitre ws, 9, "Détermination de la pression limite nette équivalente ple*", "U"
     SousTitre ws, 28, "Détermination de la hauteur d'encastrement équivalente Def", "U"
     For i = 0 To 1
         r = IIf(i = 0, 10, 29)               ' ligne d'en-tête
         ws.Range("U" & r & ":Z" & r).Value = Array("N°", "Couche", "z haut (m)", "z bas (m)", _
             IIf(i = 0, ChrW(916) & "z dans [D-b ; D+3a] (m)", ChrW(916) & "z dans [D-10B ; D] (m)"), _
-            IIf(i = 0, Texte("pl*,i x " & ChrW(916) & "z (MPa.m)", "qc,i x " & ChrW(916) & "z (MPa.m)"), _
-                Texte("pl*,i x " & ChrW(916) & "z / ple* (m)", "qc,i x " & ChrW(916) & "z / qce (m)")))
+            IIf(i = 0, "pl*,i x " & ChrW(916) & "z (MPa.m)", "pl*,i x " & ChrW(916) & "z / ple* (m)"))
         For lt = 1 To MAX_COUCHES
             AncrageLigne ws, r + lt, 38 + lt, i = 0
         Next lt
         lt = r + MAX_COUCHES + 1             ' ligne du résultat
-        ws.Range("U" & lt).Formula = IIf(i = 0, Texte("ple* = " & ChrW(931) & " (pl*,i x " & ChrW(916) & _
-            "z) / (b + 3a)  (MPa)", "qcm = " & ChrW(931) & " (qc,i x " & ChrW(916) & "z) / (b + 3a)  (MPa)"), _
-            Texte("Def = " & ChrW(931) & " (pl*,i x " & ChrW(916) & "z) / ple*  (m)", "Def = " & ChrW(931) & _
-            " (qc,i x " & ChrW(916) & "z) / qce  (m)"))
+        ws.Range("U" & lt).Value = IIf(i = 0, "ple* = " & ChrW(931) & " (pl*,i x " & ChrW(916) & _
+            "z) / (b + 3a)  (MPa)", "Def = " & ChrW(931) & " (pl*,i x " & ChrW(916) & "z) / ple*  (m)")
         ws.Range("U" & lt & ":Y" & lt).Merge
         ws.Range("Z" & lt).Formula = IIf(i = 0, "=IF(OR(COUNT(Z11:Z25)=0,N(W52)=0),"""",SUM(Z11:Z25)/W52)", _
             "=IF(COUNT(Z30:Z44)=0,"""",SUM(Z30:Z44))")
         ws.Range("U" & lt & ":Z" & lt).Font.Bold = True
     Next i
-    ' Ecr�tage de qc (G.4.2 (3)) : qcc = min(qc ; 1,3 qcm), qce = moyenne de qcc sur (b + 3a)
-    ws.Range("AA10").Formula = Texte("", "qcc,i x " & ChrW(916) & "z (MPa.m)")
-    ws.Range("U27").Formula = Texte("ple* retenue  (MPa)", "qce = " & ChrW(931) & " (qcc,i x " & ChrW(916) & _
-        "z) / (b + 3a) avec qcc = min(qc ; 1,3 qcm)  (MPa)")
-    ws.Range("U27:Y27").Merge
-    ws.Range("Z27").Formula = "=IF(" & PENETRO & ",IF(OR(COUNT(AA11:AA25)=0,N(W52)=0),"""",SUM(AA11:AA25)/W52),Z26)"
-    ws.Range("U27:Z27").Font.Bold = True
-    ws.Range("W11:AA27,W30:Z45").NumberFormat = "0.00"
+    ws.Range("W11:Z26,W30:Z45").NumberFormat = "0.00"
 
     ' Paramètres des intervalles (en tête : nom de la couche d'ancrage)
-    LigneD ws, 47, Texte("Paramètres de calcul de ple*", "Paramètres de calcul de qce"), "=$W$4", ""
+    LigneD ws, 47, "Paramètres de calcul de ple*", "=$W$4", ""
     LigneD ws, 48, "a = max(B/2 ; 0,5 m)", "=IF(N($D$19)=0,"""",MAX($D$19/2,0.5))", "m"
     LigneD ws, 49, "b = min(a ; h)", "=IF(OR(W48="""",N($D$21)=0),"""",MIN(W48,$D$21))", "m"
     LigneD ws, 50, "D - b", "=IF(OR(W49="""",$D$20=""""),"""",$D$20-W49)", "m"
@@ -236,27 +217,17 @@ Public Sub CreerCalculVerification()
     LigneD ws, 56, "D - 10 B", "=IF(OR(W55="""",$D$20=""""),"""",$D$20-W55)", "m"
     ws.Range("W48:W52,W55:W56").NumberFormat = "0.00"
 
-    ' Facteur de portance kp (F.4.2) ou kc (G.4.2) et résistance de pointe
-    ' Rb = Ab x kp x ple* ou Ab x kc x qce. Def/B <= 5 : kp = 1 + (kp max - 1) x (Def/B)/5,
-    ' kc = k0 + (kc max - k0) x (Def/B)/5 avec k0 = 0,3 argiles, 0,2 sols intermédiaires,
-    ' 0,1 sables et graves, 0,15 craies, marnes et roches
-    SousTitre ws, 58, Texte("Détermination du facteur de portance kp et de la résistance de pointe Rb", _
-        "Détermination du facteur de portance kc et de la résistance de pointe Rb"), "U"
+    ' Facteur de portance kp (F.4.2) et résistance de pointe Rb = Ab x kp x ple*
+    SousTitre ws, 58, "Détermination du facteur de portance kp et de la résistance de pointe Rb", "U"
     LigneD ws, 59, "Classe de la fondation", "=$D$10", ""
-    LigneD ws, 60, Texte("kp max (tableau F.4.2.1, classe et sol d'ancrage)", _
-        "kc max (tableau G.4.2.1, classe et sol d'ancrage)"), _
-        "=IFERROR(INDEX(" & zKp & ",VALUE(LEFT($D$10,1))," & RangSol("$W$5") & "),"""")", ""
+    LigneD ws, 60, "kp max (tableau F.4.2.1, classe et sol d'ancrage)", _
+        "=IFERROR(INDEX(" & zKp & ",VALUE(LEFT($D$10,1))," & Rang5("$W$5") & "),"""")", ""
     LigneD ws, 61, "Def / B", "=IF(OR($Z$45="""",N($D$19)=0),"""",$Z$45/$D$19)", ""
-    LigneD ws, 62, Texte("kp = kp max si Def/B > 5, sinon 1 + (kp max - 1) x (Def/B) / 5", _
-        "kc = kc max si Def/B > 5, sinon k0 + (kc max - k0) x (Def/B) / 5"), _
-        "=IF(OR(NOT(ISNUMBER(W60)),W61=""""),"""",IF(W61>5,W60,IF(" & PENETRO & "," & _
-        "CHOOSE(" & Rang6("$W$5") & ",0.3,0.2,0.1,0.15,0.15,0.15)+(W60-CHOOSE(" & Rang6("$W$5") & _
-        ",0.3,0.2,0.1,0.15,0.15,0.15))*W61/5,1+(W60-1)*W61/5)))", ""
+    LigneD ws, 62, "kp = kp max si Def/B > 5, sinon 1 + (kp max - 1) x (Def/B) / 5", _
+        "=IF(OR(NOT(ISNUMBER(W60)),W61=""""),"""",IF(W61>5,W60,1+(W60-1)*W61/5))", ""
     LigneD ws, 63, "Aire de la base Ab", "=$D$22", "m²"
-    LigneD ws, 64, Texte("Pression limite nette équivalente ple*", "Résistance de pointe équivalente qce"), _
-        "=$Z$27", "MPa"
-    LigneD ws, 65, Texte("Rb = Ab x kp x ple*", "Rb = Ab x kc x qce"), _
-        "=IF(OR(W62="""",N(W63)=0,W64=""""),"""",1000*W63*W62*W64)", "kN"
+    LigneD ws, 64, "Pression limite nette équivalente ple*", "=$Z$26", "MPa"
+    LigneD ws, 65, "Rb = Ab x kp x ple*", "=IF(OR(W62="""",N(W63)=0,W64=""""),"""",1000*W63*W62*W64)", "kN"
     ws.Range("W60:W65").NumberFormat = "0.00"
     ws.Range("U65:X65").Font.Bold = True
 
@@ -311,12 +282,12 @@ Public Sub CreerCalculVerification()
     r = 37
     lt = r + 1 + MAX_COUCHES
     With ws.Range("B4:E5,B8:E11,B14:E16,B19:E24,B27:E31,B33:E35,B" & r + 1 & ":Q" & lt & _
-            ",B57:E58,B60:E63,B66:E74,U4:X7,U10:AA27,U29:Z45,U47:X52,U54:X56,U59:X65")
+            ",B57:E58,B60:E63,B66:E74,U4:X7,U10:Z26,U29:Z45,U47:X52,U54:X56,U59:X65")
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    With ws.Range("B27:E27,B33:E33,B66:E66,B" & r + 1 & ":Q" & r + 1 & ",U10:AA10,U29:Z29,U47:X47,U54:X54")
+    With ws.Range("B27:E27,B33:E33,B66:E66,B" & r + 1 & ":Q" & r + 1 & ",U10:Z10,U29:Z29,U47:X47,U54:X54")
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
         .Interior.Color = VERT_ENTETE
@@ -324,17 +295,17 @@ Public Sub CreerCalculVerification()
     ' Valeurs non saisies (reprises ou calculées) en jaune ; tableau du frottement axial
     ' sans couleur
     ws.Range("D4:D5,D8:D11,D14:D16,D19:D24,D28:E31,D34:E35,D57:D58,D60:D63,E67:E74,W4:W7,W48:W52," & _
-        "W55:W56,Z26:Z27,Z45,W59:W65").Interior.Color = _
+        "W55:W56,Z26,Z45,W59:W65").Interior.Color = _
         JAUNE_CALCUL
     ws.Range("D4:F35,C57:E63,B67:B74,D67:E74,B" & r + 2 & ":B" & lt & ",E" & r + 2 & ":Q" & lt & _
-        ",W4:X65,U11:U25,W11:AA25,U30:U44,W30:Z44").HorizontalAlignment = xlCenter
+        ",W4:X65,U11:U25,W11:Z25,U30:U44,W30:Z44").HorizontalAlignment = xlCenter
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 30
     ws.Columns("D").ColumnWidth = 30
     ws.Columns("E:Q").ColumnWidth = 12
     ws.Columns("R:T").ColumnWidth = 3
-    ws.Columns("U:AA").ColumnWidth = 16
+    ws.Columns("U:Z").ColumnWidth = 16
     AfficherPointe ws
     ws.Activate
 
@@ -371,7 +342,7 @@ Public Sub AfficherPointe(Optional ws As Worksheet)
         On Error GoTo 0
         If ws Is Nothing Then Exit Sub
     End If
-    ws.Columns("T:AA").Hidden = (Val(ws.Range("D11").Value) >= 17)
+    ws.Columns("T:Z").Hidden = (Val(ws.Range("D11").Value) >= 17)
 End Sub
 
 ' Ligne r d'un tableau ple* (ple = True) ou Def pour la couche de la ligne fr du
@@ -390,13 +361,10 @@ Private Sub AncrageLigne(ws As Worksheet, r As Long, fr As Long, ple As Boolean)
         ws.Range("Y" & r).Formula = cond & "IFERROR(MAX(0,MIN(" & zbas & ",$W$51)-MAX(W" & r & ",$W$50)),""""))"
         ws.Range("Z" & r).Formula = "=IF(OR(Y" & r & "="""",NOT(ISNUMBER($G$" & fr & "))),""""," & _
             "$G$" & fr & "*Y" & r & ")"
-        ' qc �cr�t� � 1,3 qcm (m�thode p�n�trom�trique)
-        ws.Range("AA" & r).Formula = "=IF(NOT(" & PENETRO & "),"""",IF(OR(Y" & r & "="""",NOT(ISNUMBER($G$" & _
-            fr & ")),N($Z$26)=0),"""",MIN($G$" & fr & ",1.3*$Z$26)*Y" & r & "))"
     Else
         ws.Range("Y" & r).Formula = cond & "IFERROR(MAX(0,MIN(X" & r & ",$D$20)-MAX(W" & r & ",$W$56)),""""))"
-        ws.Range("Z" & r).Formula = "=IF(OR(Y" & r & "="""",NOT(ISNUMBER($G$" & fr & ")),N($Z$27)=0)," & _
-            """"",$G$" & fr & "*Y" & r & "/$Z$27)"
+        ws.Range("Z" & r).Formula = "=IF(OR(Y" & r & "="""",NOT(ISNUMBER($G$" & fr & ")),N($Z$26)=0)," & _
+            """"",$G$" & fr & "*Y" & r & "/$Z$26)"
     End If
 End Sub
 
@@ -447,24 +415,6 @@ Private Function Rang5(sol As String) As String
     Rang5 = "CHOOSE(" & Rang6(sol) & ",1,1,2,3,4,5)"
 End Function
 
-' Plage de valeurs d'un tableau de la norme selon la méthode : annexe G (6 colonnes de
-' sols) si pénétrométrique, annexe F sinon (5 colonnes, 6 pour qs max) ; numero =
-' fin du numéro du tableau (ex. "5.2.1" -> G.5.2.1 ou F.5.2.1)
-Private Function Zone2(wt As Worksheet, numero As String, nbLignes As Long) As String
-    Zone2 = "IF(" & PENETRO & "," & ZoneTableau(wt, "Tableau G." & numero, 0, nbLignes, 6) & "," & _
-        ZoneTableau(wt, "Tableau F." & numero, 0, nbLignes, IIf(numero = "5.2.3", 6, 5)) & ")"
-End Function
-
-' Colonne de sol dans le tableau de la norme : 6 colonnes (annexe G) ou 5 (annexe F)
-Private Function RangSol(sol As String) As String
-    RangSol = "IF(" & PENETRO & "," & Rang6(sol) & "," & Rang5(sol) & ")"
-End Function
-
-' Libellé selon la méthode : texte pressiométrique ou pénétrométrique
-Private Function Texte(pressio As String, penetro As String) As String
-    Texte = "=IF(" & PENETRO & ",""" & penetro & """,""" & pressio & """)"
-End Function
-
 ' Valeur d'un tableau de la norme (zone) en ligne lig et colonne col ; vide si erreur
 Private Function FormuleIndex(zone As String, lig As String, col As String) As String
     FormuleIndex = "=IFERROR(INDEX(" & zone & "," & lig & "," & col & "),"""")"
@@ -499,16 +449,14 @@ Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat A
         DONNEES & "$E$" & ld & ",""""))"
     ws.Range("F" & r).Formula = cond & "IF(ISNUMBER(" & DONNEES & "$F$" & ld & ")," & _
         DONNEES & "$F$" & ld & ",""""))"
-    ' pl* (Données, colonne G) ou qc (Données, colonne I) selon la méthode
-    ws.Range("G" & r).Formula = cond & "IF(" & PENETRO & ",IF(ISNUMBER(" & DONNEES & "$I$" & ld & _
-        ")," & DONNEES & "$I$" & ld & ",""""),IF(ISNUMBER(" & DONNEES & "$G$" & ld & ")," & _
-        DONNEES & "$G$" & ld & ","""")))"
-    ws.Range("H" & r).Formula = Replace(FormuleIndex(zABC, "1", RangSol(sol)), "=", cond, 1, 1) & ")"
-    ws.Range("I" & r).Formula = Replace(FormuleIndex(zAlpha, cat, RangSol(sol)), "=", cond, 1, 1) & ")"
-    ' fsol,i = (a.X + b)(1 - exp(-c.X)), X = pl* ou qc, a, b, c du tableau F.5.2.2 ou G.5.2.2
+    ws.Range("G" & r).Formula = cond & "IF(ISNUMBER(" & DONNEES & "$G$" & ld & ")," & _
+        DONNEES & "$G$" & ld & ",""""))"
+    ws.Range("H" & r).Formula = Replace(FormuleIndex(zABC, "1", Rang5(sol)), "=", cond, 1, 1) & ")"
+    ws.Range("I" & r).Formula = Replace(FormuleIndex(zAlpha, cat, Rang5(sol)), "=", cond, 1, 1) & ")"
+    ' fsol,i avec a, b, c lus directement dans le tableau F.5.2.2
     ws.Range("J" & r).Formula = "=IF(OR(B" & r & "="""",G" & r & "="""",H" & r & "=""""),""""," & _
-        "1000*(INDEX(" & zABC & ",2," & RangSol(sol) & ")*" & pl & "+INDEX(" & zABC & ",3," & _
-        RangSol(sol) & "))*(1-EXP(-INDEX(" & zABC & ",4," & RangSol(sol) & ")*" & pl & ")))"
+        "1000*(INDEX(" & zABC & ",2," & Rang5(sol) & ")*" & pl & "+INDEX(" & zABC & ",3," & _
+        Rang5(sol) & "))*(1-EXP(-INDEX(" & zABC & ",4," & Rang5(sol) & ")*" & pl & ")))"
     ws.Range("K" & r).Formula = FormuleProduit("$I$" & r, "$J$" & r)
     ws.Range("L" & r).Formula = Replace(FormuleIndex(zQs, cat, Rang6(sol)), "=", cond, 1, 1) & ")"
     ws.Range("M" & r).Formula = FormuleQs("$K$" & r, "$L$" & r)
