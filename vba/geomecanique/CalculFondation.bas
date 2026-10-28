@@ -250,12 +250,12 @@ Public Sub CreerCalculVerification()
     ws.Range("D57:D63").NumberFormat = "0.0"
 
     ' Valeurs de calcul : 2 lignes par combinaison (compression puis traction), avec
-    ' combinaison en B (fusionnée), intitulé en C, symbole en D, valeur en E, unité en F
+    ' combinaison en B (fusionnée), intitulé en C, symbole en D, valeur en E (avec l'unité)
     '   ELU : Rc,d = Rb,k / gamma b + Rs,k / gamma s ; Rt,d = Rt,k / gamma s;t
     '   ELS : Rc;cr,d = Rc;cr,k / gamma cr ; Rt;cr,d = Rt;cr,k / gamma s;cr
     etape = "valeurs de calcul"
     SousTitre ws, 65, "Valeurs de calcul des résistances"
-    ws.Range("B66:F66").Value = Array("Combinaison", "Valeur de calcul", "Symbole", "Valeur", "Unité")
+    ws.Range("B66:E66").Value = Array("Combinaison", "Valeur de calcul", "Symbole", "Valeur")
     For i = 0 To 3
         r = 67 + 2 * i
         c = Chr(Asc("D") + (i Mod 2))        ' colonne du facteur : D (durable / caract.), E
@@ -273,9 +273,8 @@ Public Sub CreerCalculVerification()
             ws.Range("E" & r).Formula = "=IF(D62="""","""",D62/" & c & "34)"
             ws.Range("E" & r + 1).Formula = "=IF(D63="""","""",D63/" & c & "35)"
         End If
-        ws.Range("F" & r & ":F" & r + 1).Value = "kN"
     Next i
-    ws.Range("E67:E74").NumberFormat = "0.0"
+    ws.Range("E67:E74").NumberFormat = "0.0"" kN""
 
 
     ' --- Mise en forme ---
@@ -283,12 +282,12 @@ Public Sub CreerCalculVerification()
     r = 37
     lt = r + 1 + MAX_COUCHES
     With ws.Range("B4:E5,B8:E11,B14:E16,B19:E24,B27:E31,B33:E35,B" & r + 1 & ":Q" & lt & _
-            ",B57:E58,B60:E63,B66:F74,U4:X7,U10:Z26,U29:Z45,U47:X52,U54:X56,U59:X65")
+            ",B57:E58,B60:E63,B66:E74,U4:X7,U10:Z26,U29:Z45,U47:X52,U54:X56,U59:X65")
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    With ws.Range("B27:E27,B33:E33,B66:F66,B" & r + 1 & ":Q" & r + 1 & ",U10:Z10,U29:Z29,U47:X47,U54:X54")
+    With ws.Range("B27:E27,B33:E33,B66:E66,B" & r + 1 & ":Q" & r + 1 & ",U10:Z10,U29:Z29,U47:X47,U54:X54")
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
         .Interior.Color = VERT_ENTETE
@@ -298,7 +297,7 @@ Public Sub CreerCalculVerification()
     ws.Range("D4:D5,D8:D11,D14:D16,D19:D24,D28:E31,D34:E35,D57:D58,D60:D63,E67:E74,W4:W7,W48:W52," & _
         "W55:W56,Z26,Z45,W59:W65").Interior.Color = _
         JAUNE_CALCUL
-    ws.Range("D4:F35,C57:E63,B67:B74,D67:F74,B" & r + 2 & ":B" & lt & ",E" & r + 2 & ":Q" & lt & _
+    ws.Range("D4:F35,C57:E63,B67:B74,D67:E74,B" & r + 2 & ":B" & lt & ",E" & r + 2 & ":Q" & lt & _
         ",W4:X65,U11:U25,W11:Z25,U30:U44,W30:Z44").HorizontalAlignment = xlCenter
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
