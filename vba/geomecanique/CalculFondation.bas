@@ -232,42 +232,50 @@ Public Sub CreerCalculVerification()
     ws.Range("U65:X65").Font.Bold = True
 
     ' --- Sous le frottement axial : valeurs caractéristiques puis valeurs de calcul ---
+    ' Intitulé en B, symbole en C, valeur en D, unité en E
     etape = "valeurs caractéristiques"
     SousTitre ws, 56, "Valeurs caractéristiques des résistances"
     ' Rb,k = Rb / (gamma R;d1 x gamma R;d2) si la résistance de pointe est prise en compte
-    Ligne ws, 57, "Résistance de pointe Rb,k = Rb / (" & ChrW(947) & "R;d1 x " & ChrW(947) & "R;d2)", _
+    LigneS ws, 57, "Résistance de pointe = Rb / (" & ChrW(947) & "R;d1 x " & ChrW(947) & "R;d2)", "Rb,k", _
         "=IF($D$15<>""Oui"",0,IFERROR($W$65/(" & gamma & "),""""))", "kN"
-    Ligne ws, 58, "Résistance de frottement Rs,k = " & ChrW(931) & " Rs,i", _
+    LigneS ws, 58, "Résistance de frottement = " & ChrW(931) & " Rs,i", "Rs,k", _
         "=IF(COUNT($P$39:$P$53)=0,"""",SUM($P$39:$P$53))", "kN"
-    Ligne ws, 60, "Portance Rc,k = Rb,k + Rs,k (compression)", _
+    LigneS ws, 60, "Portance (compression) = Rb,k + Rs,k", "Rc,k", _
         "=IF(AND($D$14=""Compression"",ISNUMBER(D58)),N(D57)+D58,"""")", "kN"
-    Ligne ws, 61, "Résistance en traction Rt,k = Rs,k", "=IF(ISNUMBER(D58),D58,"""")", "kN"
-    Ligne ws, 62, "Charge de fluage en compression Rc;cr,k = 0,5 Rb,k + 0,7 Rs,k", _
+    LigneS ws, 61, "Résistance en traction = Rs,k", "Rt,k", "=IF(ISNUMBER(D58),D58,"""")", "kN"
+    LigneS ws, 62, "Charge de fluage en compression = 0,5 Rb,k + 0,7 Rs,k", "Rc;cr,k", _
         "=IF(AND($D$14=""Compression"",ISNUMBER(D58)),0.5*N(D57)+0.7*D58,"""")", "kN"
-    Ligne ws, 63, "Charge de fluage en traction Rt;cr,k = 0,7 Rt,k", _
+    LigneS ws, 63, "Charge de fluage en traction = 0,7 Rt,k", "Rt;cr,k", _
         "=IF(ISNUMBER(D61),0.7*D61,"""")", "kN"
     ws.Range("D57:D63").NumberFormat = "0.0"
 
+    ' Valeurs de calcul : 2 lignes par combinaison (compression puis traction), avec
+    ' combinaison en B (fusionnée), intitulé en C, symbole en D, valeur en E, unité en F
+    '   ELU : Rc,d = Rb,k / gamma b + Rs,k / gamma s ; Rt,d = Rt,k / gamma s;t
+    '   ELS : Rc;cr,d = Rc;cr,k / gamma cr ; Rt;cr,d = Rt;cr,k / gamma s;cr
     etape = "valeurs de calcul"
     SousTitre ws, 65, "Valeurs de calcul des résistances"
-    ws.Range("B66:E66").Value = Array("Combinaison", "", "Compression (kN)", "Traction (kN)")
-    ' ELU : Rc,d = Rb,k / gamma b + Rs,k / gamma s ; Rt,d = Rt,k / gamma s;t
-    ' ELS : Rc;cr,d = Rc;cr,k / gamma cr ; Rt;cr,d = Rt;cr,k / gamma s;cr
+    ws.Range("B66:F66").Value = Array("Combinaison", "Valeur de calcul", "Symbole", "Valeur", "Unité")
     For i = 0 To 3
-        r = 67 + i
+        r = 67 + 2 * i
         c = Chr(Asc("D") + (i Mod 2))        ' colonne du facteur : D (durable / caract.), E
         ws.Range("B" & r).Value = Array("ELU fondamental (C.2.3.1)", "ELU accidentel (C.2.3.2)", _
             "ELS caractéristique (14.2.1.1)", "ELS quasi permanent (14.2.1.2)")(i)
-        ws.Range("B" & r & ":C" & r).Merge
+        ws.Range("B" & r & ":B" & r + 1).Merge
         If i < 2 Then
-            ws.Range("D" & r).Formula = "=IF(D60="""","""",N(D57)/" & c & "28+D58/" & c & "29)"
-            ws.Range("E" & r).Formula = "=IF(D61="""","""",D61/" & c & "31)"
+            ws.Range("C" & r & ":D" & r + 1).Value = Array2("Portance de calcul en compression", _
+                "Rc,d", "Résistance de calcul en traction", "Rt,d")
+            ws.Range("E" & r).Formula = "=IF(D60="""","""",N(D57)/" & c & "28+D58/" & c & "29)"
+            ws.Range("E" & r + 1).Formula = "=IF(D61="""","""",D61/" & c & "31)"
         Else
-            ws.Range("D" & r).Formula = "=IF(D62="""","""",D62/" & c & "34)"
-            ws.Range("E" & r).Formula = "=IF(D63="""","""",D63/" & c & "35)"
+            ws.Range("C" & r & ":D" & r + 1).Value = Array2("Charge de fluage de calcul en compression", _
+                "Rc;cr,d", "Charge de fluage de calcul en traction", "Rt;cr,d")
+            ws.Range("E" & r).Formula = "=IF(D62="""","""",D62/" & c & "34)"
+            ws.Range("E" & r + 1).Formula = "=IF(D63="""","""",D63/" & c & "35)"
         End If
+        ws.Range("F" & r & ":F" & r + 1).Value = "kN"
     Next i
-    ws.Range("D67:E70").NumberFormat = "0.0"
+    ws.Range("E67:E74").NumberFormat = "0.0"
 
 
     ' --- Mise en forme ---
@@ -275,22 +283,22 @@ Public Sub CreerCalculVerification()
     r = 37
     lt = r + 1 + MAX_COUCHES
     With ws.Range("B4:E5,B8:E11,B14:E16,B19:E24,B27:E31,B33:E35,B" & r + 1 & ":Q" & lt & _
-            ",B57:E58,B60:E63,B66:E70,U4:X7,U10:Z26,U29:Z45,U47:X52,U54:X56,U59:X65")
+            ",B57:E58,B60:E63,B66:F74,U4:X7,U10:Z26,U29:Z45,U47:X52,U54:X56,U59:X65")
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    With ws.Range("B27:E27,B33:E33,B66:E66,B" & r + 1 & ":Q" & r + 1 & ",U10:Z10,U29:Z29,U47:X47,U54:X54")
+    With ws.Range("B27:E27,B33:E33,B66:F66,B" & r + 1 & ":Q" & r + 1 & ",U10:Z10,U29:Z29,U47:X47,U54:X54")
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
         .Interior.Color = VERT_ENTETE
     End With
     ' Valeurs non saisies (reprises ou calculées) en jaune ; tableau du frottement axial
     ' sans couleur
-    ws.Range("D4:D5,D8:D11,D14:D16,D19:D24,D28:E31,D34:E35,D57:D58,D60:D63,D67:E70,W4:W7,W48:W52," & _
+    ws.Range("D4:D5,D8:D11,D14:D16,D19:D24,D28:E31,D34:E35,D57:D58,D60:D63,E67:E74,W4:W7,W48:W52," & _
         "W55:W56,Z26,Z45,W59:W65").Interior.Color = _
         JAUNE_CALCUL
-    ws.Range("D4:F35,D57:E70,B" & r + 2 & ":B" & lt & ",E" & r + 2 & ":Q" & lt & _
+    ws.Range("D4:F35,C57:E63,B67:B74,D67:F74,B" & r + 2 & ":B" & lt & ",E" & r + 2 & ":Q" & lt & _
         ",W4:X65,U11:U25,W11:Z25,U30:U44,W30:Z44").HorizontalAlignment = xlCenter
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
@@ -360,6 +368,22 @@ Private Sub AncrageLigne(ws As Worksheet, r As Long, fr As Long, ple As Boolean)
             """"",$G$" & fr & "*Y" & r & "/$Z$26)"
     End If
 End Sub
+
+' Une ligne « intitulé (B) | symbole (C) | valeur ou formule (D) | unité (E) »
+Private Sub LigneS(ws As Worksheet, r As Long, intitule As String, symbole As String, _
+        formule As String, unite As String)
+    ws.Range("B" & r).Value = intitule
+    ws.Range("C" & r).Value = symbole
+    ws.Range("D" & r).Formula = formule
+    ws.Range("E" & r).Value = unite
+End Sub
+
+' Tableau 2 x 2 (deux lignes « intitulé | symbole ») pour une plage de 2 x 2 cellules
+Private Function Array2(a As String, b As String, c As String, d As String) As Variant
+    Dim t(1 To 2, 1 To 2) As String
+    t(1, 1) = a: t(1, 2) = b: t(2, 1) = c: t(2, 2) = d
+    Array2 = t
+End Function
 
 ' Une ligne « intitulé (B:C fusionnées) | valeur ou formule (D) | unité (E) »
 Private Sub Ligne(ws As Worksheet, r As Long, intitule As String, formule As String, unite As String)
