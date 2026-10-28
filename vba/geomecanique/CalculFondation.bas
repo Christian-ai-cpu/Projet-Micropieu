@@ -207,7 +207,7 @@ Public Sub CreerCalculVerification()
         Next lt
         lt = r + MAX_COUCHES + 1             ' ligne du rÃ©sultat
         ws.Range("U" & lt).Formula = IIf(i = 0, Texte("ple* = " & ChrW(931) & " (pl*,i x " & ChrW(916) & _
-            "z) / (b + 3a)  (MPa)", "qce = " & ChrW(931) & " (qc,i x " & ChrW(916) & "z) / (b + 3a)  (MPa)"), _
+            "z) / (b + 3a)  (MPa)", "qcm = " & ChrW(931) & " (qc,i x " & ChrW(916) & "z) / (b + 3a)  (MPa)"), _
             Texte("Def = " & ChrW(931) & " (pl*,i x " & ChrW(916) & "z) / ple*  (m)", "Def = " & ChrW(931) & _
             " (qc,i x " & ChrW(916) & "z) / qce  (m)"))
         ws.Range("U" & lt & ":Y" & lt).Merge
@@ -215,7 +215,14 @@ Public Sub CreerCalculVerification()
             "=IF(COUNT(Z30:Z44)=0,"""",SUM(Z30:Z44))")
         ws.Range("U" & lt & ":Z" & lt).Font.Bold = True
     Next i
-    ws.Range("W11:Z26,W30:Z45").NumberFormat = "0.00"
+    ' Ecrêtage de qc (G.4.2 (3)) : qcc = min(qc ; 1,3 qcm), qce = moyenne de qcc sur (b + 3a)
+    ws.Range("AA10").Formula = Texte("", "qcc,i x " & ChrW(916) & "z (MPa.m)")
+    ws.Range("U27").Formula = Texte("ple* retenue  (MPa)", "qce = " & ChrW(931) & " (qcc,i x " & ChrW(916) & _
+        "z) / (b + 3a) avec qcc = min(qc ; 1,3 qcm)  (MPa)")
+    ws.Range("U27:Y27").Merge
+    ws.Range("Z27").Formula = "=IF(" & PENETRO & ",IF(OR(COUNT(AA11:AA25)=0,N(W52)=0),"""",SUM(AA11:AA25)/W52),Z26)"
+    ws.Range("U27:Z27").Font.Bold = True
+    ws.Range("W11:AA27,W30:Z45").NumberFormat = "0.00"
 
     ' ParamÃ¨tres des intervalles (en tÃªte : nom de la couche d'ancrage)
     LigneD ws, 47, Texte("ParamÃ¨tres de calcul de ple*", "ParamÃ¨tres de calcul de qce"), "=$W$4", ""
@@ -247,7 +254,7 @@ Public Sub CreerCalculVerification()
         ",0.3,0.2,0.1,0.15,0.15,0.15))*W61/5,1+(W60-1)*W61/5)))", ""
     LigneD ws, 63, "Aire de la base Ab", "=$D$22", "mÂ²"
     LigneD ws, 64, Texte("Pression limite nette Ã©quivalente ple*", "RÃ©sistance de pointe Ã©quivalente qce"), _
-        "=$Z$26", "MPa"
+        "=$Z$27", "MPa"
     LigneD ws, 65, Texte("Rb = Ab x kp x ple*", "Rb = Ab x kc x qce"), _
         "=IF(OR(W62="""",N(W63)=0,W64=""""),"""",1000*W63*W62*W64)", "kN"
     ws.Range("W60:W65").NumberFormat = "0.00"
@@ -304,12 +311,12 @@ Public Sub CreerCalculVerification()
     r = 37
     lt = r + 1 + MAX_COUCHES
     With ws.Range("B4:E5,B8:E11,B14:E16,B19:E24,B27:E31,B33:E35,B" & r + 1 & ":Q" & lt & _
-            ",B57:E58,B60:E63,B66:E74,U4:X7,U10:Z26,U29:Z45,U47:X52,U54:X56,U59:X65")
+            ",B57:E58,B60:E63,B66:E74,U4:X7,U10:AA27,U29:Z45,U47:X52,U54:X56,U59:X65")
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    With ws.Range("B27:E27,B33:E33,B66:E66,B" & r + 1 & ":Q" & r + 1 & ",U10:Z10,U29:Z29,U47:X47,U54:X54")
+    With ws.Range("B27:E27,B33:E33,B66:E66,B" & r + 1 & ":Q" & r + 1 & ",U10:AA10,U29:Z29,U47:X47,U54:X54")
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
         .Interior.Color = VERT_ENTETE
@@ -317,17 +324,17 @@ Public Sub CreerCalculVerification()
     ' Valeurs non saisies (reprises ou calculÃ©es) en jaune ; tableau du frottement axial
     ' sans couleur
     ws.Range("D4:D5,D8:D11,D14:D16,D19:D24,D28:E31,D34:E35,D57:D58,D60:D63,E67:E74,W4:W7,W48:W52," & _
-        "W55:W56,Z26,Z45,W59:W65").Interior.Color = _
+        "W55:W56,Z26:Z27,Z45,W59:W65").Interior.Color = _
         JAUNE_CALCUL
     ws.Range("D4:F35,C57:E63,B67:B74,D67:E74,B" & r + 2 & ":B" & lt & ",E" & r + 2 & ":Q" & lt & _
-        ",W4:X65,U11:U25,W11:Z25,U30:U44,W30:Z44").HorizontalAlignment = xlCenter
+        ",W4:X65,U11:U25,W11:AA25,U30:U44,W30:Z44").HorizontalAlignment = xlCenter
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 30
     ws.Columns("D").ColumnWidth = 30
     ws.Columns("E:Q").ColumnWidth = 12
     ws.Columns("R:T").ColumnWidth = 3
-    ws.Columns("U:Z").ColumnWidth = 16
+    ws.Columns("U:AA").ColumnWidth = 16
     AfficherPointe ws
     ws.Activate
 
@@ -364,7 +371,7 @@ Public Sub AfficherPointe(Optional ws As Worksheet)
         On Error GoTo 0
         If ws Is Nothing Then Exit Sub
     End If
-    ws.Columns("T:Z").Hidden = (Val(ws.Range("D11").Value) >= 17)
+    ws.Columns("T:AA").Hidden = (Val(ws.Range("D11").Value) >= 17)
 End Sub
 
 ' Ligne r d'un tableau ple* (ple = True) ou Def pour la couche de la ligne fr du
@@ -383,10 +390,13 @@ Private Sub AncrageLigne(ws As Worksheet, r As Long, fr As Long, ple As Boolean)
         ws.Range("Y" & r).Formula = cond & "IFERROR(MAX(0,MIN(" & zbas & ",$W$51)-MAX(W" & r & ",$W$50)),""""))"
         ws.Range("Z" & r).Formula = "=IF(OR(Y" & r & "="""",NOT(ISNUMBER($G$" & fr & "))),""""," & _
             "$G$" & fr & "*Y" & r & ")"
+        ' qc écrêté à 1,3 qcm (méthode pénétrométrique)
+        ws.Range("AA" & r).Formula = "=IF(NOT(" & PENETRO & "),"""",IF(OR(Y" & r & "="""",NOT(ISNUMBER($G$" & _
+            fr & ")),N($Z$26)=0),"""",MIN($G$" & fr & ",1.3*$Z$26)*Y" & r & "))"
     Else
         ws.Range("Y" & r).Formula = cond & "IFERROR(MAX(0,MIN(X" & r & ",$D$20)-MAX(W" & r & ",$W$56)),""""))"
-        ws.Range("Z" & r).Formula = "=IF(OR(Y" & r & "="""",NOT(ISNUMBER($G$" & fr & ")),N($Z$26)=0)," & _
-            """"",$G$" & fr & "*Y" & r & "/$Z$26)"
+        ws.Range("Z" & r).Formula = "=IF(OR(Y" & r & "="""",NOT(ISNUMBER($G$" & fr & ")),N($Z$27)=0)," & _
+            """"",$G$" & fr & "*Y" & r & "/$Z$27)"
     End If
 End Sub
 
