@@ -12,7 +12,7 @@ Option Explicit
 '   B18 à I26 : Références normatives (référence, date, intitulé)
 '   B28 à E29 : Référentiel altimétrique (liste) et niveau du terrain naturel (unité
 '               m + référentiel)
-'   B31 à I48 : Données géotechniques : nombre de couches (C32, 1 à 15) et tableau
+'   B31 à J48 : Données géotechniques : nombre de couches (C32, 1 à 15) et tableau
 '               des couches de sol (seules les lignes jusqu'à ce nombre sont affichées)
 '   B50 à E55 : Données de la fondation (arase supérieure, base, nappe, méthode,
 '               niveau d'eau ; intitulé sur B:C, valeur en D, unité en E)
@@ -178,10 +178,10 @@ Public Sub CreerDonneesProjet()
         .Validation.ErrorMessage = "Entrer un nombre de couches entre 1 et " & MAX_COUCHES & "."
         .HorizontalAlignment = xlCenter
     End With
-    ws.Range("B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).Value = Array("N° de couche", _
+    ws.Range("B" & LIGNE_COUCHES - 1 & ":J" & LIGNE_COUCHES - 1).Value = Array("N° de couche", _
         "Nom de couche (NF P11-300)", "Catégorie de sol (NF P94-262)", "Prof. bas (m/TN)", _
         "Épaisseur (m)", "Pression limite pl* (MPa)", "Module pressiométrique EM (MPa)", _
-        "Terrain neutralisé")
+        "Résistance de pointe qc (MPa)", "Terrain neutralisé")
     For r = LIGNE_COUCHES To LIGNE_COUCHES + MAX_COUCHES - 1
         ws.Range("B" & r).Value = r - LIGNE_COUCHES + 1
         ListeLongue ws.Range("C" & r), SolsNFP11300(), "Sols NF P11-300"
@@ -195,12 +195,12 @@ Public Sub CreerDonneesProjet()
         Else
             ws.Range("F" & r).Formula = "=IF(E" & r & "="""","""",ABS(E" & r & "-E" & r - 1 & "))"
         End If
-        Liste ws.Range("I" & r), "Non,Oui"
+        Liste ws.Range("J" & r), "Non,Oui"
     Next r
     lc = LIGNE_COUCHES + MAX_COUCHES - 1
-    ws.Range("E" & LIGNE_COUCHES & ":F" & lc).NumberFormat = "0.00"
-    ws.Range("G" & LIGNE_COUCHES & ":H" & lc).NumberFormat = "0.00"
-    ws.Range("B" & LIGNE_COUCHES & ":B" & lc & ",E" & LIGNE_COUCHES & ":I" & lc).HorizontalAlignment = xlCenter
+    ' Formats des valeurs d'entrée : profondeur, épaisseur, pl*, EM et qc à 2 décimales
+    ws.Range("E" & LIGNE_COUCHES & ":I" & lc).NumberFormat = "0.00"
+    ws.Range("B" & LIGNE_COUCHES & ":B" & lc & ",E" & LIGNE_COUCHES & ":J" & lc).HorizontalAlignment = xlCenter
 
     ' --- Données de la fondation : intitulé sur B:C fusionnées, valeur en D, unité en E ---
     lm = lc + 2                              ' sous-titre
@@ -263,7 +263,7 @@ Public Sub CreerDonneesProjet()
     ws.Range("D" & lp + 10).Formula = "=IF(" & c & "="""","""",IF(" & c & "=6," & _
         """Pieu à la tarière continue (CFA)"",IF(AND(" & c & ">=7," & c & "<=16)," & _
         """Pieu foncé"",""Pieu foré"")))"
-    ws.Range("D" & lp + 11).NumberFormat = "0.00"
+    ws.Range("D" & lp + 11).NumberFormat = "0.000"          ' diamètre B (m)
     ws.Range("D" & lp + 12 & ":D" & lp + 13).NumberFormat = "0"
     Liste ws.Range("D" & lp + 14), "Libre en tête,Encastré en tête"
     Liste ws.Range("D" & lp + 15), "Non,Oui"
@@ -333,16 +333,16 @@ Public Sub CreerDonneesProjet()
     Next r
 
     ' --- Mise en forme ---
-    With ws.Range("B4:C9,B12:C16,B19:I26,B28:E29,B32:C32,B" & LIGNE_COUCHES - 1 & ":I" & lc & _
+    With ws.Range("B4:C9,B12:C16,B19:I26,B28:E29,B32:C32,B" & LIGNE_COUCHES - 1 & ":J" & lc & _
             ",B" & lm + 1 & ":E" & lm + 5 & ",B" & lp & ":D" & lp + 15 & _
             ",B" & la + 3 & ":E" & la + 9 & ",B" & LIGNE_ACIER & ":E" & LIGNE_ACIER + 13)
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).Font.Bold = True
-    ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).Interior.Color = VERT_ENTETE
-    ws.Range("B" & LIGNE_COUCHES - 1 & ":I" & LIGNE_COUCHES - 1).HorizontalAlignment = xlCenter
+    ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":J" & LIGNE_COUCHES - 1).Font.Bold = True
+    ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":J" & LIGNE_COUCHES - 1).Interior.Color = VERT_ENTETE
+    ws.Range("B" & LIGNE_COUCHES - 1 & ":J" & LIGNE_COUCHES - 1).HorizontalAlignment = xlCenter
     ' Cases à remplir en vert, valeurs calculées en jaune ; sans couleur : données
     ' géotechniques (laboratoire), données et caractéristiques de la fondation
     ws.Range("C4:C9,C12:C16,D28:D29,C32,D" & la + 3 & ":D" & la + 5 & _
@@ -355,7 +355,7 @@ Public Sub CreerDonneesProjet()
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 40
     ws.Columns("D").ColumnWidth = 28         ' valeurs de la fondation, catégorie de sol
-    ws.Columns("E:I").ColumnWidth = 14
+    ws.Columns("E:J").ColumnWidth = 14
     ws.Rows("19:" & LIGNE_ACIER + 13).AutoFit
 
     AfficherTypeFondation ws
