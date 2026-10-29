@@ -181,6 +181,7 @@ Public Sub CreerCalculVerification()
     ws.Range("G" & r + 1).Formula = "=IF($D$5=""Méthode pénétrométrique"",""qc,i (MPa)"",""pl*,i (MPa)"")"
     ws.Range("I" & r + 1).Formula = "=IF($D$5=""Méthode pénétrométrique"",""" & ChrW(945) & _
         "pieu-sol (G.5.2.1)"",""" & ChrW(945) & "pieu-sol (F.5.2.1)"")"
+    ws.Range("J" & r + 1).Formula = "=IF($D$5=""Méthode pénétrométrique"",""fsol,i = (a.qc + b)(1 - e^-c.qc) (kPa)"",""fsol,i = (a.pl* + b)(1 - e^-c.pl*) (kPa)"")"
     ws.Range("H" & r + 1).Formula = "=IF($D$5=""Méthode pénétrométrique"",""Courbe fsol (G.5.2.2)"",""Courbe fsol (F.5.2.2)"")"
     For i = 1 To MAX_COUCHES
         CoucheLigne ws, r + 1 + i, i, lc + i - 1, cat, gamma, zAlpha, zABC, zQs
@@ -480,7 +481,7 @@ End Function
 ' coefficients de modèle) ; terrain neutralisé : frottement négligé, Rs,i = 0.
 Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat As String, _
         gamma As String, zAlpha As String, zABC As String, zQs As String)
-    Dim cond As String, sol As String, pl As String, zF As String
+    Dim cond As String, sol As String, pl As String
     cond = "=IF(OR(" & DONNEES & "$C$" & ld & "=""""," & DONNEES & "$D$" & ld & "=""""),"""","
     sol = "$D$" & r
     pl = "$G$" & r
@@ -499,12 +500,11 @@ Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat A
     ws.Range("H" & r).Formula = cond & "IFERROR(" & IndexNorme(zABC, "1", sol) & ",""""))"
     mCellule = "I" & r
     ws.Range("I" & r).Formula = cond & "IFERROR(" & IndexNorme(zAlpha, cat, sol) & ",""""))"
-    ' fsol,i avec a, b, c lus directement dans le tableau F.5.2.2
-    zF = Split(zABC, "|")(1)
+    ' fsol,i = (a.X + b)(1 - exp(-c.X)), X = pl* ou qc ; a, b, c du tableau F.5.2.2 ou G.5.2.2
     mCellule = "J" & r
-    ws.Range("J" & r).Formula = "=IF(OR(B" & r & "="""",G" & r & "="""",H" & r & "=""""),""""," & _
-        "1000*(INDEX(" & zF & ",2," & Rang5(sol) & ")*" & pl & "+INDEX(" & zF & ",3," & _
-        Rang5(sol) & "))*(1-EXP(-INDEX(" & zF & ",4," & Rang5(sol) & ")*" & pl & ")))"
+    ws.Range("J" & r).Formula = "=IF(OR(B" & r & "="""",G" & r & "="""",H" & r & "=""""),"""",IFERROR(" & _
+        "1000*(" & IndexNorme(zABC, "2", sol) & "*" & pl & "+" & IndexNorme(zABC, "3", sol) & _
+        ")*(1-EXP(-" & IndexNorme(zABC, "4", sol) & "*" & pl & ")),""""))"
     ws.Range("K" & r).Formula = FormuleProduit("$I$" & r, "$J$" & r)
     mCellule = "L" & r
     ws.Range("L" & r).Formula = Replace(FormuleIndex(Split(zQs, "|")(1), cat, Rang6(sol)), "=", cond, 1, 1) & ")"
