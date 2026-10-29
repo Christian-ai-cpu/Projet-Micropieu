@@ -168,7 +168,8 @@ Public Sub CreerDonneesProjet()
     ws.Range("B29").Value = "Niveau du terrain naturel"
     Liste ws.Range("D28"), "NGF-IGN69,NGF-IGN78,NVP,IGN,Local"
     ws.Range("D29").NumberFormat = "0.00"
-    ws.Range("E29").Formula = "=""m ""&D28"
+    ' Unité : m + référentiel, ou m/TN pour un référentiel local (cotes depuis le TN)
+    ws.Range("E29").Formula = "=IF(D28=""Local"",""m/TN"",""m ""&D28)"
     ws.Range("D28:E29").HorizontalAlignment = xlCenter
     ws.Range("B28:C28").Merge
     ws.Range("B29:C29").Merge
