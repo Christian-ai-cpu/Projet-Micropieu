@@ -243,10 +243,11 @@ Public Sub CreerCalculVerification()
     ' Intitulé en B, symbole en C, valeur en D, unité en E
     etape = "valeurs caractéristiques"
     SousTitre ws, 56, "Valeurs caractéristiques des résistances"
-    ' Rb,k = Rb / (gamma R;d1 x gamma R;d2) si la résistance de pointe est prise en compte
+    ' Rb,k = Rb / (gamma R;d1 x gamma R;d2) si la résistance de pointe est prise en compte ;
+    ' 0 pour les micropieux (catégories 17 à 20)
     ' (Rb pénétrométrique en AD65 si la méthode est pénétrométrique, pressiométrique en W65 sinon)
     LigneS ws, 57, "Résistance de pointe = Rb / (" & ChrW(947) & "R;d1 x " & ChrW(947) & "R;d2)", "Rb,k", _
-        "=IF($D$15<>""Oui"",0,IFERROR(IF($D$5=""Méthode pénétrométrique"",$AD$65,$W$65)/(" & _
+        "=IF(OR($D$15<>""Oui"",N($D$11)>=17),0,IFERROR(IF($D$5=""Méthode pénétrométrique"",$AD$65,$W$65)/(" & _
         gamma & "),""""))", "kN"
     LigneS ws, 58, "Résistance de frottement = " & ChrW(931) & " Rs,i", "Rs,k", _
         "=IF(COUNT($P$39:$P$53)=0,"""",SUM($P$39:$P$53))", "kN"
@@ -356,6 +357,7 @@ Public Sub AfficherPointe(Optional ws As Worksheet)
         On Error GoTo 0
         If ws Is Nothing Then Exit Sub
     End If
+    ws.Calculate                             ' catégorie (D11) à jour
     ws.Columns("T:AH").Hidden = (Val(ws.Range("D11").Value) >= 17)
 End Sub
 
