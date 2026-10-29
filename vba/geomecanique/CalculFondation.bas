@@ -48,6 +48,7 @@ Private Const TABLEAUX As String = "Tableaux NF P94-262"
 ' (annexe F, pl*) ; le tableau du frottement axial et la résistance de pointe retenue
 ' suivent ce choix
 Private Const PENETRO As String = "$D$5=""Méthode pénétrométrique"""
+Private mCellule As String     ' cellule en cours d'écriture (message d'erreur)
 
 ' Thème vert : saisies en vert, valeurs non saisies (calculées) en jaune, en-têtes et
 ' titres en vert (couleurs RGB écrites en nombre : rouge + 256 x vert + 65536 x bleu)
@@ -76,9 +77,11 @@ Public Sub CreerCalculVerification()
     End If
     ' Plages de valeurs des tableaux utilisés (adresses absolues sur cette feuille)
     ' (frottement : annexe G si la méthode est pénétrométrique, annexe F sinon)
+    ' (« plage G|plage F », lue par IndexNorme)
     zAlpha = Zone2(wt, "5.2.1", 20)          ' alpha pieu-sol, 20 catégories
     zABC = Zone2(wt, "5.2.2", 4)             ' courbe, a, b, c
     zQs = Zone2(wt, "5.2.3", 20)             ' qs max, 20 catégories
+    mCellule = ""
     zKp = ZoneTableau(wt, "Tableau F.4.2.1", 0, 8, 5)       ' 8 classes x 5 sols
     zKc = ZoneTableau(wt, "Tableau G.4.2.1", 0, 8, 6)       ' 8 classes x 6 sols
 
@@ -179,16 +182,17 @@ Public Sub CreerCalculVerification()
         "fsol,i (kPa)", ChrW(945) & "pieu-sol x fsol,i (kPa)", "qs,max (kPa)", "qs = min (kPa)", _
         "As,i (m²)", "qs,i (kPa)", "Rs,i (kN)", "Terrain neutralisé")
     ' En-têtes selon la méthode (pl* ou qc, tableaux F ou G de la norme)
-    ws.Range("G" & r + 1).Formula = Texte("pl*,i (MPa)", "qc,i (MPa)")
-    ws.Range("H" & r + 1).Formula = Texte("Courbe fsol (F.5.2.2)", "Courbe fsol (G.5.2.2)")
-    ws.Range("I" & r + 1).Formula = Texte(ChrW(945) & "pieu-sol (F.5.2.1)", ChrW(945) & "pieu-sol (G.5.2.1)")
-    ws.Range("J" & r + 1).Formula = Texte("fsol,i = (a.pl* + b)(1 - e^-c.pl*) (kPa)", _
+    Fx ws, "G" & r + 1, Texte("pl*,i (MPa)", "qc,i (MPa)")
+    Fx ws, "H" & r + 1, Texte("Courbe fsol (F.5.2.2)", "Courbe fsol (G.5.2.2)")
+    Fx ws, "I" & r + 1, Texte(ChrW(945) & "pieu-sol (F.5.2.1)", ChrW(945) & "pieu-sol (G.5.2.1)")
+    Fx ws, "J" & r + 1, Texte("fsol,i = (a.pl* + b)(1 - e^-c.pl*) (kPa)", _
         "fsol,i = (a.qc + b)(1 - e^-c.qc) (kPa)")
-    ws.Range("L" & r + 1).Formula = Texte("qs,max (F.5.2.3) (kPa)", "qs,max (G.5.2.3) (kPa)")
+    Fx ws, "L" & r + 1, Texte("qs,max (F.5.2.3) (kPa)", "qs,max (G.5.2.3) (kPa)")
     For i = 1 To MAX_COUCHES
         CoucheLigne ws, r + 1 + i, i, lc + i - 1, cat, gamma, zAlpha, zABC, zQs
     Next i
     lt = r + 1 + MAX_COUCHES                 ' dernière ligne du tableau
+    mCellule = ""
 
     ' --- À droite (colonnes U à Z) : sol d'ancrage, pression limite nette équivalente
     ' ple*, hauteur d'encastrement équivalente Def, facteur de portance kp et résistance
@@ -337,7 +341,8 @@ Fin:
     Exit Sub
 Erreur:
     MsgBox "Erreur pendant la création de la feuille « Calcul et vérification », partie « " & _
-        etape & " » : " & Err.Description & " (n° " & Err.Number & ")", vbExclamation
+        etape & " »" & IIf(mCellule = "", "", ", cellule " & mCellule) & " : " & Err.Description & _
+        " (n° " & Err.Number & ")", vbExclamation
     Resume Fin
 End Sub
 
@@ -449,27 +454,34 @@ Private Function Rang5(sol As String) As String
     Rang5 = "CHOOSE(" & Rang6(sol) & ",1,1,2,3,4,5)"
 End Function
 
-' Plage de valeurs d'un tableau de la norme selon la méthode : annexe G (6 colonnes de
-' sols) si pénétrométrique, annexe F sinon (5 colonnes, 6 pour qs max) ; numero =
-' fin du numéro du tableau (ex. "5.2.1" -> G.5.2.1 ou F.5.2.1)
+' Plages de valeurs d'un tableau de la norme pour les deux méthodes, sous la forme
+' « plage G|plage F » : annexe G (6 colonnes de sols), annexe F (5 colonnes, 6 pour
+' qs max) ; numero = fin du numéro du tableau (ex. "5.2.1" -> G.5.2.1 et F.5.2.1)
 Private Function Zone2(wt As Worksheet, numero As String, nbLignes As Long) As String
-    Zone2 = "IF(" & PENETRO & "," & ZoneTableau(wt, "Tableau G." & numero, 0, nbLignes, 6) & "," & _
-        ZoneTableau(wt, "Tableau F." & numero, 0, nbLignes, IIf(numero = "5.2.3", 6, 5)) & ")"
+    Zone2 = ZoneTableau(wt, "Tableau G." & numero, 0, nbLignes, 6) & "|" & _
+        ZoneTableau(wt, "Tableau F." & numero, 0, nbLignes, IIf(numero = "5.2.3", 6, 5))
 End Function
 
-' Colonne de sol dans le tableau de la norme : 6 colonnes (annexe G) ou 5 (annexe F)
-Private Function RangSol(sol As String) As String
-    RangSol = "IF(" & PENETRO & "," & Rang6(sol) & "," & Rang5(sol) & ")"
+' Valeur (ligne lig, colonne du sol sol) d'un tableau de la norme selon la méthode :
+' tableau G (colonnes Rang6) si pénétrométrique, tableau F sinon (Rang5, ou Rang6 si
+' le tableau F a 6 colonnes) ; zones = « plage G|plage F » (Zone2)
+Private Function IndexNorme(zones As String, lig As String, sol As String, _
+        Optional f6 As Boolean = False) As String
+    Dim z() As String
+    z = Split(zones, "|")
+    IndexNorme = "IF(" & PENETRO & ",INDEX(" & z(0) & "," & lig & "," & Rang6(sol) & "),INDEX(" & _
+        z(1) & "," & lig & "," & IIf(f6, Rang6(sol), Rang5(sol)) & "))"
 End Function
+
+' Ecrit la formule d'une cellule en notant son adresse (message d'erreur)
+Private Sub Fx(ws As Worksheet, adresse As String, formule As String)
+    mCellule = adresse
+    ws.Range(adresse).Formula = formule
+End Sub
 
 ' Libellé selon la méthode : texte pressiométrique ou pénétrométrique
 Private Function Texte(pressio As String, penetro As String) As String
     Texte = "=IF(" & PENETRO & ",""" & penetro & """,""" & pressio & """)"
-End Function
-
-' Valeur d'un tableau de la norme (zone) en ligne lig et colonne col ; vide si erreur
-Private Function FormuleIndex(zone As String, lig As String, col As String) As String
-    FormuleIndex = "=IFERROR(INDEX(" & zone & "," & lig & "," & col & "),"""")"
 End Function
 
 ' alpha x fsol ; « - » si alpha n'est pas donné par la norme (catégories 17 et 18 :
@@ -494,34 +506,34 @@ Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat A
     cond = "=IF(OR(" & DONNEES & "$C$" & ld & "=""""," & DONNEES & "$D$" & ld & "=""""),"""","
     sol = "$D$" & r
     pl = "$G$" & r
-    ws.Range("B" & r).Formula = cond & i & ")"
-    ws.Range("C" & r).Formula = cond & DONNEES & "$C$" & ld & ")"
-    ws.Range("D" & r).Formula = cond & DONNEES & "$D$" & ld & ")"
-    ws.Range("E" & r).Formula = cond & "IF(ISNUMBER(" & DONNEES & "$E$" & ld & ")," & _
+    Fx ws, "B" & r, cond & i & ")"
+    Fx ws, "C" & r, cond & DONNEES & "$C$" & ld & ")"
+    Fx ws, "D" & r, cond & DONNEES & "$D$" & ld & ")"
+    Fx ws, "E" & r, cond & "IF(ISNUMBER(" & DONNEES & "$E$" & ld & ")," & _
         DONNEES & "$E$" & ld & ",""""))"
-    ws.Range("F" & r).Formula = cond & "IF(ISNUMBER(" & DONNEES & "$F$" & ld & ")," & _
+    Fx ws, "F" & r, cond & "IF(ISNUMBER(" & DONNEES & "$F$" & ld & ")," & _
         DONNEES & "$F$" & ld & ",""""))"
     ' pl* (Données, colonne G) ou qc (Données, colonne I) selon la méthode
-    ws.Range("G" & r).Formula = cond & "IF(" & PENETRO & ",IF(ISNUMBER(" & DONNEES & "$I$" & ld & _
+    Fx ws, "G" & r, cond & "IF(" & PENETRO & ",IF(ISNUMBER(" & DONNEES & "$I$" & ld & _
         ")," & DONNEES & "$I$" & ld & ",""""),IF(ISNUMBER(" & DONNEES & "$G$" & ld & ")," & _
         DONNEES & "$G$" & ld & ","""")))"
-    ws.Range("H" & r).Formula = Replace(FormuleIndex(zABC, "1", RangSol(sol)), "=", cond, 1, 1) & ")"
-    ws.Range("I" & r).Formula = Replace(FormuleIndex(zAlpha, cat, RangSol(sol)), "=", cond, 1, 1) & ")"
+    Fx ws, "H" & r, cond & "IFERROR(" & IndexNorme(zABC, "1", sol) & ",""""))"
+    Fx ws, "I" & r, cond & "IFERROR(" & IndexNorme(zAlpha, cat, sol) & ",""""))"
     ' fsol,i = (a.X + b)(1 - exp(-c.X)), X = pl* ou qc, a, b, c du tableau F.5.2.2 ou G.5.2.2
-    ws.Range("J" & r).Formula = "=IF(OR(B" & r & "="""",G" & r & "="""",H" & r & "=""""),""""," & _
-        "1000*(INDEX(" & zABC & ",2," & RangSol(sol) & ")*" & pl & "+INDEX(" & zABC & ",3," & _
-        RangSol(sol) & "))*(1-EXP(-INDEX(" & zABC & ",4," & RangSol(sol) & ")*" & pl & ")))"
-    ws.Range("K" & r).Formula = FormuleProduit("$I$" & r, "$J$" & r)
-    ws.Range("L" & r).Formula = Replace(FormuleIndex(zQs, cat, Rang6(sol)), "=", cond, 1, 1) & ")"
-    ws.Range("M" & r).Formula = FormuleQs("$K$" & r, "$L$" & r)
-    ws.Range("N" & r).Formula = "=IF(OR(B" & r & "="""",F" & r & "="""",N($D$23)=0),""""," & _
+    Fx ws, "J" & r, "=IF(OR(B" & r & "="""",G" & r & "="""",H" & r & "=""""),"""",IFERROR(" & _
+        "1000*(" & IndexNorme(zABC, "2", sol) & "*" & pl & "+" & IndexNorme(zABC, "3", sol) & _
+        ")*(1-EXP(-" & IndexNorme(zABC, "4", sol) & "*" & pl & ")),""""))"
+    Fx ws, "K" & r, FormuleProduit("$I$" & r, "$J$" & r)
+    Fx ws, "L" & r, cond & "IFERROR(" & IndexNorme(zQs, cat, sol, True) & ",""""))"
+    Fx ws, "M" & r, FormuleQs("$K$" & r, "$L$" & r)
+    Fx ws, "N" & r, "=IF(OR(B" & r & "="""",F" & r & "="""",N($D$23)=0),""""," & _
         "$D$23*F" & r & ")"
     ' qs,i = qs / (gamma R;d1 x gamma R;d2) ; 0 si le terrain est neutralisé
-    ws.Range("O" & r).Formula = "=IF(B" & r & "="""","""",IF(Q" & r & "=""Oui"",0," & _
+    Fx ws, "O" & r, "=IF(B" & r & "="""","""",IF(Q" & r & "=""Oui"",0," & _
         "IFERROR(M" & r & "/(" & gamma & "),""-"")))"
-    ws.Range("P" & r).Formula = "=IF(AND(ISNUMBER(O" & r & "),ISNUMBER(N" & r & "))," & _
+    Fx ws, "P" & r, "=IF(AND(ISNUMBER(O" & r & "),ISNUMBER(N" & r & "))," & _
         "IF(Q" & r & "=""Oui"",0,O" & r & "*N" & r & "),IF(B" & r & "="""","""",""-""))"
-    ws.Range("Q" & r).Formula = cond & DONNEES & "$J$" & ld & ")"
+    Fx ws, "Q" & r, cond & DONNEES & "$J$" & ld & ")"
     ws.Range("E" & r & ":G" & r & ",I" & r).NumberFormat = "0.00"
     ws.Range("J" & r & ":M" & r & ",O" & r & ":P" & r).NumberFormat = "0.0"
     ws.Range("N" & r).NumberFormat = "0.000"
