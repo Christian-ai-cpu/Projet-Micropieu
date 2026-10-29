@@ -179,6 +179,8 @@ Public Sub CreerCalculVerification()
         "As,i (m²)", "qs,i (kPa)", "Rs,i (kN)", "Terrain neutralisé")
     ' pl* ou qc selon la méthode de calcul (D5)
     ws.Range("G" & r + 1).Formula = "=IF($D$5=""Méthode pénétrométrique"",""qc,i (MPa)"",""pl*,i (MPa)"")"
+    ws.Range("I" & r + 1).Formula = "=IF($D$5=""Méthode pénétrométrique"",""" & ChrW(945) & _
+        "pieu-sol (G.5.2.1)"",""" & ChrW(945) & "pieu-sol (F.5.2.1)"")"
     ws.Range("H" & r + 1).Formula = "=IF($D$5=""Méthode pénétrométrique"",""Courbe fsol (G.5.2.2)"",""Courbe fsol (F.5.2.2)"")"
     For i = 1 To MAX_COUCHES
         CoucheLigne ws, r + 1 + i, i, lc + i - 1, cat, gamma, zAlpha, zABC, zQs
@@ -496,7 +498,7 @@ Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat A
     mCellule = "H" & r
     ws.Range("H" & r).Formula = cond & "IFERROR(" & IndexNorme(zABC, "1", sol) & ",""""))"
     mCellule = "I" & r
-    ws.Range("I" & r).Formula = Replace(FormuleIndex(Split(zAlpha, "|")(1), cat, Rang5(sol)), "=", cond, 1, 1) & ")"
+    ws.Range("I" & r).Formula = cond & "IFERROR(" & IndexNorme(zAlpha, cat, sol) & ",""""))"
     ' fsol,i avec a, b, c lus directement dans le tableau F.5.2.2
     zF = Split(zABC, "|")(1)
     mCellule = "J" & r
