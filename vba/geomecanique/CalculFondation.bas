@@ -171,6 +171,8 @@ Public Sub CreerCalculVerification()
         "Profondeur (m/TN)", "hi (m)", "pl*,i (MPa)", "Courbe fsol", ChrW(945) & "pieu-sol", _
         "fsol,i (kPa)", ChrW(945) & "pieu-sol x fsol,i (kPa)", "qs,max (kPa)", "qs = min (kPa)", _
         "As,i (m²)", "qs,i (kPa)", "Rs,i (kN)", "Terrain neutralisé")
+    ' pl* ou qc selon la méthode de calcul (D5)
+    ws.Range("G" & r + 1).Formula = "=IF($D$5=""Méthode pénétrométrique"",""qc,i (MPa)"",""pl*,i (MPa)"")"
     For i = 1 To MAX_COUCHES
         CoucheLigne ws, r + 1 + i, i, lc + i - 1, cat, gamma, zAlpha, zABC, zQs
     Next i
@@ -185,7 +187,8 @@ Public Sub CreerCalculVerification()
     SousTitre ws, 3, "Détermination du sol d'ancrage", "U"
     LigneD ws, 4, "Couche d'ancrage (dernière couche renseignée)", Derniere("C"), ""
     LigneD ws, 5, "Catégorie de sol", Derniere("D"), ""
-    LigneD ws, 6, "Pression limite pl*", Derniere("G"), "MPa"
+    LigneD ws, 6, "Pression limite pl*", "=IFERROR(LOOKUP(2,1/($C$39:$C$53<>""""),OFFSET(" & DONNEES & _
+        "$G$" & lc & ",0,0," & MAX_COUCHES & ")),"""")", "MPa"
     LigneD ws, 7, "Hauteur de la couche porteuse h", "=$D$21", "m"
     ' Couches traversées par les intervalles [D-b ; D+3a] (ple*) et [D-10B ; D] (Def) ;
     ' la dernière couche est supposée se prolonger sous la base de la fondation
@@ -365,7 +368,8 @@ End Sub
 ' tableau du frottement axial : z haut et z bas cumulés depuis le TN, épaisseur
 ' comprise dans l'intervalle [D-b ; D+3a] (ple*) ou [D-10B ; D] (Def)
 Private Sub AncrageLigne(ws As Worksheet, r As Long, fr As Long, ple As Boolean)
-    Dim cond As String, zbas As String
+    Dim cond As String, zbas As String, pl As String
+    pl = DONNEES & "$G$" & LIGNE_COUCHES + fr - 39     ' pl* de la couche (Données)
     cond = "=IF($C$" & fr & "="""","""","
     ws.Range("U" & r).Formula = cond & "$B$" & fr & ")"
     ws.Range("V" & r).Formula = cond & "$C$" & fr & ")"
@@ -375,12 +379,12 @@ Private Sub AncrageLigne(ws As Worksheet, r As Long, fr As Long, ple As Boolean)
         ' dernière couche : prolongée sous la base (z bas très grand)
         If fr = 53 Then zbas = "1E+9" Else zbas = "IF(COUNTIF($C$" & fr + 1 & ":$C$53,""?*"")=0,1E+9,X" & r & ")"
         ws.Range("Y" & r).Formula = cond & "IFERROR(MAX(0,MIN(" & zbas & ",$W$51)-MAX(W" & r & ",$W$50)),""""))"
-        ws.Range("Z" & r).Formula = "=IF(OR(Y" & r & "="""",NOT(ISNUMBER($G$" & fr & "))),""""," & _
-            "$G$" & fr & "*Y" & r & ")"
+        ws.Range("Z" & r).Formula = "=IF(OR(Y" & r & "="""",NOT(ISNUMBER(" & pl & "))),""""," & _
+            pl & "*Y" & r & ")"
     Else
         ws.Range("Y" & r).Formula = cond & "IFERROR(MAX(0,MIN(X" & r & ",$D$20)-MAX(W" & r & ",$W$56)),""""))"
-        ws.Range("Z" & r).Formula = "=IF(OR(Y" & r & "="""",NOT(ISNUMBER($G$" & fr & ")),N($Z$26)=0)," & _
-            """"",$G$" & fr & "*Y" & r & "/$Z$26)"
+        ws.Range("Z" & r).Formula = "=IF(OR(Y" & r & "="""",NOT(ISNUMBER(" & pl & ")),N($Z$26)=0)," & _
+            """""," & pl & "*Y" & r & "/$Z$26)"
     End If
 End Sub
 
@@ -465,8 +469,10 @@ Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat A
         DONNEES & "$E$" & ld & ",""""))"
     ws.Range("F" & r).Formula = cond & "IF(ISNUMBER(" & DONNEES & "$F$" & ld & ")," & _
         DONNEES & "$F$" & ld & ",""""))"
-    ws.Range("G" & r).Formula = cond & "IF(ISNUMBER(" & DONNEES & "$G$" & ld & ")," & _
-        DONNEES & "$G$" & ld & ",""""))"
+    ' pl* (Données, colonne G) ou qc (Données, colonne I) selon la méthode de calcul
+    ws.Range("G" & r).Formula = cond & "IF($D$5=""Méthode pénétrométrique""," & _
+        "IF(ISNUMBER(" & DONNEES & "$I$" & ld & ")," & DONNEES & "$I$" & ld & ","""")," & _
+        "IF(ISNUMBER(" & DONNEES & "$G$" & ld & ")," & DONNEES & "$G$" & ld & ","""")))"
     ws.Range("H" & r).Formula = Replace(FormuleIndex(zABC, "1", Rang5(sol)), "=", cond, 1, 1) & ")"
     ws.Range("I" & r).Formula = Replace(FormuleIndex(zAlpha, cat, Rang5(sol)), "=", cond, 1, 1) & ")"
     ' fsol,i avec a, b, c lus directement dans le tableau F.5.2.2
