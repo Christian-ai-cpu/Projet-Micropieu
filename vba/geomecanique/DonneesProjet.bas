@@ -372,8 +372,8 @@ End Sub
 ' la disposition change.
 '   phase (C9) -> type de fondation ; nombre de couches -> lignes de couches ;
 '   type d'armature -> liste des classes d'acier ; classe de l'acier -> dimensions
-'   du tube ; type de pieu -> résistance de pointe affichée ou non dans « Calcul et
-'   vérification »
+'   du tube ; type de pieu ou méthode de calcul -> tableaux de la résistance de pointe
+'   affichés ou non dans « Calcul et vérification »
 Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
     On Error GoTo Fin
     Application.EnableEvents = False
@@ -381,9 +381,10 @@ Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
     If Not Intersect(Target, ws.Range(CELLULE_NB_COUCHES)) Is Nothing Then AfficherCouches ws
     If Not Intersect(Target, ws.Range("D" & LIGNE_ACIER)) Is Nothing Then MajArmature ws
     If Not Intersect(Target, ws.Range("D" & LIGNE_ACIER + 1)) Is Nothing Then MajAcier ws
-    ' Type de pieu : colonnes de la résistance de pointe de « Calcul et vérification »
-    ' affichées ou masquées (module CalculFondation, s'il est présent)
-    If Not Intersect(Target, ws.Range("D" & LIGNE_PIEU)) Is Nothing Then
+    ' Type de pieu ou méthode de calcul : colonnes de la résistance de pointe de « Calcul
+    ' et vérification » affichées ou masquées (module CalculFondation, s'il est présent)
+    If Not Intersect(Target, Union(ws.Range("D" & LIGNE_PIEU), _
+            ws.Range("D" & LIGNE_COUCHES + MAX_COUCHES + 5))) Is Nothing Then
         ws.Calculate
         On Error Resume Next
         Application.Run "AfficherPointe"
