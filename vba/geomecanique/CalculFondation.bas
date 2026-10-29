@@ -43,6 +43,11 @@ Private Const NOM_FEUILLE As String = "Calcul et vérification"
 Private Const DONNEES As String = "'Données du projet'!"
 Private Const TABLEAUX As String = "Tableaux NF P94-262"
 Private mCellule As String     ' cellule en cours d'écriture (indiquée en cas d'erreur)
+' Méthode de calcul lue dans « Données du projet » à la création de la feuille : les
+' formules sont écrites pour cette seule méthode (pl* et tableaux F, ou qc et tableaux G)
+' et la feuille est recréée quand la méthode change (ActualiserCalculVerification,
+' appelée par ChangementDonnees du module DonneesProjet)
+Private mPenetro As Boolean
 
 ' Thème vert : saisies en vert, valeurs non saisies (calculées) en jaune, en-têtes et
 ' titres en vert (couleurs RGB écrites en nombre : rouge + 256 x vert + 65536 x bleu)
@@ -51,6 +56,20 @@ Private Const JAUNE_CALCUL As Long = 13434879  ' RGB(255, 255, 204), jaune clair
 Private Const VERT_ENTETE As Long = 14348258   ' RGB(226, 239, 218)
 Private Const VERT_FONCE As Long = 2315831     ' RGB(55, 86, 35)
 Public Sub CreerCalculVerification()
+    Construire True
+End Sub
+
+' Recrée la feuille « Calcul et vérification » (si elle existe) sans l'activer : appelée
+' quand la méthode de calcul change dans « Données du projet »
+Public Sub ActualiserCalculVerification()
+    Dim ws As Worksheet
+    On Error Resume Next
+    Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
+    On Error GoTo 0
+    If Not ws Is Nothing Then Construire False
+End Sub
+
+Private Sub Construire(activer As Boolean)
     Dim ws As Worksheet, wt As Worksheet, r As Long, i As Long, lc As Long
     Dim zAlpha As String, zABC As String, zQs As String, nb As String, cat As String
     Dim lg As Long, etape As String, zF21 As String, ligneF21 As String, lt As Long, gamma As String
@@ -58,6 +77,8 @@ Public Sub CreerCalculVerification()
 
     Application.ScreenUpdating = False
     On Error GoTo Erreur
+    mPenetro = (ActiveWorkbook.Worksheets("Données du projet").Range("D" & _
+        LIGNE_COUCHES + MAX_COUCHES + 5).Value = "Méthode pénétrométrique")
 
     ' Feuille des tableaux de la norme : créée si elle manque
     etape = "feuille Tableaux NF P94-262"
@@ -162,8 +183,7 @@ Public Sub CreerCalculVerification()
     ' (tableau F.2.1 ou G.2.1 selon la méthode de calcul) : ligne 3 pour les catégories
     ' 10, 15 et 17 à 20, ligne 2 si le sol d'ancrage est de la craie, ligne 1 sinon ;
     ' colonnes compression / traction selon le mode de fonctionnement
-    zF21 = "IF($D$5=""Méthode pénétrométrique""," & ZoneTableau(wt, "Tableau G.2.1", 0, 3, 4) & "," & _
-        ZoneTableau(wt, "Tableau F.2.1", 0, 3, 4) & ")"
+    zF21 = ZoneTableau(wt, IIf(mPenetro, "Tableau G.2.1", "Tableau F.2.1"), 0, 3, 4)
     ligneF21 = "IF(OR(" & cat & "=10," & cat & "=15," & cat & ">=17),3,IF($W$5=""Craies"",2,1))"
     gamma = "INDEX(" & zF21 & "," & ligneF21 & ",IF($D$14=""Traction"",2,1))*INDEX(" & zF21 & _
         "," & ligneF21 & ",IF($D$14=""Traction"",4,3))"
@@ -177,13 +197,16 @@ Public Sub CreerCalculVerification()
         "Profondeur (m/TN)", "hi (m)", "pl*,i (MPa)", "Courbe fsol", ChrW(945) & "pieu-sol", _
         "fsol,i (kPa)", ChrW(945) & "pieu-sol x fsol,i (kPa)", "qs,max (kPa)", "qs = min (kPa)", _
         "As,i (m²)", "qs,i (kPa)", "Rs,i (kN)", "Terrain neutralisé")
-    ' pl* ou qc selon la méthode de calcul (D5)
-    ws.Range("G" & r + 1).Formula = "=IF($D$5=""Méthode pénétrométrique"",""qc,i (MPa)"",""pl*,i (MPa)"")"
-    ws.Range("I" & r + 1).Formula = "=IF($D$5=""Méthode pénétrométrique"",""" & ChrW(945) & _
-        "pieu-sol (G.5.2.1)"",""" & ChrW(945) & "pieu-sol (F.5.2.1)"")"
-    ws.Range("J" & r + 1).Formula = "=IF($D$5=""Méthode pénétrométrique"",""fsol,i = (a.qc + b)(1 - e^-c.qc) (kPa)"",""fsol,i = (a.pl* + b)(1 - e^-c.pl*) (kPa)"")"
-    ws.Range("L" & r + 1).Formula = "=IF($D$5=""Méthode pénétrométrique"",""qs,max (G.5.2.3) (kPa)"",""qs,max (F.5.2.3) (kPa)"")"
-    ws.Range("H" & r + 1).Formula = "=IF($D$5=""Méthode pénétrométrique"",""Courbe fsol (G.5.2.2)"",""Courbe fsol (F.5.2.2)"")"
+    ' En-têtes selon la méthode de calcul : pl* et tableaux F, ou qc et tableaux G
+    If mPenetro Then
+        ws.Range("G" & r + 1 & ":J" & r + 1).Value = Array("qc,i (MPa)", "Courbe fsol (G.5.2.2)", _
+            ChrW(945) & "pieu-sol (G.5.2.1)", "fsol,i = (a.qc + b)(1 - e^-c.qc) (kPa)")
+        ws.Range("L" & r + 1).Value = "qs,max (G.5.2.3) (kPa)"
+    Else
+        ws.Range("G" & r + 1 & ":J" & r + 1).Value = Array("pl*,i (MPa)", "Courbe fsol (F.5.2.2)", _
+            ChrW(945) & "pieu-sol (F.5.2.1)", "fsol,i = (a.pl* + b)(1 - e^-c.pl*) (kPa)")
+        ws.Range("L" & r + 1).Value = "qs,max (F.5.2.3) (kPa)"
+    End If
     For i = 1 To MAX_COUCHES
         CoucheLigne ws, r + 1 + i, i, lc + i - 1, cat, gamma, zAlpha, zABC, zQs
     Next i
@@ -262,7 +285,7 @@ Public Sub CreerCalculVerification()
     ' 0 pour les micropieux (catégories 17 à 20)
     ' (Rb pénétrométrique en AD65 si la méthode est pénétrométrique, pressiométrique en W65 sinon)
     LigneS ws, 57, "Résistance de pointe = Rb / (" & ChrW(947) & "R;d1 x " & ChrW(947) & "R;d2)", "Rb,k", _
-        "=IF(OR($D$15<>""Oui"",N($D$11)>=17),0,IFERROR(IF($D$5=""Méthode pénétrométrique"",$AD$65,$W$65)/(" & _
+        "=IF(OR($D$15<>""Oui"",N($D$11)>=17),0,IFERROR(" & IIf(mPenetro, "$AD$65", "$W$65") & "/(" & _
         gamma & "),""""))", "kN"
     LigneS ws, 58, "Résistance de frottement = " & ChrW(931) & " Rs,i", "Rs,k", _
         "=IF(COUNT($P$39:$P$53)=0,"""",SUM($P$39:$P$53))", "kN"
@@ -333,7 +356,7 @@ Public Sub CreerCalculVerification()
     ws.Columns("R:T").ColumnWidth = 3
     ws.Columns("U:Z").ColumnWidth = 16
     AfficherPointe ws
-    ws.Activate
+    If activer Then ws.Activate
 
 Fin:
     Application.ScreenUpdating = True
@@ -448,15 +471,18 @@ Private Function Rang5(sol As String) As String
     Rang5 = "CHOOSE(" & Rang6(sol) & ",1,1,2,3,4,5)"
 End Function
 
-' Valeur (ligne lig, colonne du sol sol) d'un tableau du frottement selon la méthode de
-' calcul (D5) : tableau G (6 colonnes de sols) si pénétrométrique, tableau F sinon
+' Valeur (ligne lig, colonne du sol sol) d'un tableau du frottement pour la méthode de
+' calcul retenue : tableau G (6 colonnes de sols) si pénétrométrique, tableau F sinon
 ' (5 colonnes, ou 6 si f6) ; zones = « plage G|plage F »
 Private Function IndexNorme(zones As String, lig As String, sol As String, _
         Optional f6 As Boolean = False) As String
     Dim z() As String
     z = Split(zones, "|")
-    IndexNorme = "IF($D$5=""Méthode pénétrométrique"",INDEX(" & z(0) & "," & lig & "," & Rang6(sol) & _
-        "),INDEX(" & z(1) & "," & lig & "," & IIf(f6, Rang6(sol), Rang5(sol)) & "))"
+    If mPenetro Then
+        IndexNorme = "INDEX(" & z(0) & "," & lig & "," & Rang6(sol) & ")"
+    Else
+        IndexNorme = "INDEX(" & z(1) & "," & lig & "," & IIf(f6, Rang6(sol), Rang5(sol)) & ")"
+    End If
 End Function
 
 ' Valeur d'un tableau de la norme (zone) en ligne lig et colonne col ; vide si erreur
@@ -482,7 +508,7 @@ End Function
 ' coefficients de modèle) ; terrain neutralisé : frottement négligé, Rs,i = 0.
 Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat As String, _
         gamma As String, zAlpha As String, zABC As String, zQs As String)
-    Dim cond As String, sol As String, pl As String
+    Dim cond As String, sol As String, pl As String, c As String
     cond = "=IF(OR(" & DONNEES & "$C$" & ld & "=""""," & DONNEES & "$D$" & ld & "=""""),"""","
     sol = "$D$" & r
     pl = "$G$" & r
@@ -494,9 +520,9 @@ Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat A
     ws.Range("F" & r).Formula = cond & "IF(ISNUMBER(" & DONNEES & "$F$" & ld & ")," & _
         DONNEES & "$F$" & ld & ",""""))"
     ' pl* (Données, colonne G) ou qc (Données, colonne I) selon la méthode de calcul
-    ws.Range("G" & r).Formula = cond & "IF($D$5=""Méthode pénétrométrique""," & _
-        "IF(ISNUMBER(" & DONNEES & "$I$" & ld & ")," & DONNEES & "$I$" & ld & ","""")," & _
-        "IF(ISNUMBER(" & DONNEES & "$G$" & ld & ")," & DONNEES & "$G$" & ld & ","""")))"
+    c = IIf(mPenetro, "$I$", "$G$")
+    ws.Range("G" & r).Formula = cond & "IF(ISNUMBER(" & DONNEES & c & ld & ")," & _
+        DONNEES & c & ld & ",""""))"
     mCellule = "H" & r
     ws.Range("H" & r).Formula = cond & "IFERROR(" & IndexNorme(zABC, "1", sol) & ",""""))"
     mCellule = "I" & r

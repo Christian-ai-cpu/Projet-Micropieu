@@ -373,7 +373,7 @@ End Sub
 '   phase (C9) -> type de fondation ; nombre de couches -> lignes de couches ;
 '   type d'armature -> liste des classes d'acier ; classe de l'acier -> dimensions
 '   du tube ; type de pieu -> résistance de pointe affichée ou non dans « Calcul et
-'   vérification »
+'   vérification » ; méthode de calcul -> « Calcul et vérification » recréée
 Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
     On Error GoTo Fin
     Application.EnableEvents = False
@@ -387,6 +387,12 @@ Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
         ws.Calculate
         On Error Resume Next
         Application.Run "AfficherPointe"
+    End If
+    ' Méthode de calcul : « Calcul et vérification » recréée avec les formules de la
+    ' méthode choisie (pl* et tableaux F, ou qc et tableaux G)
+    If Not Intersect(Target, ws.Range("D" & LIGNE_COUCHES + MAX_COUCHES + 5)) Is Nothing Then
+        On Error Resume Next
+        Application.Run "ActualiserCalculVerification"
     End If
 Fin:
     Application.EnableEvents = True
