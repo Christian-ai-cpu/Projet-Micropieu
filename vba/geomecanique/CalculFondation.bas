@@ -42,6 +42,7 @@ Option Explicit
 Private Const NOM_FEUILLE As String = "Calcul et vérification"
 Private Const DONNEES As String = "'Données du projet'!"
 Private Const TABLEAUX As String = "Tableaux NF P94-262"
+Private mCellule As String     ' cellule en cours d'écriture (indiquée en cas d'erreur)
 
 ' Thème vert : saisies en vert, valeurs non saisies (calculées) en jaune, en-têtes et
 ' titres en vert (couleurs RGB écrites en nombre : rouge + 256 x vert + 65536 x bleu)
@@ -69,9 +70,14 @@ Public Sub CreerCalculVerification()
         Set wt = ActiveWorkbook.Worksheets(TABLEAUX)
     End If
     ' Plages de valeurs des tableaux utilisés (adresses absolues sur cette feuille)
-    zAlpha = ZoneTableau(wt, "Tableau F.5.2.1", 0, 20, 5)   ' 20 catégories x 5 sols
-    zABC = ZoneTableau(wt, "Tableau F.5.2.2", 0, 4, 5)      ' courbe, a, b, c x 5 sols
-    zQs = ZoneTableau(wt, "Tableau F.5.2.3", 0, 20, 6)      ' 20 catégories x 6 sols
+    ' Frottement : tableaux G (méthode pénétrométrique) et F, sous la forme « plage G|plage F »
+    ' (lue par IndexNorme)
+    zAlpha = ZoneTableau(wt, "Tableau G.5.2.1", 0, 20, 6) & "|" & _
+        ZoneTableau(wt, "Tableau F.5.2.1", 0, 20, 5)        ' 20 catégories
+    zABC = ZoneTableau(wt, "Tableau G.5.2.2", 0, 4, 6) & "|" & _
+        ZoneTableau(wt, "Tableau F.5.2.2", 0, 4, 5)         ' courbe, a, b, c
+    zQs = ZoneTableau(wt, "Tableau G.5.2.3", 0, 20, 6) & "|" & _
+        ZoneTableau(wt, "Tableau F.5.2.3", 0, 20, 6)        ' qs max, 20 catégories
     zKp = ZoneTableau(wt, "Tableau F.4.2.1", 0, 8, 5)       ' 8 classes x 5 sols
     zKc = ZoneTableau(wt, "Tableau G.4.2.1", 0, 8, 6)       ' 8 classes x 6 sols
 
@@ -176,6 +182,7 @@ Public Sub CreerCalculVerification()
     For i = 1 To MAX_COUCHES
         CoucheLigne ws, r + 1 + i, i, lc + i - 1, cat, gamma, zAlpha, zABC, zQs
     Next i
+    mCellule = ""
     lt = r + 1 + MAX_COUCHES                 ' dernière ligne du tableau
 
     ' --- À droite (colonnes U à Z) : sol d'ancrage, pression limite nette équivalente
@@ -328,7 +335,8 @@ Fin:
     Exit Sub
 Erreur:
     MsgBox "Erreur pendant la création de la feuille « Calcul et vérification », partie « " & _
-        etape & " » : " & Err.Description & " (n° " & Err.Number & ")", vbExclamation
+        etape & " »" & IIf(mCellule = "", "", ", cellule " & mCellule) & " : " & Err.Description & _
+        " (n° " & Err.Number & ")", vbExclamation
     Resume Fin
 End Sub
 
@@ -435,6 +443,17 @@ Private Function Rang5(sol As String) As String
     Rang5 = "CHOOSE(" & Rang6(sol) & ",1,1,2,3,4,5)"
 End Function
 
+' Valeur (ligne lig, colonne du sol sol) d'un tableau du frottement selon la méthode de
+' calcul (D5) : tableau G (6 colonnes de sols) si pénétrométrique, tableau F sinon
+' (5 colonnes, ou 6 si f6) ; zones = « plage G|plage F »
+Private Function IndexNorme(zones As String, lig As String, sol As String, _
+        Optional f6 As Boolean = False) As String
+    Dim z() As String
+    z = Split(zones, "|")
+    IndexNorme = "IF($D$5=""Méthode pénétrométrique"",INDEX(" & z(0) & "," & lig & "," & Rang6(sol) & _
+        "),INDEX(" & z(1) & "," & lig & "," & IIf(f6, Rang6(sol), Rang5(sol)) & "))"
+End Function
+
 ' Valeur d'un tableau de la norme (zone) en ligne lig et colonne col ; vide si erreur
 Private Function FormuleIndex(zone As String, lig As String, col As String) As String
     FormuleIndex = "=IFERROR(INDEX(" & zone & "," & lig & "," & col & "),"""")"
@@ -458,7 +477,7 @@ End Function
 ' coefficients de modèle) ; terrain neutralisé : frottement négligé, Rs,i = 0.
 Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat As String, _
         gamma As String, zAlpha As String, zABC As String, zQs As String)
-    Dim cond As String, sol As String, pl As String
+    Dim cond As String, sol As String, pl As String, zF As String
     cond = "=IF(OR(" & DONNEES & "$C$" & ld & "=""""," & DONNEES & "$D$" & ld & "=""""),"""","
     sol = "$D$" & r
     pl = "$G$" & r
@@ -473,14 +492,19 @@ Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat A
     ws.Range("G" & r).Formula = cond & "IF($D$5=""Méthode pénétrométrique""," & _
         "IF(ISNUMBER(" & DONNEES & "$I$" & ld & ")," & DONNEES & "$I$" & ld & ","""")," & _
         "IF(ISNUMBER(" & DONNEES & "$G$" & ld & ")," & DONNEES & "$G$" & ld & ","""")))"
-    ws.Range("H" & r).Formula = Replace(FormuleIndex(zABC, "1", Rang5(sol)), "=", cond, 1, 1) & ")"
-    ws.Range("I" & r).Formula = Replace(FormuleIndex(zAlpha, cat, Rang5(sol)), "=", cond, 1, 1) & ")"
+    mCellule = "H" & r
+    ws.Range("H" & r).Formula = Replace(FormuleIndex(Split(zABC, "|")(1), "1", Rang5(sol)), "=", cond, 1, 1) & ")"
+    mCellule = "I" & r
+    ws.Range("I" & r).Formula = Replace(FormuleIndex(Split(zAlpha, "|")(1), cat, Rang5(sol)), "=", cond, 1, 1) & ")"
     ' fsol,i avec a, b, c lus directement dans le tableau F.5.2.2
+    zF = Split(zABC, "|")(1)
+    mCellule = "J" & r
     ws.Range("J" & r).Formula = "=IF(OR(B" & r & "="""",G" & r & "="""",H" & r & "=""""),""""," & _
-        "1000*(INDEX(" & zABC & ",2," & Rang5(sol) & ")*" & pl & "+INDEX(" & zABC & ",3," & _
-        Rang5(sol) & "))*(1-EXP(-INDEX(" & zABC & ",4," & Rang5(sol) & ")*" & pl & ")))"
+        "1000*(INDEX(" & zF & ",2," & Rang5(sol) & ")*" & pl & "+INDEX(" & zF & ",3," & _
+        Rang5(sol) & "))*(1-EXP(-INDEX(" & zF & ",4," & Rang5(sol) & ")*" & pl & ")))"
     ws.Range("K" & r).Formula = FormuleProduit("$I$" & r, "$J$" & r)
-    ws.Range("L" & r).Formula = Replace(FormuleIndex(zQs, cat, Rang6(sol)), "=", cond, 1, 1) & ")"
+    mCellule = "L" & r
+    ws.Range("L" & r).Formula = Replace(FormuleIndex(Split(zQs, "|")(1), cat, Rang6(sol)), "=", cond, 1, 1) & ")"
     ws.Range("M" & r).Formula = FormuleQs("$K$" & r, "$L$" & r)
     ws.Range("N" & r).Formula = "=IF(OR(B" & r & "="""",F" & r & "="""",N($D$23)=0),""""," & _
         "$D$23*F" & r & ")"
