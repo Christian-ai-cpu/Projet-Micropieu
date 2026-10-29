@@ -550,23 +550,28 @@ Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat A
 End Sub
 
 ' Valeurs d'un tableau de la feuille « Tableaux NF P94-262 », nommées d'après le numéro
-' du tableau (ex. « Tableau F.5.2.1 » -> NF_F_5_2_1) : le titre du tableau est cherché
-' exactement (cellule qui commence par « Tableau F.5.2.1 - », en respectant la casse,
-' pour ne pas prendre un renvoi au tableau écrit dans une note), les valeurs commencent
-' 2 lignes plus bas (sous l'en-tête) et 1 colonne à droite du titre (après la colonne
-' des intitulés de ligne) ; nbLignes x nbCols valeurs. Renvoie le nom, utilisé dans les
-' formules à la place de l'adresse.
+' du tableau (ex. « Tableau F.5.2.1 » -> NF_F_5_2_1) :
+'   - le titre du tableau est cherché exactement (cellule qui commence par « Tableau
+'     F.5.2.1 - », en respectant la casse, pour ne pas prendre un renvoi écrit dans une
+'     note) ; le titre étant fusionné sur la largeur du tableau, on repart de la
+'     première cellule de la fusion ;
+'   - dans les lignes sous le titre, la première colonne de valeurs est repérée par son
+'     en-tête : 1re colonne de sol (en-tête commençant par « Argile ») ou, pour les
+'     coefficients de modèle F.2.1 et G.2.1, 1re colonne gamma R;d1 ;
+'   - les valeurs commencent sur la ligne sous cet en-tête ; nbLignes x nbCols valeurs.
+' Renvoie le nom, utilisé dans les formules à la place de l'adresse.
 Private Function ZoneTableau(wt As Worksheet, titre As String, decalage As Long, _
         nbLignes As Long, nbCols As Long) As String
-    Dim c As Range, trouve As Range, premier As String, nom As String
+    Dim c As Range, trouve As Range, ent As Range, premier As String, nom As String
+    Dim cle As String, lig As Long, col As Long
     Set c = wt.Cells.Find(What:=titre & " - ", After:=wt.Cells(wt.Rows.Count, wt.Columns.Count), _
         LookIn:=xlValues, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
         MatchCase:=True)
     If Not c Is Nothing Then
         premier = c.Address
         Do
-            If Left$(CStr(c.Value), Len(titre) + 3) = titre & " - " Then
-                Set trouve = c
+            If Left$(CStr(c.MergeArea.Cells(1, 1).Value), Len(titre) + 3) = titre & " - " Then
+                Set trouve = c.MergeArea.Cells(1, 1)
                 Exit Do
             End If
             Set c = wt.Cells.FindNext(c)
@@ -575,9 +580,26 @@ Private Function ZoneTableau(wt As Worksheet, titre As String, decalage As Long,
     End If
     If trouve Is Nothing Then Err.Raise vbObjectError + 1, , "« " & titre & " » introuvable " & _
         "dans la feuille « " & wt.Name & " » : relancez CreerTableauxNFP94262."
+    ' En-tête de la 1re colonne de valeurs, dans les 4 lignes sous le titre
+    If titre = "Tableau F.2.1" Or titre = "Tableau G.2.1" Then
+        cle = "R;d1"
+    Else
+        cle = "Argile"
+    End If
+    For lig = trouve.Row + 1 To trouve.Row + 4
+        For col = trouve.Column To trouve.Column + 15
+            If InStr(1, CStr(wt.Cells(lig, col).Value), cle, vbTextCompare) > 0 Then
+                Set ent = wt.Cells(lig, col)
+                Exit For
+            End If
+        Next col
+        If Not ent Is Nothing Then Exit For
+    Next lig
+    If ent Is Nothing Then Err.Raise vbObjectError + 2, , "En-tête des valeurs du « " & titre & _
+        " » introuvable dans la feuille « " & wt.Name & " » : relancez CreerTableauxNFP94262."
     nom = "NF_" & Replace(Replace(Trim$(Mid$(titre, Len("Tableau ") + 1)), ".", "_"), " ", "")
     ActiveWorkbook.Names.Add Name:=nom, RefersTo:="='" & wt.Name & "'!" & _
-        trouve.Offset(2 + decalage, 1).Resize(nbLignes, nbCols).Address
+        ent.Offset(1 + decalage, 0).Resize(nbLignes, nbCols).Address
     ZoneTableau = nom
 End Function
 
