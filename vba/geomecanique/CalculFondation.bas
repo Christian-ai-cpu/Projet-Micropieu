@@ -29,6 +29,9 @@ Option Explicit
 '         D = somme des épaisseurs, h = épaisseur de la dernière couche
 '         puis kp (kp max du tableau F.4.2.1 et Def/B) et Rb = Ab x kp x ple* ;
 '         colonnes masquées pour les micropieux (catégories 17 à 20)
+'   AB3 : tout à droite, mêmes tableaux par la méthode pénétrométrique (annexe G) :
+'         qc,i, qcm, écrêtage qcc = min(qc ; 1,3 qcm), qce, Def, kc (G.4.2.1) et
+'         Rb = Ab x kc x qce
 ' Méthode pressiométrique (annexe F) : fsol = (a.pl* + b)(1 - exp(-c.pl*)), pl* en
 ' MPa, fsol en kPa ; qs = min(alpha pieu-sol x fsol ; qs max).
 ' Catégories de sol de la feuille « Données du projet » -> colonnes des tableaux :
@@ -50,7 +53,7 @@ Public Sub CreerCalculVerification()
     Dim ws As Worksheet, wt As Worksheet, r As Long, i As Long, lc As Long
     Dim zAlpha As String, zABC As String, zQs As String, nb As String, cat As String
     Dim lg As Long, etape As String, zF21 As String, ligneF21 As String, lt As Long, gamma As String
-    Dim zKp As String, c As String
+    Dim zKp As String, c As String, zKc As String
 
     Application.ScreenUpdating = False
     On Error GoTo Erreur
@@ -70,6 +73,7 @@ Public Sub CreerCalculVerification()
     zABC = ZoneTableau(wt, "Tableau F.5.2.2", 0, 4, 5)      ' courbe, a, b, c x 5 sols
     zQs = ZoneTableau(wt, "Tableau F.5.2.3", 0, 20, 6)      ' 20 catégories x 6 sols
     zKp = ZoneTableau(wt, "Tableau F.4.2.1", 0, 8, 5)       ' 8 classes x 5 sols
+    zKc = ZoneTableau(wt, "Tableau G.4.2.1", 0, 8, 6)       ' 8 classes x 6 sols
 
     etape = "création de la feuille"
     On Error Resume Next
@@ -231,6 +235,10 @@ Public Sub CreerCalculVerification()
     ws.Range("W60:W65").NumberFormat = "0.00"
     ws.Range("U65:X65").Font.Bold = True
 
+    ' --- Tout à droite (colonnes AB à AH) : mêmes tableaux par la méthode pénétrométrique
+    etape = "ancrage (méthode pénétrométrique)"
+    AncragePenetro ws, zKc
+
     ' --- Sous le frottement axial : valeurs caractéristiques puis valeurs de calcul ---
     ' Intitulé en B, symbole en C, valeur en D, unité en E
     etape = "valeurs caractéristiques"
@@ -325,14 +333,18 @@ Private Function Derniere(col As String) As String
 End Function
 
 ' Une ligne « intitulé (U:V fusionnées) | valeur (W) | unité (X) » à droite
-Private Sub LigneD(ws As Worksheet, r As Long, intitule As String, formule As String, unite As String)
-    ws.Range("U" & r).Value = intitule
-    ws.Range("U" & r & ":V" & r).Merge
-    ws.Range("W" & r).Formula = formule
-    ws.Range("X" & r).Value = unite
+' (col = première colonne : U, ou AB pour la méthode pénétrométrique)
+Private Sub LigneD(ws As Worksheet, r As Long, intitule As String, formule As String, unite As String, _
+        Optional col As String = "U")
+    With ws.Range(col & r)
+        .Value = intitule
+        .Resize(1, 2).Merge
+        .Offset(0, 2).Formula = formule
+        .Offset(0, 3).Value = unite
+    End With
 End Sub
 
-' Colonnes de droite (sol d'ancrage, ple*, Def, kp, Rb) masquées pour les micropieux
+' Colonnes de droite (sol d'ancrage, ple*, qce, Def, kp, kc, Rb) masquées pour les micropieux
 ' (catégories 17 à 20 : résistance de pointe non prise en compte). Appelée à la
 ' création et quand le type de pieu change (ChangementDonnees, module DonneesProjet).
 Public Sub AfficherPointe(Optional ws As Worksheet)
@@ -342,7 +354,7 @@ Public Sub AfficherPointe(Optional ws As Worksheet)
         On Error GoTo 0
         If ws Is Nothing Then Exit Sub
     End If
-    ws.Columns("T:Z").Hidden = (Val(ws.Range("D11").Value) >= 17)
+    ws.Columns("T:AH").Hidden = (Val(ws.Range("D11").Value) >= 17)
 End Sub
 
 ' Ligne r d'un tableau ple* (ple = True) ou Def pour la couche de la ligne fr du
@@ -485,3 +497,119 @@ Private Function ZoneTableau(wt As Worksheet, titre As String, decalage As Long,
         "dans la feuille « " & wt.Name & " » : relancez CreerTableauxNFP94262."
     ZoneTableau = "'" & wt.Name & "'!" & c.Offset(2 + decalage, 1).Resize(nbLignes, nbCols).Address
 End Function
+
+' Tableaux d'ancrage par la méthode pénétrométrique (annexe G), à droite des tableaux
+' pressiométriques (colonnes AB à AH), mêmes lignes : sol d'ancrage, résistance de pointe
+' équivalente qce, hauteur d'encastrement équivalente Def, facteur de portance kc et
+' Rb = Ab x kc x qce. qc,i lu dans la colonne qc (I) de « Données du projet ».
+' Ecrêtage (G.4.2 (3)) : qcm = somme(qc,i x dz) / (b + 3a) sur [D-b ; D+3a],
+' qcc = min(qc ; 1,3 qcm), qce = somme(qcc,i x dz) / (b + 3a) ; Def = somme(qc,i x dz)
+' / qce sur [D-10B ; D]. a, b et les intervalles sont ceux de la méthode pressiométrique.
+' kc = kc max (tableau G.4.2.1) si Def/B > 5, sinon k0 + (kc max - k0) x (Def/B) / 5
+' avec k0 = 0,3 argiles, 0,2 sols intermédiaires, 0,1 sables et graves, 0,15 craies,
+' marnes et roches.
+Private Sub AncragePenetro(ws As Worksheet, zKc As String)
+    Dim i As Long, r As Long, lt As Long, k0 As String
+    SousTitre ws, 3, "Détermination du sol d'ancrage (méthode pénétrométrique)", "AB"
+    LigneD ws, 4, "Couche d'ancrage (dernière couche renseignée)", "=$W$4", "", "AB"
+    LigneD ws, 5, "Catégorie de sol", "=$W$5", "", "AB"
+    LigneD ws, 6, "Résistance de pointe qc", "=IFERROR(LOOKUP(2,1/($AC$30:$AC$44<>""""),$AH$30:$AH$44),"""")", _
+        "MPa", "AB"
+    LigneD ws, 7, "Hauteur de la couche porteuse h", "=$D$21", "m", "AB"
+    SousTitre ws, 9, "Détermination de la résistance de pointe équivalente qce", "AB"
+    SousTitre ws, 28, "Détermination de la hauteur d'encastrement équivalente Def (méthode pénétrométrique)", "AB"
+    For i = 0 To 1
+        r = IIf(i = 0, 10, 29)               ' ligne d'en-tête
+        ws.Range("AB" & r & ":AG" & r).Value = Array("N°", "Couche", "z haut (m)", "z bas (m)", _
+            IIf(i = 0, ChrW(916) & "z dans [D-b ; D+3a] (m)", ChrW(916) & "z dans [D-10B ; D] (m)"), _
+            IIf(i = 0, "qc,i x " & ChrW(916) & "z (MPa.m)", "qc,i x " & ChrW(916) & "z / qce (m)"))
+        ws.Range("AH" & r).Value = IIf(i = 0, "qcc,i x " & ChrW(916) & "z (MPa.m)", "qc,i (MPa)")
+        For lt = 1 To MAX_COUCHES
+            AncrageLignePenetro ws, r + lt, 38 + lt, i = 0
+        Next lt
+    Next i
+    ws.Range("AB26").Value = "qcm = " & ChrW(931) & " (qc,i x " & ChrW(916) & "z) / (b + 3a)  (MPa)"
+    ws.Range("AB26:AF26").Merge
+    ws.Range("AG26").Formula = "=IF(OR(COUNT(AG11:AG25)=0,N($W$52)=0),"""",SUM(AG11:AG25)/$W$52)"
+    ws.Range("AB27").Value = "qce = " & ChrW(931) & " (qcc,i x " & ChrW(916) & _
+        "z) / (b + 3a) avec qcc = min(qc ; 1,3 qcm)  (MPa)"
+    ws.Range("AB27:AG27").Merge
+    ws.Range("AH27").Formula = "=IF(OR(COUNT(AH11:AH25)=0,N($W$52)=0),"""",SUM(AH11:AH25)/$W$52)"
+    ws.Range("AB45").Value = "Def = " & ChrW(931) & " (qc,i x " & ChrW(916) & "z) / qce  (m)"
+    ws.Range("AB45:AF45").Merge
+    ws.Range("AG45").Formula = "=IF(COUNT(AG30:AG44)=0,"""",SUM(AG30:AG44))"
+    ws.Range("AB26:AH27,AB45:AG45").Font.Bold = True
+    ws.Range("AD11:AH27,AD30:AH45").NumberFormat = "0.00"
+
+    ' Paramètres des intervalles : identiques à la méthode pressiométrique
+    LigneD ws, 47, "Paramètres de calcul de qce", "=$W$4", "", "AB"
+    LigneD ws, 48, "a = max(B/2 ; 0,5 m)", "=$W$48", "m", "AB"
+    LigneD ws, 49, "b = min(a ; h)", "=$W$49", "m", "AB"
+    LigneD ws, 50, "D - b", "=$W$50", "m", "AB"
+    LigneD ws, 51, "D + 3a", "=$W$51", "m", "AB"
+    LigneD ws, 52, "b + 3a", "=$W$52", "m", "AB"
+    LigneD ws, 54, "Paramètres de calcul de Def", "=$W$4", "", "AB"
+    LigneD ws, 55, "10 B", "=$W$55", "m", "AB"
+    LigneD ws, 56, "D - 10 B", "=$W$56", "m", "AB"
+    ws.Range("AD48:AD52,AD55:AD56").NumberFormat = "0.00"
+
+    SousTitre ws, 58, "Détermination du facteur de portance kc et de la résistance de pointe Rb", "AB"
+    k0 = "CHOOSE(" & Rang6("$AD$5") & ",0.3,0.2,0.1,0.15,0.15,0.15)"
+    LigneD ws, 59, "Classe de la fondation", "=$D$10", "", "AB"
+    LigneD ws, 60, "kc max (tableau G.4.2.1, classe et sol d'ancrage)", _
+        "=IFERROR(INDEX(" & zKc & ",VALUE(LEFT($D$10,1))," & Rang6("$AD$5") & "),"""")", "", "AB"
+    LigneD ws, 61, "Def / B", "=IF(OR($AG$45="""",N($D$19)=0),"""",$AG$45/$D$19)", "", "AB"
+    LigneD ws, 62, "kc = kc max si Def/B > 5, sinon k0 + (kc max - k0) x (Def/B) / 5", _
+        "=IF(OR(NOT(ISNUMBER(AD60)),AD61=""""),"""",IF(AD61>5,AD60," & k0 & "+(AD60-" & k0 & ")*AD61/5))", _
+        "", "AB"
+    LigneD ws, 63, "Aire de la base Ab", "=$D$22", "m²", "AB"
+    LigneD ws, 64, "Résistance de pointe équivalente qce", "=$AH$27", "MPa", "AB"
+    LigneD ws, 65, "Rb = Ab x kc x qce", "=IF(OR(AD62="""",N(AD63)=0,AD64=""""),"""",1000*AD63*AD62*AD64)", _
+        "kN", "AB"
+    ws.Range("AD60:AD65").NumberFormat = "0.00"
+    ws.Range("AB65:AE65").Font.Bold = True
+
+    ' Mise en forme (comme les tableaux pressiométriques)
+    With ws.Range("AB4:AE7,AB10:AH27,AB29:AH45,AB47:AE52,AB54:AE56,AB59:AE65")
+        .Borders.LineStyle = xlContinuous
+        .VerticalAlignment = xlCenter
+        .WrapText = True
+    End With
+    With ws.Range("AB10:AH10,AB29:AH29,AB47:AE47,AB54:AE54")
+        .Font.Bold = True
+        .HorizontalAlignment = xlCenter
+        .Interior.Color = VERT_ENTETE
+    End With
+    ws.Range("AD4:AD7,AD48:AD52,AD55:AD56,AG26,AH27,AG45,AD59:AD65").Interior.Color = JAUNE_CALCUL
+    ws.Range("AD4:AE65,AB11:AB25,AD11:AH25,AB30:AB44,AD30:AH44").HorizontalAlignment = xlCenter
+    ws.Columns("AA").ColumnWidth = 3
+    ws.Columns("AB:AH").ColumnWidth = 16
+End Sub
+
+' Ligne r d'un tableau qce (qce = True) ou Def pénétrométrique pour la couche de la
+' ligne fr du tableau du frottement axial ; qc,i lu dans « Données du projet »
+' (colonne I, ligne de la couche)
+Private Sub AncrageLignePenetro(ws As Worksheet, r As Long, fr As Long, qce As Boolean)
+    Dim cond As String, zbas As String, qc As String
+    cond = "=IF($C$" & fr & "="""","""","
+    qc = DONNEES & "$I$" & LIGNE_COUCHES + fr - 39
+    ws.Range("AB" & r).Formula = cond & "$B$" & fr & ")"
+    ws.Range("AC" & r).Formula = cond & "$C$" & fr & ")"
+    ws.Range("AE" & r).Formula = cond & "SUM($F$39:$F$" & fr & "))"
+    ws.Range("AD" & r).Formula = cond & "AE" & r & "-N($F$" & fr & "))"
+    If qce Then
+        ' dernière couche : prolongée sous la base (z bas très grand)
+        If fr = 53 Then zbas = "1E+9" Else zbas = "IF(COUNTIF($C$" & fr + 1 & ":$C$53,""?*"")=0,1E+9,AE" & r & ")"
+        ws.Range("AF" & r).Formula = cond & "IFERROR(MAX(0,MIN(" & zbas & ",$W$51)-MAX(AD" & r & ",$W$50)),""""))"
+        ws.Range("AG" & r).Formula = "=IF(OR(AF" & r & "="""",NOT(ISNUMBER(" & qc & "))),""""," & _
+            qc & "*AF" & r & ")"
+        ' qc écrêté à 1,3 qcm
+        ws.Range("AH" & r).Formula = "=IF(OR(AF" & r & "="""",NOT(ISNUMBER(" & qc & ")),N($AG$26)=0),""""," & _
+            "MIN(" & qc & ",1.3*$AG$26)*AF" & r & ")"
+    Else
+        ws.Range("AF" & r).Formula = cond & "IFERROR(MAX(0,MIN(AE" & r & ",$D$20)-MAX(AD" & r & ",$W$56)),""""))"
+        ws.Range("AG" & r).Formula = "=IF(OR(AF" & r & "="""",NOT(ISNUMBER(" & qc & ")),N($AH$27)=0)," & _
+            """"",(" & qc & ")*AF" & r & "/$AH$27)"
+        ws.Range("AH" & r).Formula = cond & "IF(ISNUMBER(" & qc & ")," & qc & ",""""))"
+    End If
+End Sub
