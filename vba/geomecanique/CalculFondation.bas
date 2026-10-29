@@ -182,6 +182,7 @@ Public Sub CreerCalculVerification()
     ws.Range("I" & r + 1).Formula = "=IF($D$5=""Méthode pénétrométrique"",""" & ChrW(945) & _
         "pieu-sol (G.5.2.1)"",""" & ChrW(945) & "pieu-sol (F.5.2.1)"")"
     ws.Range("J" & r + 1).Formula = "=IF($D$5=""Méthode pénétrométrique"",""fsol,i = (a.qc + b)(1 - e^-c.qc) (kPa)"",""fsol,i = (a.pl* + b)(1 - e^-c.pl*) (kPa)"")"
+    ws.Range("L" & r + 1).Formula = "=IF($D$5=""Méthode pénétrométrique"",""qs,max (G.5.2.3) (kPa)"",""qs,max (F.5.2.3) (kPa)"")"
     ws.Range("H" & r + 1).Formula = "=IF($D$5=""Méthode pénétrométrique"",""Courbe fsol (G.5.2.2)"",""Courbe fsol (F.5.2.2)"")"
     For i = 1 To MAX_COUCHES
         CoucheLigne ws, r + 1 + i, i, lc + i - 1, cat, gamma, zAlpha, zABC, zQs
@@ -507,7 +508,7 @@ Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat A
         ")*(1-EXP(-" & IndexNorme(zABC, "4", sol) & "*" & pl & ")),""""))"
     ws.Range("K" & r).Formula = FormuleProduit("$I$" & r, "$J$" & r)
     mCellule = "L" & r
-    ws.Range("L" & r).Formula = Replace(FormuleIndex(Split(zQs, "|")(1), cat, Rang6(sol)), "=", cond, 1, 1) & ")"
+    ws.Range("L" & r).Formula = cond & "IFERROR(" & IndexNorme(zQs, cat, sol, True) & ",""""))"
     ws.Range("M" & r).Formula = FormuleQs("$K$" & r, "$L$" & r)
     ws.Range("N" & r).Formula = "=IF(OR(B" & r & "="""",F" & r & "="""",N($D$23)=0),""""," & _
         "$D$23*F" & r & ")"
