@@ -549,17 +549,36 @@ Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat A
     ws.Range("N" & r).NumberFormat = "0.000"
 End Sub
 
-' Adresse absolue (avec le nom de la feuille) des valeurs d'un tableau de la feuille
-' « Tableaux NF P94-262 » : le titre commençant par titre est cherché, les valeurs
-' commencent 2 lignes plus bas (sous l'en-tête) et 1 colonne à droite du titre
-' (après la colonne des intitulés de ligne) ; nbLignes x nbCols valeurs.
+' Valeurs d'un tableau de la feuille « Tableaux NF P94-262 », nommées d'après le numéro
+' du tableau (ex. « Tableau F.5.2.1 » -> NF_F_5_2_1) : le titre du tableau est cherché
+' exactement (cellule qui commence par « Tableau F.5.2.1 - », en respectant la casse,
+' pour ne pas prendre un renvoi au tableau écrit dans une note), les valeurs commencent
+' 2 lignes plus bas (sous l'en-tête) et 1 colonne à droite du titre (après la colonne
+' des intitulés de ligne) ; nbLignes x nbCols valeurs. Renvoie le nom, utilisé dans les
+' formules à la place de l'adresse.
 Private Function ZoneTableau(wt As Worksheet, titre As String, decalage As Long, _
         nbLignes As Long, nbCols As Long) As String
-    Dim c As Range
-    Set c = wt.Cells.Find(What:=titre, LookIn:=xlValues, LookAt:=xlPart, MatchCase:=False)
-    If c Is Nothing Then Err.Raise vbObjectError + 1, , "« " & titre & " » introuvable " & _
+    Dim c As Range, trouve As Range, premier As String, nom As String
+    Set c = wt.Cells.Find(What:=titre & " - ", After:=wt.Cells(wt.Rows.Count, wt.Columns.Count), _
+        LookIn:=xlValues, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
+        MatchCase:=True)
+    If Not c Is Nothing Then
+        premier = c.Address
+        Do
+            If Left$(CStr(c.Value), Len(titre) + 3) = titre & " - " Then
+                Set trouve = c
+                Exit Do
+            End If
+            Set c = wt.Cells.FindNext(c)
+            If c Is Nothing Then Exit Do
+        Loop Until c.Address = premier
+    End If
+    If trouve Is Nothing Then Err.Raise vbObjectError + 1, , "« " & titre & " » introuvable " & _
         "dans la feuille « " & wt.Name & " » : relancez CreerTableauxNFP94262."
-    ZoneTableau = "'" & wt.Name & "'!" & c.Offset(2 + decalage, 1).Resize(nbLignes, nbCols).Address
+    nom = "NF_" & Replace(Replace(Trim$(Mid$(titre, Len("Tableau ") + 1)), ".", "_"), " ", "")
+    ActiveWorkbook.Names.Add Name:=nom, RefersTo:="='" & wt.Name & "'!" & _
+        trouve.Offset(2 + decalage, 1).Resize(nbLignes, nbCols).Address
+    ZoneTableau = nom
 End Function
 
 ' Tableaux d'ancrage par la méthode pénétrométrique (annexe G), à droite des tableaux
