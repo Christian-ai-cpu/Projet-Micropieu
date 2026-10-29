@@ -244,8 +244,10 @@ Public Sub CreerCalculVerification()
     etape = "valeurs caractéristiques"
     SousTitre ws, 56, "Valeurs caractéristiques des résistances"
     ' Rb,k = Rb / (gamma R;d1 x gamma R;d2) si la résistance de pointe est prise en compte
+    ' (Rb pénétrométrique en AD65 si la méthode est pénétrométrique, pressiométrique en W65 sinon)
     LigneS ws, 57, "Résistance de pointe = Rb / (" & ChrW(947) & "R;d1 x " & ChrW(947) & "R;d2)", "Rb,k", _
-        "=IF($D$15<>""Oui"",0,IFERROR($W$65/(" & gamma & "),""""))", "kN"
+        "=IF($D$15<>""Oui"",0,IFERROR(IF($D$5=""Méthode pénétrométrique"",$AD$65,$W$65)/(" & _
+        gamma & "),""""))", "kN"
     LigneS ws, 58, "Résistance de frottement = " & ChrW(931) & " Rs,i", "Rs,k", _
         "=IF(COUNT($P$39:$P$53)=0,"""",SUM($P$39:$P$53))", "kN"
     LigneS ws, 60, "Portance (compression) = Rb,k + Rs,k", "Rc,k", _
