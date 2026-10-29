@@ -11,11 +11,14 @@ Option Explicit
 '               catégorie A à G ; altitude ; zone de sismicité 1 à 5)
 '   B18 à I26 : Références normatives (référence, date, intitulé)
 '   B28 à E29 : Référentiel altimétrique (liste) et niveau du terrain naturel (unité
-'               m + référentiel)
-'   B31 à J48 : Données géotechniques : nombre de couches (C32, 1 à 15) et tableau
-'               des couches de sol (seules les lignes jusqu'à ce nombre sont affichées)
-'   B50 à E55 : Données de la fondation (arase supérieure, base, nappe, méthode,
-'               niveau d'eau ; intitulé sur B:C, valeur en D, unité en E)
+'               m + référentiel, reprise pour les profondeurs et les cotes)
+'   B31 à E36 : Données de la fondation (arase supérieure, profondeur de
+'               reconnaissance, nappe, méthode de calcul, niveau d'eau ; intitulé sur
+'               B:C, valeur en D, unité en E)
+'   B38 à K55 : Données géotechniques : nombre de couches (C39, 1 à 15) et tableau
+'               des couches de sol (seules les lignes jusqu'à ce nombre sont affichées) ;
+'               colonne pl* masquée en méthode pénétrométrique, colonne qc masquée en
+'               méthode pressiométrique (AfficherMethode) ; couche d'ancrage en K
 '   B57 à D73 : Caractéristiques de la fondation (type de pieu du tableau A.1 de la
 '               NF P94-262, diamètre constant, incliné, groupe, norme de référence,
 '               classe, catégorie, abréviation, mode de fonctionnement (compression / traction),
@@ -39,8 +42,10 @@ Option Explicit
 Private Const NOM_FEUILLE As String = "Données du projet"
 Private Const CELLULE_PHASE As String = "C9"
 Private Const LIGNE_FONDATION As Long = 13
-Public Const CELLULE_NB_COUCHES As String = "C32"   ' nombre de couches saisi
-Public Const LIGNE_COUCHES As Long = 34       ' première couche de sol
+Private Const LIGNE_DONNEES_FONDATION As Long = 31   ' sous-titre « Données de la fondation »
+Public Const CELLULE_METHODE As String = "D35"      ' méthode de calcul retenue
+Public Const CELLULE_NB_COUCHES As String = "C39"   ' nombre de couches saisi
+Public Const LIGNE_COUCHES As Long = 41       ' première couche de sol
 Public Const MAX_COUCHES As Long = 15         ' lignes prévues (au-delà du nombre : masquées)
 Public Const LIGNE_PIEU As Long = 58          ' type de pieu (caractéristiques de la fondation)
 Private Const ABREVIATIONS As String = "FS|FB|FTP|FTR|FSR, FBR, PU|FTC, FTCD|VM|VT|" & _
@@ -168,9 +173,29 @@ Public Sub CreerDonneesProjet()
     ws.Range("B28:C28").Merge
     ws.Range("B29:C29").Merge
 
+    ' --- Données de la fondation : intitulé sur B:C fusionnées, valeur en D, unité en E ---
+    lm = LIGNE_DONNEES_FONDATION             ' sous-titre
+    SousTitre ws, lm, "Données de la fondation"
+    ws.Range("B" & lm + 1 & ":B" & lm + 5).Value = Application.Transpose(Array( _
+        "Cote de l'arase supérieure de la fondation", "Profondeur de reconnaissance", _
+        "Présence de nappe phréatique", "Méthode de calcul retenue pour la fondation", _
+        "Niveau de l'eau"))
+    ' Unités des cotes et profondeurs : celle du niveau du terrain naturel (E29, m +
+    ' référentiel altimétrique)
+    ws.Range("E" & lm + 1 & ":E" & lm + 2).Formula = "=$E$29"
+    ws.Range("E" & lm + 5).Value = "m"
+    ws.Range("D" & lm + 1 & ":D" & lm + 2 & ",D" & lm + 5).NumberFormat = "0.00"
+    ws.Range("D" & lm + 1 & ":E" & lm + 5).HorizontalAlignment = xlCenter
+    Liste ws.Range("D" & lm + 3), "Non,Oui"
+    Liste ws.Range("D" & lm + 4), "Méthode pressiométrique,Méthode pénétrométrique," & _
+        "Essais de chargement statique"
+    For r = lm + 1 To lm + 5
+        ws.Range("B" & r & ":C" & r).Merge
+    Next r
+
     ' --- Données géotechniques : nombre de couches puis tableau des couches ---
-    SousTitre ws, 31, "Données géotechniques"
-    ws.Range("B32").Value = "Nombre de couches"
+    SousTitre ws, LIGNE_COUCHES - 3, "Données géotechniques"
+    ws.Range("B" & LIGNE_COUCHES - 2).Value = "Nombre de couches"
     With ws.Range(CELLULE_NB_COUCHES)
         .Value = 3
         .Validation.Delete
@@ -178,10 +203,12 @@ Public Sub CreerDonneesProjet()
         .Validation.ErrorMessage = "Entrer un nombre de couches entre 1 et " & MAX_COUCHES & "."
         .HorizontalAlignment = xlCenter
     End With
-    ws.Range("B" & LIGNE_COUCHES - 1 & ":J" & LIGNE_COUCHES - 1).Value = Array("N° de couche", _
-        "Nom de couche (NF P11-300)", "Catégorie de sol (NF P94-262)", "Prof. bas (m/TN)", _
+    ws.Range("B" & LIGNE_COUCHES - 1 & ":K" & LIGNE_COUCHES - 1).Value = Array("N° de couche", _
+        "Nom de couche (NF P11-300)", "Catégorie de sol (NF P94-262)", "Prof. bas", _
         "Épaisseur (m)", "Pression limite pl* (MPa)", "Module pressiométrique EM (MPa)", _
-        "Résistance de pointe qc (MPa)", "Terrain neutralisé")
+        "Résistance de pointe qc (MPa)", "Terrain neutralisé", "Prise comme couche d'ancrage")
+    ' Unité de la profondeur : celle du niveau du terrain naturel (m + référentiel)
+    ws.Range("E" & LIGNE_COUCHES - 1).Formula = "=""Prof. bas (""&$E$29&"")"""
     For r = LIGNE_COUCHES To LIGNE_COUCHES + MAX_COUCHES - 1
         ws.Range("B" & r).Value = r - LIGNE_COUCHES + 1
         ListeLongue ws.Range("C" & r), SolsNFP11300(), "Sols NF P11-300"
@@ -196,29 +223,12 @@ Public Sub CreerDonneesProjet()
             ws.Range("F" & r).Formula = "=IF(E" & r & "="""","""",ABS(E" & r & "-E" & r - 1 & "))"
         End If
         Liste ws.Range("J" & r), "Non,Oui"
+        Liste ws.Range("K" & r), "Non,Oui"
     Next r
     lc = LIGNE_COUCHES + MAX_COUCHES - 1
     ' Formats des valeurs d'entrée : profondeur, épaisseur, pl*, EM et qc à 2 décimales
     ws.Range("E" & LIGNE_COUCHES & ":I" & lc).NumberFormat = "0.00"
-    ws.Range("B" & LIGNE_COUCHES & ":B" & lc & ",E" & LIGNE_COUCHES & ":J" & lc).HorizontalAlignment = xlCenter
-
-    ' --- Données de la fondation : intitulé sur B:C fusionnées, valeur en D, unité en E ---
-    lm = lc + 2                              ' sous-titre
-    SousTitre ws, lm, "Données de la fondation"
-    ws.Range("B" & lm + 1 & ":B" & lm + 5).Value = Application.Transpose(Array( _
-        "Cote de l'arase supérieure de la fondation", "Base de la fondation", _
-        "Présence de nappe phréatique", "Méthode de calcul retenue pour la fondation", _
-        "Niveau de l'eau"))
-    ws.Range("E" & lm + 1 & ":E" & lm + 5).Value = Application.Transpose(Array( _
-        "m/TN", "m/TN", "", "", "m"))
-    ws.Range("D" & lm + 1 & ":D" & lm + 2 & ",D" & lm + 5).NumberFormat = "0.00"
-    ws.Range("D" & lm + 1 & ":E" & lm + 5).HorizontalAlignment = xlCenter
-    Liste ws.Range("D" & lm + 3), "Non,Oui"
-    Liste ws.Range("D" & lm + 4), "Méthode pressiométrique,Méthode pénétrométrique," & _
-        "Essais de chargement statique"
-    For r = lm + 1 To lm + 5
-        ws.Range("B" & r & ":C" & r).Merge
-    Next r
+    ws.Range("B" & LIGNE_COUCHES & ":B" & lc & ",E" & LIGNE_COUCHES & ":K" & lc).HorizontalAlignment = xlCenter
 
     ' --- Caractéristiques de la fondation (sous le tableau précédent) ---
     ' Intitulé (unité comprise) sur B:C fusionnées, valeur en D. Norme de référence,
@@ -333,19 +343,20 @@ Public Sub CreerDonneesProjet()
     Next r
 
     ' --- Mise en forme ---
-    With ws.Range("B4:C9,B12:C16,B19:I26,B28:E29,B32:C32,B" & LIGNE_COUCHES - 1 & ":J" & lc & _
+    With ws.Range("B4:C9,B12:C16,B19:I26,B28:E29,B" & LIGNE_COUCHES - 2 & ":C" & LIGNE_COUCHES - 2 & _
+            ",B" & LIGNE_COUCHES - 1 & ":K" & lc & _
             ",B" & lm + 1 & ":E" & lm + 5 & ",B" & lp & ":D" & lp + 15 & _
             ",B" & la + 3 & ":E" & la + 9 & ",B" & LIGNE_ACIER & ":E" & LIGNE_ACIER + 13)
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":J" & LIGNE_COUCHES - 1).Font.Bold = True
-    ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":J" & LIGNE_COUCHES - 1).Interior.Color = VERT_ENTETE
-    ws.Range("B" & LIGNE_COUCHES - 1 & ":J" & LIGNE_COUCHES - 1).HorizontalAlignment = xlCenter
+    ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":K" & LIGNE_COUCHES - 1).Font.Bold = True
+    ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":K" & LIGNE_COUCHES - 1).Interior.Color = VERT_ENTETE
+    ws.Range("B" & LIGNE_COUCHES - 1 & ":K" & LIGNE_COUCHES - 1).HorizontalAlignment = xlCenter
     ' Cases à remplir en vert, valeurs calculées en jaune ; sans couleur : données
     ' géotechniques (laboratoire), données et caractéristiques de la fondation
-    ws.Range("C4:C9,C12:C16,D28:D29,C32,D" & la + 3 & ":D" & la + 5 & _
+    ws.Range("C4:C9,C12:C16,D28:D29," & CELLULE_NB_COUCHES & ",D" & la + 3 & ":D" & la + 5 & _
         ",D" & la + 7 & ":D" & la + 9 & _
         ",D" & LIGNE_ACIER & ":D" & LIGNE_ACIER + 1 & ",D" & LIGNE_ACIER + 5 & ":D" & _
         LIGNE_ACIER + 11).Interior.Color = VERT_SAISIE
@@ -355,11 +366,12 @@ Public Sub CreerDonneesProjet()
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 40
     ws.Columns("D").ColumnWidth = 28         ' valeurs de la fondation, catégorie de sol
-    ws.Columns("E:J").ColumnWidth = 14
+    ws.Columns("E:K").ColumnWidth = 14
     ws.Rows("19:" & LIGNE_ACIER + 13).AutoFit
 
     AfficherTypeFondation ws
     AfficherCouches ws
+    AfficherMethode ws
     MajArmature ws
     ws.Activate
     Application.EnableEvents = True
@@ -373,7 +385,8 @@ End Sub
 '   phase (C9) -> type de fondation ; nombre de couches -> lignes de couches ;
 '   type d'armature -> liste des classes d'acier ; classe de l'acier -> dimensions
 '   du tube ; type de pieu -> résistance de pointe affichée ou non dans « Calcul et
-'   vérification » ; méthode de calcul -> « Calcul et vérification » recréée
+'   vérification » ; méthode de calcul -> colonne pl* ou qc masquée et « Calcul et
+'   vérification » recréée
 Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
     On Error GoTo Fin
     Application.EnableEvents = False
@@ -388,9 +401,11 @@ Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
         On Error Resume Next
         Application.Run "AfficherPointe"
     End If
-    ' Méthode de calcul : « Calcul et vérification » recréée avec les formules de la
-    ' méthode choisie (pl* et tableaux F, ou qc et tableaux G)
-    If Not Intersect(Target, ws.Range("D" & LIGNE_COUCHES + MAX_COUCHES + 5)) Is Nothing Then
+    ' Méthode de calcul : colonne pl* ou qc des données géotechniques masquée, puis
+    ' « Calcul et vérification » recréée avec les formules de la méthode choisie (pl* et
+    ' tableaux F, ou qc et tableaux G)
+    If Not Intersect(Target, ws.Range(CELLULE_METHODE)) Is Nothing Then
+        AfficherMethode ws
         On Error Resume Next
         Application.Run "ActualiserCalculVerification"
     End If
@@ -398,8 +413,18 @@ Fin:
     Application.EnableEvents = True
 End Sub
 
-' Affiche autant de lignes de couches que le nombre saisi en C32 (1 à MAX_COUCHES),
-' les autres lignes du tableau sont masquées. Appelée aussi quand C32 change
+' Données géotechniques selon la méthode de calcul retenue : colonne de la pression
+' limite pl* (G) masquée en méthode pénétrométrique, colonne de la résistance de
+' pointe qc (I) masquée en méthode pressiométrique ; les deux affichées sinon.
+Public Sub AfficherMethode(ws As Worksheet)
+    Dim m As String
+    m = CStr(ws.Range(CELLULE_METHODE).Value)
+    ws.Columns("G").Hidden = (m = "Méthode pénétrométrique")
+    ws.Columns("I").Hidden = (m = "Méthode pressiométrique")
+End Sub
+
+' Affiche autant de lignes de couches que le nombre saisi en C39 (1 à MAX_COUCHES),
+' les autres lignes du tableau sont masquées. Appelée aussi quand C39 change
 ' (voir CodeFeuilleDonnees.txt).
 Public Sub AfficherCouches(ws As Worksheet)
     Dim nb As Long

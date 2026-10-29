@@ -77,8 +77,8 @@ Private Sub Construire(activer As Boolean)
 
     Application.ScreenUpdating = False
     On Error GoTo Erreur
-    mPenetro = (ActiveWorkbook.Worksheets("Données du projet").Range("D" & _
-        LIGNE_COUCHES + MAX_COUCHES + 5).Value = "Méthode pénétrométrique")
+    mPenetro = (ActiveWorkbook.Worksheets("Données du projet").Range(CELLULE_METHODE).Value = _
+        "Méthode pénétrométrique")
 
     ' Feuille des tableaux de la norme : créée si elle manque
     etape = "feuille Tableaux NF P94-262"
@@ -129,7 +129,7 @@ Private Sub Construire(activer As Boolean)
     etape = "données du projet"
     SousTitre ws, 3, "Données du projet"
     Ligne ws, 4, "Type de pieu", "=" & DONNEES & "D" & LIGNE_PIEU, ""
-    Ligne ws, 5, "Méthode de calcul", "=" & DONNEES & "D" & LIGNE_COUCHES + MAX_COUCHES + 5, ""
+    Ligne ws, 5, "Méthode de calcul", "=" & DONNEES & CELLULE_METHODE, ""
 
     ' --- Caractéristiques de la fondation : 3 groupes séparés par 2 lignes vides ---
     etape = "caractéristiques de la fondation"
@@ -197,6 +197,8 @@ Private Sub Construire(activer As Boolean)
         "Profondeur (m/TN)", "hi (m)", "pl*,i (MPa)", "Courbe fsol", ChrW(945) & "pieu-sol", _
         "fsol,i (kPa)", ChrW(945) & "pieu-sol x fsol,i (kPa)", "qs,max (kPa)", "qs = min (kPa)", _
         "As,i (m²)", "qs,i (kPa)", "Rs,i (kN)", "Terrain neutralisé")
+    ' Unité de la profondeur : celle de « Données du projet » (m + référentiel altimétrique)
+    ws.Range("E" & r + 1).Formula = "=""Profondeur (""&" & DONNEES & "$E$29&"")"""
     ' En-têtes selon la méthode de calcul : pl* et tableaux F, ou qc et tableaux G
     If mPenetro Then
         ws.Range("G" & r + 1 & ":J" & r + 1).Value = Array("qc,i (MPa)", "Courbe fsol (G.5.2.2)", _
