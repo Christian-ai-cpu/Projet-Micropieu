@@ -1,0 +1,36 @@
+' À COLLER DANS LE MODULE DE LA FEUILLE (pas dans un module standard) :
+' clic droit sur l'onglet de la feuille > Visualiser le code, puis coller
+' (remplacer entièrement l'ancien code).
+' - Niveau d'étage (C1) modifié : les étages affichés sont mis à jour.
+' - Nombre de murs (G1) modifié : le tableau est recopié vers la droite.
+' - Élément modifié en colonne Désignation (B, M, X...) : poids volumique (poutre,
+'   poteau) ou épaisseurs et poids surfacique (mur) mis à jour.
+' - Épaisseur de mur choisie en colonne E (E, P, AA...) : "20 cm" converti en mètres (0.20).
+' Fonctionne pour le tableau d'origine et pour toutes ses copies (pas de 11 colonnes).
+
+Private Sub Worksheet_Change(ByVal Target As Range)
+    Dim c As Range, m As Long, dc As Long
+
+    If Not Intersect(Target, Me.Range("C1")) Is Nothing Then AfficherEtages Me
+    If Not Intersect(Target, Me.Range("G1")) Is Nothing Then DupliquerMurs Me
+    If Target.CountLarge > 1000 Then Exit Sub      ' ex. effacement de la feuille
+
+    On Error GoTo Fin
+    Application.EnableEvents = False
+    For Each c In Target.Cells
+        If c.Row >= 5 And c.Column >= 2 Then
+            m = (c.Column - 2) Mod PAS_MUR            ' position dans le tableau
+            dc = c.Column - 2 - m                     ' décalage du tableau (mur)
+            If m = 0 Then                             ' colonne Désignation
+                MajLigne Me, c.Row, dc
+            ElseIf m = 3 And VarType(c.Value) = vbString Then   ' colonne E (épaisseur du mur)
+                If EpaisseursMur(CStr(Me.Cells(c.Row, 2 + dc).Value)) <> "" Then
+                    c.Value = Val(c.Value) / 100      ' "15 cm" -> 0.15
+                    c.NumberFormat = "0.000"
+                End If
+            End If
+        End If
+    Next c
+Fin:
+    Application.EnableEvents = True       ' toujours réactiver, même après une erreur
+End Sub
