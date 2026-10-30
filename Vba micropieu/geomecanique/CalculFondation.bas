@@ -295,22 +295,22 @@ Private Sub Construire(activer As Boolean)
     ' --- Pas de calcul (colonne A, à gauche du frottement axial) et capacité portante
     ' en fonction de la profondeur (tableau sous les valeurs de calcul) ---
     ' Pas = épaisseur / k, k = 1 si le terrain est neutralisé, NB_SUBDIV sinon. Colonnes
-    ' d'aide masquées (X à Z) : cumul de k, profondeur du bas de la couche, cumul de Rs,i.
-    ' Chaque ligne du tableau correspond à un pas : couche (AA) et rang du pas dans la
-    ' couche (AB), masqués ; z = bas de la couche précédente + rang x pas ;
+    ' d'aide masquées (AX à AZ) : cumul de k, profondeur du bas de la couche, cumul de Rs,i.
+    ' Chaque ligne du tableau correspond à un pas : couche (BA) et rang du pas dans la
+    ' couche (BB), masqués ; z = bas de la couche précédente + rang x pas ;
     ' Rs,k(z) = Rs,i des couches au-dessus + qs,i x Pe x (z - haut de la couche) ;
     ' Rt,k = Rs,k ; micropieux : ple*, kp max et Def sans objet (« - »), Rb,k = 0 ;
     ' valeurs de calcul comme dans le tableau des valeurs de calcul
     etape = "pas de calcul"
     ws.Range("A38").Value = "Pas de calcul (m)"
     ws.Range("R38").Value = "Nombre de subdivisions k"
-    ws.Range("X38:Z38").Value = Array(ChrW(931) & " k", "z bas (m)", ChrW(931) & " Rs,i (kN)")
+    ws.Range("AX38:AZ38").Value = Array(ChrW(931) & " k", "z bas (m)", ChrW(931) & " Rs,i (kN)")
     For r = 39 To 53
         ws.Range("R" & r).Formula = "=IF(B" & r & "="""","""",IF(Q" & r & "=""Oui"",1," & NB_SUBDIV & "))"
         ws.Range("A" & r).Formula = "=IF(OR(B" & r & "="""",N(F" & r & ")=0),"""",F" & r & "/R" & r & ")"
-        ws.Range("X" & r).Formula = "=IF(B" & r & "="""","""",SUM($R$39:R" & r & "))"
-        ws.Range("Y" & r).Formula = "=IF(B" & r & "="""","""",SUM($F$39:F" & r & "))"
-        ws.Range("Z" & r).Formula = "=IF(B" & r & "="""","""",SUM($P$39:P" & r & "))"
+        ws.Range("AX" & r).Formula = "=IF(B" & r & "="""","""",SUM($R$39:R" & r & "))"
+        ws.Range("AY" & r).Formula = "=IF(B" & r & "="""","""",SUM($F$39:F" & r & "))"
+        ws.Range("AZ" & r).Formula = "=IF(B" & r & "="""","""",SUM($P$39:P" & r & "))"
     Next r
     ws.Range("A39:A53").NumberFormat = "0.000"
     With ws.Range("A38:A53,R38:R53")
@@ -353,26 +353,26 @@ Private Sub Construire(activer As Boolean)
     ' vers le bas ; la ligne précédente de la 1re ligne est l'en-tête (texte -> N() = 0)
     r = LIGNE_PROFIL
     c = "(ROW()-" & LIGNE_PROFIL - 1 & ")"                   ' rang j du pas
-    ws.Range("AA" & r).Formula = "=IF(OR(COUNT($X$39:$X$53)=0," & c & ">MAX($X$39:$X$53)),""""," & _
-        "COUNTIF($X$39:$X$53,""<""&" & c & ")+1)"
-    ws.Range("AB" & r).Formula = "=IF(AA" & r & "="""",""""," & c & "-IF(AA" & r & "=1,0," & _
-        "INDEX($X$39:$X$53,AA" & r & "-1)))"
-    ws.Range("B" & r).Formula = "=IF(AA" & r & "="""","""",INDEX($B$39:$B$53,AA" & r & "))"
-    ws.Range("E" & r).Formula = "=IF(AA" & r & "="""","""",INDEX($A$39:$A$53,AA" & r & "))"
-    ws.Range("J" & r).Formula = "=IF(AA" & r & "="""","""",AB" & r & "*E" & r & ")"
-    ws.Range("C" & r).Formula = "=IF(AA" & r & "="""","""",IF(AA" & r & "=1,0,INDEX($Y$39:$Y$53,AA" & _
+    ws.Range("BA" & r).Formula = "=IF(OR(COUNT($AX$39:$AX$53)=0," & c & ">MAX($AX$39:$AX$53)),""""," & _
+        "COUNTIF($AX$39:$AX$53,""<""&" & c & ")+1)"
+    ws.Range("BB" & r).Formula = "=IF(BA" & r & "="""",""""," & c & "-IF(BA" & r & "=1,0," & _
+        "INDEX($AX$39:$AX$53,BA" & r & "-1)))"
+    ws.Range("B" & r).Formula = "=IF(BA" & r & "="""","""",INDEX($B$39:$B$53,BA" & r & "))"
+    ws.Range("E" & r).Formula = "=IF(BA" & r & "="""","""",INDEX($A$39:$A$53,BA" & r & "))"
+    ws.Range("J" & r).Formula = "=IF(BA" & r & "="""","""",BB" & r & "*E" & r & ")"
+    ws.Range("C" & r).Formula = "=IF(BA" & r & "="""","""",IF(BA" & r & "=1,0,INDEX($AY$39:$AY$53,BA" & _
         r & "-1))+J" & r & ")"
     ws.Range("D" & r).Formula = "=IF(C" & r & "="""","""",IF(ISNUMBER(" & DONNEES & "$D$29)," & _
         DONNEES & "$D$29-C" & r & ",-C" & r & "))"
-    ws.Range("F" & r).Formula = "=IF(AA" & r & "="""","""",INDEX($O$39:$O$53,AA" & r & "))"
+    ws.Range("F" & r).Formula = "=IF(BA" & r & "="""","""",INDEX($O$39:$O$53,BA" & r & "))"
     ' Rs,k cumulé : valeur de la ligne précédente + qs,i x Pe x pas
-    ws.Range("G" & r).Formula = "=IF(AA" & r & "="""","""",N(G" & r - 1 & ")+IF(INDEX($Q$39:$Q$53,AA" & _
+    ws.Range("G" & r).Formula = "=IF(BA" & r & "="""","""",N(G" & r - 1 & ")+IF(INDEX($Q$39:$Q$53,BA" & _
         r & ")=""Oui"",0,N(F" & r & ")*N($D$23)*E" & r & "))"
     ws.Range("H" & r).Formula = "=IF(G" & r & "="""","""",G" & r & ")"
-    ws.Range("I" & r).Formula = "=IF(AA" & r & "="""","""",""-"")"
+    ws.Range("I" & r).Formula = "=IF(BA" & r & "="""","""",""-"")"
     ws.Range("K" & r).Formula = "=I" & r
     ws.Range("L" & r).Formula = "=I" & r
-    ws.Range("M" & r).Formula = "=IF(AA" & r & "="""","""",0)"
+    ws.Range("M" & r).Formula = "=IF(BA" & r & "="""","""",0)"
     ' ELS : Rc;cr,d = (0,5 Rb,k + 0,7 Rs,k) / gamma cr ; Rt;cr,d = 0,7 Rt,k / gamma s;cr
     ' (x 0,15 sans essai de contrôle) ; ELU : Rc,d = Rb,k / gamma b + Rs,k / gamma s ;
     ' Rt,d = Rt,k / gamma s;t
@@ -386,7 +386,7 @@ Private Sub Construire(activer As Boolean)
             "$28+G" & r & "/$" & c & "$29)"
         ws.Range(Chr(Asc("S") + 2 * i) & r).Formula = "=IF(H" & r & "="""","""",H" & r & "/$" & c & "$31)"
     Next i
-    ws.Range("B" & r & ":AB" & lt).FillDown
+    ws.Range("B" & r & ":BB" & lt).FillDown
     ws.Range("C" & r & ":D" & lt & ",J" & r & ":J" & lt).NumberFormat = "0.00"
     ws.Range("E" & r & ":E" & lt).NumberFormat = "0.000"
     ws.Range("F" & r & ":H" & lt & ",M" & r & ":U" & lt).NumberFormat = "0.0"
@@ -400,7 +400,7 @@ Private Sub Construire(activer As Boolean)
         .Interior.Color = VERT_ENTETE
         .WrapText = True
     End With
-    ws.Columns("X:AB").Hidden = True
+    ws.Columns("AX:BB").Hidden = True
 
     ' --- Mise en forme ---
     etape = "mise en forme"
@@ -430,10 +430,10 @@ Private Sub Construire(activer As Boolean)
     ws.Columns("E:U").ColumnWidth = 12
     ' Bloc de l'effet de groupe (écrit en lignes 78 à 86) déplacé avant le tableau du
     ' frottement axial par couche (stratigraphie) : il occupe les lignes 37 à 45 et la
-    ' suite des colonnes A à AB descend de 9 lignes (jusqu'à la ligne 86 ; le tableau par
+    ' suite des colonnes A à BB descend de 9 lignes (jusqu'à la ligne 86 ; le tableau par
     ' pas de calcul, plus bas, ne bouge pas), les formules suivent le déplacement
     etape = "déplacement de l'effet de groupe"
-    ws.Range("A78:AB86").Cut
+    ws.Range("A78:BB86").Cut
     ws.Range("A37").Insert Shift:=xlDown
     Application.CutCopyMode = False
 
@@ -472,7 +472,8 @@ End Sub
 ' Vérification de la profondeur des micropieux, sous le tableau de la capacité portante
 ' par pas de calcul : pour chaque micropieu de la feuille de descente de charges (matrice
 ' des micropieux, module MatriceMicropieux, titre en B80) :
-'   descente de charges : Gmax = G, Gmin = G ou 0 (choix), Qmax = Q, Qmin = 0 (kN) ;
+'   descente de charges : Gmax = G, Gmin = G ou 0 (choix), Qmax = Q, Qmin = 0, eau
+'   EB, EH, EE (kN, 0 sans nappe) ;
 '   combinaisons verticales max / min :
 '     ELS caractéristique : G + Q ;  ELS quasi permanent : G + psi2 Q ;
 '     ELU fondamental : 1,35 Gmax + 1,5 Qmax (max), 1,0 Gmin + 1,5 Qmin (min) ;
@@ -547,7 +548,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
 
     ' Matrice des micropieux : murs (Mur 01...) à partir de la ligne 86, en-tête à 88 + n,
     ' micropieux (MP1...) à partir de 91 + n, POIDS TOTAL ÉLÉMENTAIRE DDC G et Q en
-    ' colonnes 8 + n et 9 + n
+    ' colonnes 8 + n et 9 + n, eau EB, EH, EE en colonnes 10 + n à 12 + n
     Do While Left(CStr(wd.Range("B" & 86 + n).Value), 4) = "Mur "
         n = n + 1
     Loop
@@ -557,37 +558,45 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     Loop
     dn = "'" & wd.Name & "'!"
 
-    ' En-têtes sur 3 lignes (titres en gras)
+    ' En-têtes sur 3 lignes (titres en gras). Colonnes : A micropieu ; B à H descente de
+    ' charges (Gmax, Gmin, Qmax, Qmin, eau EB, EH, EE) ; I à P combinaisons max / min ;
+    ' Q diamètre ; R à Y profondeurs requises ; Z profondeur retenue
     r0 = L + 7
     ws.Range("A" & r0).Value = "N° MICROPIEU"
     ws.Range("B" & r0).Value = "DESCENTE DE CHARGES (kN)"
-    ws.Range("F" & r0).Value = "COMBINAISONS DE CHARGES VERTICALES (kN)"
-    ws.Range("N" & r0).Value = "DIAMÈTRE B (m)"
-    ws.Range("O" & r0).Value = "PROFONDEUR MINIMALE REQUISE (m)"
-    ws.Range("W" & r0).Value = "PROFONDEUR RETENUE (m)"
+    ws.Range("I" & r0).Value = "COMBINAISONS DE CHARGES VERTICALES (kN)"
+    ws.Range("Q" & r0).Value = "DIAMÈTRE B (m)"
+    ws.Range("R" & r0).Value = "PROFONDEUR MINIMALE REQUISE (m)"
+    ws.Range("Z" & r0).Value = "PROFONDEUR RETENUE (m)"
     ws.Range("A" & r0 & ":A" & r0 + 2).Merge
-    ws.Range("B" & r0 & ":E" & r0).Merge
-    ws.Range("F" & r0 & ":M" & r0).Merge
-    ws.Range("N" & r0 & ":N" & r0 + 2).Merge
-    ws.Range("O" & r0 & ":V" & r0).Merge
-    ws.Range("W" & r0 & ":W" & r0 + 2).Merge
+    ws.Range("B" & r0 & ":H" & r0).Merge
+    ws.Range("I" & r0 & ":P" & r0).Merge
+    ws.Range("Q" & r0 & ":Q" & r0 + 2).Merge
+    ws.Range("R" & r0 & ":Y" & r0).Merge
+    ws.Range("Z" & r0 & ":Z" & r0 + 2).Merge
     ws.Range("B" & r0 + 1).Value = "G"
     ws.Range("D" & r0 + 1).Value = "Q"
+    ws.Range("F" & r0 + 1).Value = "EAU"
     ws.Range("B" & r0 + 1 & ":C" & r0 + 1).Merge
     ws.Range("D" & r0 + 1 & ":E" & r0 + 1).Merge
-    ws.Range("B" & r0 + 2 & ":E" & r0 + 2).Value = Array("Gmax", "Gmin", "Qmax", "Qmin")
+    ws.Range("F" & r0 + 1 & ":H" & r0 + 1).Merge
+    ws.Range("B" & r0 + 2 & ":H" & r0 + 2).Value = Array("Gmax", "Gmin", "Qmax", "Qmin", _
+        "Eau EB", "Eau EH", "Eau EE")
     entete = Array("ELS CARA", "ELS QP", "ELU FOND", "ELU ACC")
     For k = 0 To 3
-        ws.Cells(r0 + 1, 6 + 2 * k).Value = entete(k)
-        ws.Range(ws.Cells(r0 + 1, 6 + 2 * k), ws.Cells(r0 + 1, 7 + 2 * k)).Merge
-        ws.Cells(r0 + 1, 15 + 2 * k).Value = entete(k)
-        ws.Range(ws.Cells(r0 + 1, 15 + 2 * k), ws.Cells(r0 + 1, 16 + 2 * k)).Merge
-        ws.Range(ws.Cells(r0 + 2, 6 + 2 * k), ws.Cells(r0 + 2, 7 + 2 * k)).Value = Array("max", "min")
-        ws.Range(ws.Cells(r0 + 2, 15 + 2 * k), ws.Cells(r0 + 2, 16 + 2 * k)).Value = Array("max", "min")
+        ws.Cells(r0 + 1, 9 + 2 * k).Value = entete(k)
+        ws.Range(ws.Cells(r0 + 1, 9 + 2 * k), ws.Cells(r0 + 1, 10 + 2 * k)).Merge
+        ws.Cells(r0 + 1, 18 + 2 * k).Value = entete(k)
+        ws.Range(ws.Cells(r0 + 1, 18 + 2 * k), ws.Cells(r0 + 1, 19 + 2 * k)).Merge
+        ws.Range(ws.Cells(r0 + 2, 9 + 2 * k), ws.Cells(r0 + 2, 10 + 2 * k)).Value = Array("max", "min")
+        ws.Range(ws.Cells(r0 + 2, 18 + 2 * k), ws.Cells(r0 + 2, 19 + 2 * k)).Value = Array("max", "min")
     Next k
 
     ' Portance de chaque combinaison dans le tableau par pas de calcul : Rc;cr,d ELS
     ' caractéristique (N), ELS quasi permanent (P), Rc,d ELU fondamental (R), accidentel (T)
+    ' Eau (charges de l'eau EB basses eaux, EH hautes eaux, EE eaux exceptionnelles, 0 sans
+    ' nappe) ajoutée avec un coefficient 1 : EH aux combinaisons max, EB aux combinaisons
+    ' min, EE à l'ELU accidentel max
     colCap = Array("N", "P", "R", "T")
     z = "$C$" & LIGNE_PROFIL & ":$C$" & LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1
     For i = 1 To m
@@ -597,35 +606,38 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         ws.Range("C" & r).Formula = "=IF($D$" & L + 2 & "=""G"",B" & r & ",0)"
         ws.Range("D" & r).Formula = "=N(" & dn & wd.Cells(rd + i - 1, 9 + n).Address & ")"
         ws.Range("E" & r).Value = 0
-        ws.Range("F" & r).Formula = "=B" & r & "+D" & r
-        ws.Range("G" & r).Formula = "=C" & r & "+E" & r
-        ws.Range("H" & r).Formula = "=B" & r & "+$D$" & L + 5 & "*D" & r
-        ws.Range("I" & r).Formula = "=C" & r & "+$D$" & L + 5 & "*E" & r
-        ws.Range("J" & r).Formula = "=1.35*B" & r & "+1.5*D" & r
-        ws.Range("K" & r).Formula = "=1*C" & r & "+1.5*E" & r
-        ws.Range("L" & r).Formula = "=B" & r & "+$D$" & L + 4 & "*D" & r
-        ws.Range("M" & r).Formula = "=C" & r & "+$D$" & L + 4 & "*E" & r
-        ws.Range("N" & r).Formula = "=$D$19"
+        For k = 0 To 2                       ' eau EB, EH, EE de la descente de charges
+            ws.Cells(r, 6 + k).Formula = "=N(" & dn & wd.Cells(rd + i - 1, 10 + n + k).Address & ")"
+        Next k
+        ws.Range("I" & r).Formula = "=B" & r & "+D" & r & "+G" & r
+        ws.Range("J" & r).Formula = "=C" & r & "+E" & r & "+F" & r
+        ws.Range("K" & r).Formula = "=B" & r & "+$D$" & L + 5 & "*D" & r & "+G" & r
+        ws.Range("L" & r).Formula = "=C" & r & "+$D$" & L + 5 & "*E" & r & "+F" & r
+        ws.Range("M" & r).Formula = "=1.35*B" & r & "+1.5*D" & r & "+G" & r
+        ws.Range("N" & r).Formula = "=1*C" & r & "+1.5*E" & r & "+F" & r
+        ws.Range("O" & r).Formula = "=B" & r & "+$D$" & L + 4 & "*D" & r & "+H" & r
+        ws.Range("P" & r).Formula = "=C" & r & "+$D$" & L + 4 & "*E" & r & "+F" & r
+        ws.Range("Q" & r).Formula = "=$D$19"
         ' Profondeur minimale : 1re ligne où la portance (nombre) >= la charge
         For k = 0 To 7
-            charge = Chr(Asc("F") + k) & r
+            charge = Chr(Asc("I") + k) & r
             cap = "$" & colCap(k \ 2) & "$" & LIGNE_PROFIL & ":$" & colCap(k \ 2) & "$" & _
                 LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1
-            ws.Cells(r, 15 + k).Formula = "=IFERROR(INDEX(" & z & ",MATCH(1,INDEX(ISNUMBER(" & cap & _
+            ws.Cells(r, 18 + k).Formula = "=IFERROR(INDEX(" & z & ",MATCH(1,INDEX(ISNUMBER(" & cap & _
                 ")*(" & cap & ">=" & charge & "),0),0)),""Non atteinte"")"
         Next k
-        ws.Range("W" & r).Formula = "=IF(COUNTIF(O" & r & ":V" & r & ",""Non atteinte"")>0," & _
-            """Non atteinte"",MAX(O" & r & ":V" & r & "))"
+        ws.Range("Z" & r).Formula = "=IF(COUNTIF(R" & r & ":Y" & r & ",""Non atteinte"")>0," & _
+            """Non atteinte"",MAX(R" & r & ":Y" & r & "))"
     Next i
     rt = r0 + 2 + Application.Max(m, 1)
 
     ' Mise en forme
-    With ws.Range("A" & r0 & ":W" & rt)
+    With ws.Range("A" & r0 & ":Z" & rt)
         .Borders.LineStyle = xlContinuous
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
     End With
-    With ws.Range("A" & r0 & ":W" & r0 + 2)
+    With ws.Range("A" & r0 & ":Z" & r0 + 2)
         .Font.Bold = True
         .Font.Size = 11
         .Interior.Color = VERT_ENTETE
@@ -633,11 +645,11 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     End With
     If m > 0 Then
         ws.Range("A" & r0 + 3 & ":A" & rt).Font.Bold = True
-        ws.Range("B" & r0 + 3 & ":W" & rt).Interior.Color = JAUNE_CALCUL
-        ws.Range("B" & r0 + 3 & ":M" & rt).NumberFormat = "0.0"
-        ws.Range("N" & r0 + 3 & ":N" & rt).NumberFormat = "0.000"
-        ws.Range("O" & r0 + 3 & ":W" & rt).NumberFormat = "0.00"
-        ws.Range("W" & r0 + 3 & ":W" & rt).Font.Bold = True
+        ws.Range("B" & r0 + 3 & ":Z" & rt).Interior.Color = JAUNE_CALCUL
+        ws.Range("B" & r0 + 3 & ":P" & rt).NumberFormat = "0.0"
+        ws.Range("Q" & r0 + 3 & ":Q" & rt).NumberFormat = "0.000"
+        ws.Range("R" & r0 + 3 & ":Z" & rt).NumberFormat = "0.00"
+        ws.Range("Z" & r0 + 3 & ":Z" & rt).Font.Bold = True
     End If
     ws.Rows(r0).RowHeight = 30
 End Sub
