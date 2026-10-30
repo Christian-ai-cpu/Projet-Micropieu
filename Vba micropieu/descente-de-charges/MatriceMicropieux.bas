@@ -20,7 +20,9 @@ Option Explicit
 '               POIDS TOTAL ÉLÉMENTAIRE DDC : G = G des murs + massif + longrine, Q.
 ' Les saisies (dimensions, longueurs Li, longueurs modifiées de la matrice, choix M / L)
 ' sont conservées quand le tableau est recréé (nombre de murs ou de micropieux changé).
-' Appelé par DupliquerMurs (nombre de murs, G1) et quand K1 change (CodeFeuille.txt).
+' Appelé par DupliquerMurs (nombre de murs, G1) et quand K1 change (CodeFeuille.txt) ;
+' met ensuite à jour la vérification de la profondeur des micropieux de « Calcul et
+' vérification » (ActualiserVerificationProfondeur, module CalculFondation).
 
 Public Const LIGNE_MATRICE As Long = 80             ' titre du tableau
 Public Const CELLULE_NB_MICROPIEUX As String = "K1"
@@ -208,6 +210,11 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     ws.Range("C" & L + 1 & ":E" & L + 3 & ",C" & L + 6 & ":D" & L + 5 + n).NumberFormat = "0.00"
     ws.Range("C" & L + 1 & ":E" & L + 3).HorizontalAlignment = xlCenter
     ws.Rows(r0).RowHeight = 45
+
+    ' Tableau de vérification de la profondeur des micropieux de « Calcul et
+    ' vérification » mis à jour (module CalculFondation, s'il est présent)
+    On Error Resume Next
+    Application.Run "ActualiserVerificationProfondeur"
 
 Fin:
     Application.EnableEvents = evenements

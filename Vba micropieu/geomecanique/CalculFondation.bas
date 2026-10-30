@@ -484,7 +484,23 @@ End Sub
 '   profondeur retenue : la plus grande des profondeurs requises du micropieu.
 ' Le nombre de micropieux et de murs est lu à la création : recréer cette feuille
 ' après un changement dans la descente de charges.
-Private Sub VerificationProfondeur(ws As Worksheet)
+' Recrée le tableau de vérification de la profondeur des micropieux (si la feuille
+' « Calcul et vérification » existe), le choix de Gmin étant conservé. Appelée quand le
+' nombre de murs ou de micropieux change dans la descente de charges
+' (ConstruireMatrice, module MatriceMicropieux).
+Public Sub ActualiserVerificationProfondeur()
+    Dim ws As Worksheet, L As Long, gmin As String
+    On Error Resume Next
+    Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
+    On Error GoTo 0
+    If ws Is Nothing Then Exit Sub
+    L = LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV + 2
+    gmin = CStr(ws.Range("D" & L + 2).Value)
+    ws.Range(ws.Rows(L), ws.Rows(L + 300)).Clear
+    VerificationProfondeur ws, gmin
+End Sub
+
+Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G")
     Dim wd As Worksheet, f As Worksheet, L As Long, n As Long, m As Long, i As Long, k As Long
     Dim r0 As Long, rd As Long, rt As Long, r As Long, dn As String, cap As String, z As String
     Dim charge As Variant, colCap As Variant, entete As Variant
@@ -508,7 +524,7 @@ Private Sub VerificationProfondeur(ws As Worksheet)
     Ligne ws, L + 2, "Gmin pris égal à (G ou 0)", "", ""
     With ws.Range("D" & L + 2)
         .Validation.Add xlValidateList, xlValidAlertStop, , "G,0"
-        .Value = "G"
+        .Value = IIf(gmin = "0", "0", "G")
         .Interior.Color = VERT_SAISIE
     End With
     Ligne ws, L + 3, "Catégorie du bâtiment", "=" & DONNEES & "C14", ""
