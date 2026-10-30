@@ -304,6 +304,7 @@ Private Sub Construire(activer As Boolean)
     ws.Columns("C").ColumnWidth = 30
     ws.Columns("D").ColumnWidth = 30
     ws.Columns("E:Q").ColumnWidth = 12
+    AfficherGroupe ws
     If activer Then ws.Activate
 
 Fin:
@@ -314,6 +315,20 @@ Erreur:
         etape & " »" & IIf(mCellule = "", "", ", cellule " & mCellule) & " : " & Err.Description & _
         " (n° " & Err.Number & ")", vbExclamation
     Resume Fin
+End Sub
+
+' Bloc de l'effet de groupe (lignes 78 à 85) masqué quand « Effet de groupe » vaut Non
+' dans « Données du projet ». Appelée à la création et quand ce choix change
+' (ChangementDonnees, module DonneesProjet).
+Public Sub AfficherGroupe(Optional ws As Worksheet)
+    If ws Is Nothing Then
+        On Error Resume Next
+        Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
+        On Error GoTo 0
+        If ws Is Nothing Then Exit Sub
+    End If
+    ws.Rows("78:85").Hidden = (ActiveWorkbook.Worksheets("Données du projet").Range("D" & _
+        LIGNE_PIEU + 4).Value <> "Oui")
 End Sub
 
 ' Valeur de la colonne col pour la dernière couche renseignée (nom en colonne C) du

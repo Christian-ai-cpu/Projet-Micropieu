@@ -407,6 +407,12 @@ Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
     If Not Intersect(Target, ws.Range("D" & LIGNE_ACIER + 1)) Is Nothing Then MajAcier ws
     If Not Intersect(Target, Union(ws.Range("D" & LIGNE_PIEU + 2), ws.Range("D" & LIGNE_PIEU + 4))) _
         Is Nothing Then AfficherOptionsPieu ws
+    ' Effet de groupe : bloc Ce de « Calcul et vérification » affiché ou masqué
+    If Not Intersect(Target, ws.Range("D" & LIGNE_PIEU + 4)) Is Nothing Then
+        On Error Resume Next
+        Application.Run "AfficherGroupe"
+        On Error GoTo Fin
+    End If
     ' Type de pieu : colonnes de la résistance de pointe de « Calcul et vérification »
     ' affichées ou masquées (module CalculFondation, s'il est présent)
     If Not Intersect(Target, ws.Range("D" & LIGNE_PIEU)) Is Nothing Then

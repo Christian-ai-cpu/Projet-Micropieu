@@ -405,6 +405,12 @@ Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
     If Not Intersect(Target, ws.Range("D" & LIGNE_ACIER + 1)) Is Nothing Then MajAcier ws
     If Not Intersect(Target, Union(ws.Range("D" & LIGNE_PIEU + 2), ws.Range("D" & LIGNE_PIEU + 4))) _
         Is Nothing Then AfficherOptionsPieu ws
+    ' Effet de groupe : bloc Ce de « Calcul et vérification » affiché ou masqué
+    If Not Intersect(Target, ws.Range("D" & LIGNE_PIEU + 4)) Is Nothing Then
+        On Error Resume Next
+        Application.Run "AfficherGroupe"
+        On Error GoTo Fin
+    End If
     ' Méthode de calcul : colonne pl* ou qc des données géotechniques masquée, puis
     ' « Calcul et vérification » recréée avec les formules de la méthode choisie (pl* et
     ' tableaux F, ou qc et tableaux G)
