@@ -28,6 +28,10 @@ Option Explicit
 '   - tableaux de la norme limités aux micropieux : ligne 1 à 4 des tableaux alpha et
 '     qs max = catégories 17 à 20 (rang = catégorie - 16), une seule ligne pour les
 '     coefficients de modèle F.2.1 / G.2.1 (catégories 10, 15 et 17 à 20).
+'   - pas de calcul en colonne A, à gauche du frottement axial (épaisseur / k, k = 20
+'     ou 1 si le terrain est neutralisé), et tableau de la capacité portante par pas de
+'     calcul sous les valeurs de calcul (couche, profondeur, cote, qs,i, Rs,k, Rt,k, ple*,
+'     h, kp max, Def, Rb,k puis Rc;cr,d / Rt;cr,d ELS et Rc,d / Rt,d ELU).
 ' Méthode pressiométrique (annexe F) : fsol = (a.pl* + b)(1 - exp(-c.pl*)), pl* en
 ' MPa, fsol en kPa ; qs = min(alpha pieu-sol x fsol ; qs max).
 ' Catégories de sol de la feuille « Données du projet » -> colonnes des tableaux :
@@ -37,6 +41,10 @@ Option Explicit
 
 Private Const NOM_FEUILLE As String = "Calcul et vérification"
 Private Const DONNEES As String = "'Données du projet'!"
+' Pas de calcul : nombre de subdivisions des couches non neutralisées (entier >= 20) ;
+' une couche neutralisée n'est pas subdivisée (pas = épaisseur)
+Private Const NB_SUBDIV As Long = 20
+Private Const LIGNE_PROFIL As Long = 91        ' 1re ligne du tableau par pas de calcul
 Private Const TABLEAUX As String = "Tableaux NF P94-262"
 Private mCellule As String     ' cellule en cours d'écriture (indiquée en cas d'erreur)
 ' Méthode de calcul lue dans « Données du projet » à la création de la feuille : les
@@ -278,6 +286,108 @@ Private Sub Construire(activer As Boolean)
     ws.Range("B85:D85").Font.Bold = True
 
 
+    ' --- Pas de calcul (colonne A, à gauche du frottement axial) et capacité portante
+    ' en fonction de la profondeur (tableau sous les valeurs de calcul) ---
+    ' Pas = épaisseur / k, k = 1 si le terrain est neutralisé, NB_SUBDIV sinon. Colonnes
+    ' d'aide masquées (X à Z) : cumul de k, profondeur du bas de la couche, cumul de Rs,i.
+    ' Chaque ligne du tableau correspond à un pas : couche (AA) et rang du pas dans la
+    ' couche (AB), masqués ; z = bas de la couche précédente + rang x pas ;
+    ' Rs,k(z) = Rs,i des couches au-dessus + qs,i x Pe x (z - haut de la couche) ;
+    ' Rt,k = Rs,k ; micropieux : ple*, kp max et Def sans objet (« - »), Rb,k = 0 ;
+    ' valeurs de calcul comme dans le tableau des valeurs de calcul
+    etape = "pas de calcul"
+    ws.Range("A38").Value = "Pas de calcul (m)"
+    ws.Range("R38").Value = "Nombre de subdivisions k"
+    ws.Range("X38:Z38").Value = Array(ChrW(931) & " k", "z bas (m)", ChrW(931) & " Rs,i (kN)")
+    For r = 39 To 53
+        ws.Range("R" & r).Formula = "=IF(B" & r & "="""","""",IF(Q" & r & "=""Oui"",1," & NB_SUBDIV & "))"
+        ws.Range("A" & r).Formula = "=IF(OR(B" & r & "="""",N(F" & r & ")=0),"""",F" & r & "/R" & r & ")"
+        ws.Range("X" & r).Formula = "=IF(B" & r & "="""","""",SUM($R$39:R" & r & "))"
+        ws.Range("Y" & r).Formula = "=IF(B" & r & "="""","""",SUM($F$39:F" & r & "))"
+        ws.Range("Z" & r).Formula = "=IF(B" & r & "="""","""",SUM($P$39:P" & r & "))"
+    Next r
+    ws.Range("A39:A53").NumberFormat = "0.000"
+    With ws.Range("A38:A53,R38:R53")
+        .Borders.LineStyle = xlContinuous
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .WrapText = True
+    End With
+    With ws.Range("A38,R38")
+        .Font.Bold = True
+        .Interior.Color = VERT_ENTETE
+    End With
+    ws.Range("A39:A53,R39:R53").Interior.Color = JAUNE_CALCUL
+
+    etape = "capacité portante par pas de calcul"
+    lt = LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1        ' dernière ligne prévue
+    SousTitre ws, LIGNE_PROFIL - 3, "Capacité portante des micropieux en fonction de la " & _
+        "profondeur (par pas de calcul)"
+    r = LIGNE_PROFIL - 2
+    ws.Range("B" & r).Value = "Références suivant couche"
+    ws.Range("M" & r).Value = "ELS caractéristique (14.2.1.1)"
+    ws.Range("O" & r).Value = "ELS quasi permanent (14.2.1.2)"
+    ws.Range("Q" & r).Value = "ELU fondamental (C.2.3.1)"
+    ws.Range("S" & r).Value = "ELU accidentel (C.2.3.2)"
+    ws.Range("B" & r & ":L" & r).Merge
+    For i = 0 To 3
+        ws.Range(Chr(Asc("M") + 2 * i) & r & ":" & Chr(Asc("N") + 2 * i) & r).Merge
+    Next i
+    ws.Range("B" & r + 1 & ":T" & r + 1).Value = Array("N° de couche", "Profondeur z (m)", "Cote", _
+        "qs,i (kPa)", "Rs,k (kN)", "Rt,k (kN)", "ple* (MPa)", "h (m)", "kp max", "Def (m)", _
+        "Rb,k (kN)", "Rc;cr,d (kN)", "Rt;cr,d (kN)", "Rc;cr,d (kN)", "Rt;cr,d (kN)", _
+        "Rc,d (kN)", "Rt,d (kN)", "Rc,d (kN)", "Rt,d (kN)")
+    ws.Range("D" & r + 1).Formula = "=""Cote (""&" & DONNEES & "$E$29&"")"""
+    ' Formules de la 1re ligne (j = rang du pas = ligne - LIGNE_PROFIL + 1), recopiées
+    ' vers le bas
+    r = LIGNE_PROFIL
+    c = "(ROW()-" & LIGNE_PROFIL - 1 & ")"                   ' rang j du pas
+    ws.Range("AA" & r).Formula = "=IF(OR(COUNT($X$39:$X$53)=0," & c & ">MAX($X$39:$X$53)),""""," & _
+        "COUNTIF($X$39:$X$53,""<""&" & c & ")+1)"
+    ws.Range("AB" & r).Formula = "=IF(AA" & r & "="""",""""," & c & "-IF(AA" & r & "=1,0," & _
+        "INDEX($X$39:$X$53,AA" & r & "-1)))"
+    ws.Range("B" & r).Formula = "=IF(AA" & r & "="""","""",INDEX($B$39:$B$53,AA" & r & "))"
+    ws.Range("I" & r).Formula = "=IF(AA" & r & "="""","""",AB" & r & "*INDEX($A$39:$A$53,AA" & r & "))"
+    ws.Range("C" & r).Formula = "=IF(AA" & r & "="""","""",IF(AA" & r & "=1,0,INDEX($Y$39:$Y$53,AA" & _
+        r & "-1))+I" & r & ")"
+    ws.Range("D" & r).Formula = "=IF(C" & r & "="""","""",IF(ISNUMBER(" & DONNEES & "$D$29)," & _
+        DONNEES & "$D$29-C" & r & ",-C" & r & "))"
+    ws.Range("E" & r).Formula = "=IF(AA" & r & "="""","""",INDEX($O$39:$O$53,AA" & r & "))"
+    ws.Range("F" & r).Formula = "=IF(AA" & r & "="""","""",IF(AA" & r & "=1,0,N(INDEX($Z$39:$Z$53,AA" & _
+        r & "-1)))+IF(INDEX($Q$39:$Q$53,AA" & r & ")=""Oui"",0,N(E" & r & ")*N($D$23)*I" & r & "))"
+    ws.Range("G" & r).Formula = "=IF(F" & r & "="""","""",F" & r & ")"
+    ws.Range("H" & r).Formula = "=IF(AA" & r & "="""","""",""-"")"
+    ws.Range("J" & r).Formula = "=H" & r
+    ws.Range("K" & r).Formula = "=H" & r
+    ws.Range("L" & r).Formula = "=IF(AA" & r & "="""","""",0)"
+    ' ELS : Rc;cr,d = (0,5 Rb,k + 0,7 Rs,k) / gamma cr ; Rt;cr,d = 0,7 Rt,k / gamma s;cr
+    ' (x 0,15 sans essai de contrôle) ; ELU : Rc,d = Rb,k / gamma b + Rs,k / gamma s ;
+    ' Rt,d = Rt,k / gamma s;t
+    For i = 0 To 1
+        c = Chr(Asc("D") + i)                ' colonne du facteur : D ou E
+        ws.Range(Chr(Asc("M") + 2 * i) & r).Formula = "=IF(F" & r & "="""","""",(0.5*L" & r & _
+            "+0.7*F" & r & ")/$" & c & "$34)"
+        ws.Range(Chr(Asc("N") + 2 * i) & r).Formula = "=IF(G" & r & "="""","""",0.7*G" & r & "/$" & c & _
+            "$35*IF($D$76=""Non"",0.15,1))"
+        ws.Range(Chr(Asc("Q") + 2 * i) & r).Formula = "=IF(F" & r & "="""","""",L" & r & "/$" & c & _
+            "$28+F" & r & "/$" & c & "$29)"
+        ws.Range(Chr(Asc("R") + 2 * i) & r).Formula = "=IF(G" & r & "="""","""",G" & r & "/$" & c & "$31)"
+    Next i
+    ws.Range("B" & r & ":AB" & lt).FillDown
+    ws.Range("C" & r & ":D" & lt & ",I" & r & ":I" & lt).NumberFormat = "0.00"
+    ws.Range("E" & r & ":G" & lt & ",L" & r & ":T" & lt).NumberFormat = "0.0"
+    With ws.Range("B" & LIGNE_PROFIL - 2 & ":T" & lt)
+        .Borders.LineStyle = xlContinuous
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+    End With
+    With ws.Range("B" & LIGNE_PROFIL - 2 & ":T" & LIGNE_PROFIL - 1)
+        .Font.Bold = True
+        .Interior.Color = VERT_ENTETE
+        .WrapText = True
+    End With
+    ws.Columns("X:AB").Hidden = True
+
     ' --- Mise en forme ---
     etape = "mise en forme"
     r = 37
@@ -299,17 +409,18 @@ Private Sub Construire(activer As Boolean)
         JAUNE_CALCUL
     ws.Range("D4:F35,C57:E63,B67:B74,D67:E74,D76:E85,B" & r + 2 & ":B" & lt & ",E" & r + 2 & ":Q" & lt _
         ).HorizontalAlignment = xlCenter
-    ws.Columns("A").ColumnWidth = 3
+    ws.Columns("A").ColumnWidth = 12        ' pas de calcul
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 30
     ws.Columns("D").ColumnWidth = 30
-    ws.Columns("E:Q").ColumnWidth = 12
+    ws.Columns("E:T").ColumnWidth = 12
     ' Bloc de l'effet de groupe (écrit en lignes 78 à 86) déplacé avant le tableau du
     ' frottement axial par couche (stratigraphie) : il occupe les lignes 37 à 45 et la
-    ' suite des colonnes B à Q descend de 9 lignes, les formules suivent le déplacement
+    ' suite des colonnes A à AB descend de 9 lignes (jusqu'à la ligne 86 ; le tableau par
+    ' pas de calcul, plus bas, ne bouge pas), les formules suivent le déplacement
     etape = "déplacement de l'effet de groupe"
-    ws.Range("B78:Q86").Cut
-    ws.Range("B37").Insert Shift:=xlDown
+    ws.Range("A78:AB86").Cut
+    ws.Range("A37").Insert Shift:=xlDown
     Application.CutCopyMode = False
     AfficherGroupe ws
     If activer Then ws.Activate
