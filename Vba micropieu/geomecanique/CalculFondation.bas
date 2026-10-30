@@ -478,11 +478,14 @@ End Sub
 '     ELS caractéristique : G + Q ;  ELS quasi permanent : G + psi2 Q ;
 '     ELU fondamental : 1,35 Gmax + 1,5 Qmax (max), 1,0 Gmin + 1,5 Qmin (min) ;
 '     ELU accidentel : G + psi1 Q ; psi1, psi2 selon la catégorie de bâtiment ;
-'   diamètre B de la fondation (celui du tableau de la capacité portante) ;
+'   diamètre B du micropieu pour chaque cas max / min (celui du tableau de la capacité
+'   portante) ;
 '   profondeur minimale requise pour chaque cas : 1re profondeur du tableau par pas de
 '   calcul où la portance de la même combinaison (Rc;cr,d ELS, Rc,d ELU) est
 '   supérieure ou égale à la charge (« Non atteinte » sinon) ;
-'   profondeur retenue : la plus grande des profondeurs requises du micropieu.
+'   profondeur retenue : la plus grande des profondeurs requises du micropieu ;
+'   vérification de la longueur : profondeur de reconnaissance (« Données du projet »,
+'   D33) - profondeur retenue >= 5 B (NF P94-262, annexe M, M.1 (2) Note 2).
 ' Le nombre de micropieux et de murs est lu à la création : recréer cette feuille
 ' après un changement dans la descente de charges.
 ' Recrée le tableau de vérification de la profondeur des micropieux (si la feuille
@@ -560,20 +563,24 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
 
     ' En-têtes sur 3 lignes (titres en gras). Colonnes : A micropieu ; B à H descente de
     ' charges (Gmax, Gmin, Qmax, Qmin, eau EB, EH, EE) ; I à P combinaisons max / min ;
-    ' Q diamètre ; R à Y profondeurs requises ; Z profondeur retenue
+    ' Q à X diamètre B pour chaque cas ; Y à AF profondeurs requises ; AG profondeur
+    ' retenue ; AH à AK vérification de la longueur (profondeur de reconnaissance -
+    ' longueur >= 5 B)
     r0 = L + 7
     ws.Range("A" & r0).Value = "N° MICROPIEU"
     ws.Range("B" & r0).Value = "DESCENTE DE CHARGES (kN)"
     ws.Range("I" & r0).Value = "COMBINAISONS DE CHARGES VERTICALES (kN)"
     ws.Range("Q" & r0).Value = "DIAMÈTRE B (m)"
-    ws.Range("R" & r0).Value = "PROFONDEUR MINIMALE REQUISE (m)"
-    ws.Range("Z" & r0).Value = "PROFONDEUR RETENUE (m)"
+    ws.Range("Y" & r0).Value = "PROFONDEUR MINIMALE REQUISE (m)"
+    ws.Range("AG" & r0).Value = "PROFONDEUR RETENUE (m)"
+    ws.Range("AH" & r0).Value = "VÉRIFICATION DE LA LONGUEUR (profondeur de reconnaissance - longueur >= 5 B)"
     ws.Range("A" & r0 & ":A" & r0 + 2).Merge
     ws.Range("B" & r0 & ":H" & r0).Merge
     ws.Range("I" & r0 & ":P" & r0).Merge
-    ws.Range("Q" & r0 & ":Q" & r0 + 2).Merge
-    ws.Range("R" & r0 & ":Y" & r0).Merge
-    ws.Range("Z" & r0 & ":Z" & r0 + 2).Merge
+    ws.Range("Q" & r0 & ":X" & r0).Merge
+    ws.Range("Y" & r0 & ":AF" & r0).Merge
+    ws.Range("AG" & r0 & ":AG" & r0 + 2).Merge
+    ws.Range("AH" & r0 & ":AK" & r0).Merge
     ws.Range("B" & r0 + 1).Value = "G"
     ws.Range("D" & r0 + 1).Value = "Q"
     ws.Range("F" & r0 + 1).Value = "EAU"
@@ -582,14 +589,19 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     ws.Range("F" & r0 + 1 & ":H" & r0 + 1).Merge
     ws.Range("B" & r0 + 2 & ":H" & r0 + 2).Value = Array("Gmax", "Gmin", "Qmax", "Qmin", _
         "Eau EB", "Eau EH", "Eau EE")
+    ws.Range("AH" & r0 + 1 & ":AK" & r0 + 1).Value = Array("Profondeur de reconnaissance (m)", _
+        "Profondeur de reconnaissance - longueur (m)", "5 x B (m)", "Vérification")
+    For k = 0 To 3
+        ws.Range(ws.Cells(r0 + 1, 34 + k), ws.Cells(r0 + 2, 34 + k)).Merge
+    Next k
     entete = Array("ELS CARA", "ELS QP", "ELU FOND", "ELU ACC")
     For k = 0 To 3
-        ws.Cells(r0 + 1, 9 + 2 * k).Value = entete(k)
-        ws.Range(ws.Cells(r0 + 1, 9 + 2 * k), ws.Cells(r0 + 1, 10 + 2 * k)).Merge
-        ws.Cells(r0 + 1, 18 + 2 * k).Value = entete(k)
-        ws.Range(ws.Cells(r0 + 1, 18 + 2 * k), ws.Cells(r0 + 1, 19 + 2 * k)).Merge
-        ws.Range(ws.Cells(r0 + 2, 9 + 2 * k), ws.Cells(r0 + 2, 10 + 2 * k)).Value = Array("max", "min")
-        ws.Range(ws.Cells(r0 + 2, 18 + 2 * k), ws.Cells(r0 + 2, 19 + 2 * k)).Value = Array("max", "min")
+        For i = 0 To 2                       ' combinaisons, diamètres, profondeurs
+            ws.Cells(r0 + 1, 9 + 8 * i + 2 * k).Value = entete(k)
+            ws.Range(ws.Cells(r0 + 1, 9 + 8 * i + 2 * k), ws.Cells(r0 + 1, 10 + 8 * i + 2 * k)).Merge
+            ws.Range(ws.Cells(r0 + 2, 9 + 8 * i + 2 * k), ws.Cells(r0 + 2, 10 + 8 * i + 2 * k)).Value = _
+                Array("max", "min")
+        Next i
     Next k
 
     ' Portance de chaque combinaison dans le tableau par pas de calcul : Rc;cr,d ELS
@@ -617,27 +629,36 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         ws.Range("N" & r).Formula = "=1*C" & r & "+1.5*E" & r & "+F" & r
         ws.Range("O" & r).Formula = "=B" & r & "+$D$" & L + 4 & "*D" & r & "+H" & r
         ws.Range("P" & r).Formula = "=C" & r & "+$D$" & L + 4 & "*E" & r & "+F" & r
-        ws.Range("Q" & r).Formula = "=$D$19"
-        ' Profondeur minimale : 1re ligne où la portance (nombre) >= la charge
         For k = 0 To 7
-            charge = Chr(Asc("I") + k) & r
+            ' Diamètre B du micropieu pour chaque cas (celui du tableau par pas de calcul)
+            ws.Cells(r, 17 + k).Formula = "=$D$19"
+            ' Profondeur minimale : 1re ligne où la portance (nombre) >= la charge
+            charge = ws.Cells(r, 9 + k).Address(False, False)
             cap = "$" & colCap(k \ 2) & "$" & LIGNE_PROFIL & ":$" & colCap(k \ 2) & "$" & _
                 LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1
-            ws.Cells(r, 18 + k).Formula = "=IFERROR(INDEX(" & z & ",MATCH(1,INDEX(ISNUMBER(" & cap & _
+            ws.Cells(r, 25 + k).Formula = "=IFERROR(INDEX(" & z & ",MATCH(1,INDEX(ISNUMBER(" & cap & _
                 ")*(" & cap & ">=" & charge & "),0),0)),""Non atteinte"")"
         Next k
-        ws.Range("Z" & r).Formula = "=IF(COUNTIF(R" & r & ":Y" & r & ",""Non atteinte"")>0," & _
-            """Non atteinte"",MAX(R" & r & ":Y" & r & "))"
+        ws.Range("AG" & r).Formula = "=IF(COUNTIF(Y" & r & ":AF" & r & ",""Non atteinte"")>0," & _
+            """Non atteinte"",MAX(Y" & r & ":AF" & r & "))"
+        ' Vérification de la longueur : profondeur de reconnaissance (« Données du
+        ' projet ») - longueur retenue >= 5 B
+        ws.Range("AH" & r).Formula = "=IF(ISNUMBER(" & DONNEES & "$D$33)," & DONNEES & "$D$33,"""")"
+        ws.Range("AI" & r).Formula = "=IF(AND(ISNUMBER(AH" & r & "),ISNUMBER(AG" & r & ")),AH" & r & _
+            "-AG" & r & ","""")"
+        ws.Range("AJ" & r).Formula = "=5*$D$19"
+        ws.Range("AK" & r).Formula = "=IF(AI" & r & "="""",""-"",IF(AI" & r & ">=AJ" & r & _
+            ",""Vérifiée"",""Non vérifiée""))"
     Next i
     rt = r0 + 2 + Application.Max(m, 1)
 
     ' Mise en forme
-    With ws.Range("A" & r0 & ":Z" & rt)
+    With ws.Range("A" & r0 & ":AK" & rt)
         .Borders.LineStyle = xlContinuous
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
     End With
-    With ws.Range("A" & r0 & ":Z" & r0 + 2)
+    With ws.Range("A" & r0 & ":AK" & r0 + 2)
         .Font.Bold = True
         .Font.Size = 11
         .Interior.Color = VERT_ENTETE
@@ -645,12 +666,18 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     End With
     If m > 0 Then
         ws.Range("A" & r0 + 3 & ":A" & rt).Font.Bold = True
-        ws.Range("B" & r0 + 3 & ":Z" & rt).Interior.Color = JAUNE_CALCUL
+        ws.Range("B" & r0 + 3 & ":AK" & rt).Interior.Color = JAUNE_CALCUL
         ws.Range("B" & r0 + 3 & ":P" & rt).NumberFormat = "0.0"
-        ws.Range("Q" & r0 + 3 & ":Q" & rt).NumberFormat = "0.000"
-        ws.Range("R" & r0 + 3 & ":Z" & rt).NumberFormat = "0.00"
-        ws.Range("Z" & r0 + 3 & ":Z" & rt).Font.Bold = True
+        ws.Range("Q" & r0 + 3 & ":X" & rt).NumberFormat = "0.000"
+        ws.Range("Y" & r0 + 3 & ":AJ" & rt).NumberFormat = "0.00"
+        ws.Range("AG" & r0 + 3 & ":AG" & rt & ",AK" & r0 + 3 & ":AK" & rt).Font.Bold = True
+        ' Vérification en rouge si non vérifiée
+        With ws.Range("AK" & r0 + 3 & ":AK" & rt).FormatConditions
+            .Delete
+            .Add(xlCellValue, xlEqual, "=""Non vérifiée""").Font.Color = RGB(192, 0, 0)
+        End With
     End If
+    ws.Columns("V:AK").ColumnWidth = 12
     ws.Rows(r0).RowHeight = 30
 End Sub
 
