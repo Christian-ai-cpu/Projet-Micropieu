@@ -13,8 +13,10 @@ Option Explicit
 '   K : αn × ΣQ (kN/ml), charge d'exploitation cumulée réduite
 ' Descente de charges en kN/ml pour un mur : les lignes de saisie calculent
 ' G = γ × b × h + g × b, b étant la largeur reprise (m).
-' En ligne 1 : listes déroulantes du niveau d'étage (RDC à 5) et de la catégorie du bâtiment (A à G),
-' nombre de murs (G1) et pourcentage des ouvertures des murs (I1).
+' En ligne 1 : listes déroulantes du niveau d'étage (RDC à 5) et de la catégorie du bâtiment
+' (reprise de « Données du projet » si la feuille existe), nombre de murs (G1),
+' pourcentage des ouvertures des murs (I1) et nombre de micropieux (K1, matrice des
+' micropieux sous le tableau, module MatriceMicropieux).
 
 Private Const LIGNE_NIVEAU As Long = 1
 Private Const LIGNE_TITRE As Long = 3
@@ -53,16 +55,18 @@ Public Sub CreerTableauChargesPermanentesComplet()
         .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
     End With
 
-    ' --- Choix de la catégorie du bâtiment (liste déroulante A à G) ---
+    ' --- Catégorie du bâtiment : reprise de « Données du projet » (C14) si la feuille
+    ' existe, sinon liste déroulante (sous-catégories comprises) ---
     ws.Range("D" & LIGNE_NIVEAU).Value = "Catégorie du bâtiment"
     ws.Range("D" & LIGNE_NIVEAU).Font.Bold = True
     With ws.Range("E" & LIGNE_NIVEAU)
         .Value = "A"
         .Validation.Delete
         .Validation.Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
-            Formula1:="A,B,C,D,E,F,G"
+            Formula1:="A,B,C1,C2,C3,C4,C5,D1,D2,E1,E2,F,G"
         .Validation.InCellDropdown = True
-        .Validation.ErrorMessage = "Choisir une catégorie de bâtiment : A, B, C, D, E, F ou G."
+        .Validation.ErrorMessage = "Choisir une catégorie de bâtiment (A à G et sous-catégories)."
+        If FeuilleExiste("Données du projet") Then .Formula = "='Données du projet'!C14"
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
         .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
@@ -77,6 +81,20 @@ Public Sub CreerTableauChargesPermanentesComplet()
         .Validation.Add Type:=xlValidateWholeNumber, AlertStyle:=xlValidAlertStop, _
             Operator:=xlBetween, Formula1:="1", Formula2:="50"
         .Validation.ErrorMessage = "Entrer un nombre entier de murs (1 à 50)."
+        .Font.Bold = True
+        .HorizontalAlignment = xlCenter
+        .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
+    End With
+
+    ' --- Nombre de micropieux (K1) : lignes MP1, MP2, ... de la matrice des micropieux ---
+    ws.Range("J" & LIGNE_NIVEAU).Value = "Nombre de micropieux"
+    ws.Range("J" & LIGNE_NIVEAU).Font.Bold = True
+    With ws.Range("K" & LIGNE_NIVEAU)
+        .Value = 1
+        .Validation.Delete
+        .Validation.Add Type:=xlValidateWholeNumber, AlertStyle:=xlValidAlertStop, _
+            Operator:=xlBetween, Formula1:="1", Formula2:="200"
+        .Validation.ErrorMessage = "Entrer un nombre entier de micropieux (1 à 200)."
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
         .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
@@ -156,7 +174,7 @@ Public Sub CreerTableauChargesPermanentesComplet()
     If ws.Columns("G").ColumnWidth < 12 Then ws.Columns("G").ColumnWidth = 12   ' place pour le titre
     ws.Range("B" & LIGNE_TITRE & ":K" & derniereLigne + 1).Rows.AutoFit
     ' Ligne 1 : niveau d'étage, catégorie du bâtiment, nombre de murs et % d'ouvertures
-    With ws.Range("B" & LIGNE_NIVEAU & ":I" & LIGNE_NIVEAU)
+    With ws.Range("B" & LIGNE_NIVEAU & ":K" & LIGNE_NIVEAU)
         .WrapText = True
         .VerticalAlignment = xlCenter
         .Rows.AutoFit
@@ -166,4 +184,12 @@ Public Sub CreerTableauChargesPermanentesComplet()
     Application.ScreenUpdating = True
     MsgBox "Tableau des charges permanentes créé.", vbInformation
 End Sub
+
+' Vrai si le classeur actif contient une feuille de ce nom
+Private Function FeuilleExiste(nom As String) As Boolean
+    Dim f As Worksheet
+    On Error Resume Next
+    Set f = ActiveWorkbook.Worksheets(nom)
+    FeuilleExiste = Not f Is Nothing
+End Function
 

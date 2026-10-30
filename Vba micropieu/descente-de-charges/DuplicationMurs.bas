@@ -35,11 +35,12 @@ Public Sub DupliquerMurs(Optional ws As Worksheet)
         ouvertures(k) = ws.Cells(1, 9 + k * PAS_MUR).Value
     Next k
 
-    ' Anciennes copies effacées (tout ce qui est à droite du tableau d'origine)
-    ws.Range(ws.Cells(1, 2 + PAS_MUR - 1), ws.Cells(ws.Rows.Count, ws.Columns.Count)).Clear
+    ' Anciennes copies effacées (tout ce qui est à droite du tableau d'origine, au-dessus
+    ' de la matrice des micropieux, recréée ensuite)
+    ws.Range(ws.Cells(1, 2 + PAS_MUR - 1), ws.Cells(LIGNE_MATRICE - 1, ws.Columns.Count)).Clear
 
     ' Tableau d'origine : de la ligne 2 jusqu'au récapitulatif G / Q
-    derniere = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+    derniere = ws.Cells(LIGNE_MATRICE - 1, "B").End(xlUp).Row
     ws.Range("B2").Value = "Mur 1"
     ws.Range("B2").Font.Bold = True
     Set source = ws.Range("B2:K" & derniere)
@@ -62,6 +63,9 @@ Public Sub DupliquerMurs(Optional ws As Worksheet)
             ws.Columns(c + k * PAS_MUR).ColumnWidth = ws.Columns(c).ColumnWidth
         Next c
     Next k
+
+    ' Matrice des micropieux : une colonne par mur
+    ConstruireMatrice ws
 
 Fin:
     Application.CutCopyMode = False
