@@ -32,7 +32,9 @@ Option Explicit
 '     ou 1 si le terrain est neutralisé), et tableau de la capacité portante par pas de
 '     calcul sous les valeurs de calcul (couche, profondeur, cote, pas, qs,i, Rs,k, Rt,k,
 '     ple*, h, kp max, Def, Rb,k puis Rc;cr,d / Rt;cr,d ELS et Rc,d / Rt,d ELU), valeurs
-'     cumulées en profondeur (ligne précédente + qs,i x Pe x pas).
+'     cumulées en profondeur (ligne précédente + qs,i x Pe x pas), et graphique de la
+'     capacité portante (ELS caractéristique, ELS quasi permanent, ELU fondamental) en
+'     fonction de la profondeur, à droite de ce tableau.
 ' Méthode pressiométrique (annexe F) : fsol = (a.pl* + b)(1 - exp(-c.pl*)), pl* en
 ' MPa, fsol en kPa ; qs = min(alpha pieu-sol x fsol ; qs max).
 ' Catégories de sol de la feuille « Données du projet » -> colonnes des tableaux :
@@ -114,6 +116,9 @@ Private Sub Construire(activer As Boolean)
         ws.Name = NOM_FEUILLE
     End If
     ws.Cells.Clear
+    Do While ws.ChartObjects.Count > 0       ' graphique de la création précédente
+        ws.ChartObjects(1).Delete
+    Loop
 
     nb = DONNEES & "$" & Replace(CELLULE_NB_COUCHES, "C", "C$")   ' nombre de couches
     lc = LIGNE_COUCHES                       ' première couche dans « Données du projet »
@@ -431,6 +436,9 @@ Private Sub Construire(activer As Boolean)
     ws.Range("A78:AB86").Cut
     ws.Range("A37").Insert Shift:=xlDown
     Application.CutCopyMode = False
+
+    etape = "graphique de la capacité portante"
+    GraphiqueCapacite ws
     AfficherGroupe ws
     If activer Then ws.Activate
 
@@ -456,6 +464,57 @@ Public Sub AfficherGroupe(Optional ws As Worksheet)
     End If
     ws.Rows("37:45").Hidden = (ActiveWorkbook.Worksheets("Données du projet").Range("D" & _
         LIGNE_PIEU + 4).Value <> "Oui")
+End Sub
+
+' Graphique de la capacité portante en compression en fonction de la profondeur, à
+' droite du tableau par pas de calcul : Rc;cr,d ELS caractéristique (colonne N),
+' Rc;cr,d ELS quasi permanent (P) et Rc,d ELU fondamental (R) en abscisse, profondeur z
+' (C) en ordonnée, croissante vers le bas. Les séries renvoient à des noms de la feuille
+' (CP_z, CP_N, CP_P, CP_R) limités aux pas renseignés (OFFSET sur le nombre de z), pour
+' que le graphique suive le nombre de couches et leurs épaisseurs.
+Private Sub GraphiqueCapacite(ws As Worksheet)
+    Dim co As ChartObject, f As String, nb As String, k As Long, cols As Variant, noms As Variant
+    f = "'" & ws.Name & "'!"
+    nb = "MAX(1,COUNT(" & f & "$C$" & LIGNE_PROFIL & ":$C$" & _
+        LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1 & "))"
+    cols = Array("C", "N", "P", "R")
+    noms = Array("Profondeur z", "ELS caractéristique - Rc;cr,d", "ELS quasi permanent - Rc;cr,d", _
+        "ELU fondamental - Rc,d")
+    For k = 0 To 3
+        ws.Names.Add Name:=IIf(k = 0, "CP_z", "CP_" & cols(k)), _
+            RefersTo:="=OFFSET(" & f & "$" & cols(k) & "$" & LIGNE_PROFIL & ",0,0," & nb & ")"
+    Next k
+    With ws.Range("AD" & LIGNE_PROFIL - 3)
+        Set co = ws.ChartObjects.Add(.Left, .Top, 620, 480)
+    End With
+    With co.Chart
+        .ChartType = xlXYScatterLinesNoMarkers
+        Do While .SeriesCollection.Count > 0
+            .SeriesCollection(1).Delete
+        Loop
+        For k = 1 To 3
+            With .SeriesCollection.NewSeries
+                .Name = noms(k)
+                .XValues = "=" & f & "CP_" & cols(k)
+                .Values = "=" & f & "CP_z"
+            End With
+        Next k
+        .HasTitle = True
+        .ChartTitle.Text = "Capacité portante en compression en fonction de la profondeur"
+        .HasLegend = True
+        .Legend.Position = xlLegendPositionBottom
+        With .Axes(xlValue)                  ' profondeur, croissante vers le bas
+            .ReversePlotOrder = True
+            .MinimumScale = 0
+            .HasTitle = True
+            .AxisTitle.Text = "Profondeur z (m)"
+        End With
+        With .Axes(xlCategory)
+            .MinimumScale = 0
+            .HasTitle = True
+            .AxisTitle.Text = "Capacité portante (kN)"
+        End With
+    End With
 End Sub
 
 ' Valeur de la colonne col pour la dernière couche renseignée (nom en colonne C) du
