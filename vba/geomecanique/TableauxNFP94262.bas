@@ -14,6 +14,7 @@ Option Explicit
 '                       alpha pieu-sol, paramètres de fsol, qs max)
 '   G.4.2.1, G.5.2.1, G.5.2.2, G.5.2.3 : méthode pénétrométrique (kc max,
 '                       alpha pieu-sol, paramètres de fsol, qs max)
+'   4.1 / 4.2 (NF EN 1993-5) : perte d'épaisseur due à la corrosion (sols / eau)
 ' Disposition : 3 groupes (généralités ; facteurs partiels, de corrélation et de
 ' modèle ; méthodes de calcul) et, dans chaque groupe, 3 tableaux côte à côte.
 ' « - » : pas de valeur dans la norme. Les notes des tableaux sont résumées sous
@@ -221,6 +222,28 @@ Public Sub CreerTableauxNFP94262()
     Placer ws, "Tableau G.5.2.3 - Valeurs maximales du frottement axial unitaire " & _
         "limite qs (kPa) - Méthode pénétrométrique", "Catégorie|" & SOLS6, QsMax(), _
         "Mêmes valeurs que le tableau F.5.2.3."
+
+    NouveauGroupe ws, "4. DURABILITÉ DES ARMATURES (NF EN 1993-5)", 1
+    ' --- Perte d'épaisseur due à la corrosion (valeurs recommandées, mm) ---
+    s = "Sols naturels non remaniés (sable, limon, argile, schiste)|0|0.3|0.6|0.9|1.2;" & _
+        "Sols naturels pollués et sites industriels|0.15|0.75|1.5|2.25|3;" & _
+        "Sols naturels agressifs (marécages, tourbe)|0.2|1|1.75|2.5|3.25;" & _
+        "Remblais non compactés et non agressifs|0.18|0.7|1.2|1.7|2.2;" & _
+        "Remblais non compactés et agressifs (cendres, scories)|0.5|2|3.25|4.5|5.75"
+    Placer ws, "Tableau 4.1 - Perte d'épaisseur (mm) due à la corrosion des pieux et " & _
+        "palplanches dans les sols, avec ou sans nappe phréatique", _
+        "Durée d'utilisation requise|5 ans|25 ans|50 ans|75 ans|100 ans", s, _
+        "Remblais compactés : valeurs divisées par 2. Valeurs à 5 et 25 ans mesurées, " & _
+        "autres valeurs extrapolées. Valeurs recommandées, à vérifier avec l'annexe nationale."
+    s = "Eau douce commune (rivière, canal) - zone de fort impact (ligne de flottaison)|0.15|0.55|0.9|1.15|1.4;" & _
+        "Eau douce très polluée (égouts, effluents industriels) - zone de fort impact|0.3|1.3|2.3|3.3|4.3;" & _
+        "Eau de mer en climat tempéré - zone de fort impact (basses eaux, éclaboussures)|0.55|1.9|3.75|5.6|7.5;" & _
+        "Eau de mer en climat tempéré - zone d'immersion permanente ou de marnage|0.25|0.9|1.75|2.6|3.5"
+    Placer ws, "Tableau 4.2 - Perte d'épaisseur (mm) due à la corrosion des pieux et " & _
+        "palplanches en eau douce ou en eau de mer", _
+        "Durée d'utilisation requise|5 ans|25 ans|50 ans|75 ans|100 ans", s, _
+        "Valeurs à 5 et 25 ans mesurées, autres valeurs extrapolées. Valeurs recommandées, " & _
+        "à vérifier avec l'annexe nationale."
 
     ' Largeurs : 1re colonne de chaque emplacement large (intitulés), colonnes de
     ' valeurs étroites, colonne vide entre deux tableaux
