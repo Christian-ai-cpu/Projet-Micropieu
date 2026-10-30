@@ -19,16 +19,17 @@ Option Explicit
 '               des couches de sol (seules les lignes jusqu'à ce nombre sont affichées) ;
 '               colonne pl* masquée en méthode pénétrométrique, colonne qc masquée en
 '               méthode pressiométrique (AfficherMethode) ; couche d'ancrage en K
-'   B57 à D73 : Caractéristiques de la fondation (type de pieu du tableau A.1 de la
-'               NF P94-262, diamètre constant, incliné, groupe, norme de référence,
+'   B57 à D77 : Caractéristiques de la fondation (type de pieu du tableau A.1 de la
+'               NF P94-262, diamètre constant, incliné et angle, effet de groupe et m,
+'               n, entraxe d (lignes affichées si « Oui »), norme de référence,
 '               classe, catégorie, abréviation, mode de fonctionnement (compression / traction),
 '               résistance de pointe, type de mise en oeuvre, B, nombres,
 '               conditions en tête, essai de contrôle ; intitulé sur B:C, valeur en D)
-'   B75       : HYPOTHÈSES RELATIVES AUX MATÉRIAUX CONSTITUTIFS DES FONDATIONS PROFONDES
-'   B77 à E84 : Caractéristiques du béton (classe d'exposition, classe structurale,
+'   B79       : HYPOTHÈSES RELATIVES AUX MATÉRIAUX CONSTITUTIFS DES FONDATIONS PROFONDES
+'   B81 à E88 : Caractéristiques du béton (classe d'exposition, classe structurale,
 '               classe de résistance, fc28, coefficients gamma c ELU / accidentel /
 '               sismique)
-'   B86 à E100: Caractéristiques de l'acier (type d'armature tube ou barre, classe,
+'   B90 à E104: Caractéristiques de l'acier (type d'armature tube ou barre, classe,
 '               diamètres et épaisseur du tube, E, fe, coefficients gamma s ELU /
 '               accidentel / sismique, platine (barres GEWI, GEWI Plus, DYWIDAG),
 '               nuance, limite élastique fy et limite de rupture fu)
@@ -50,7 +51,7 @@ Public Const MAX_COUCHES As Long = 15         ' lignes prévues (au-delà du nom
 Public Const LIGNE_PIEU As Long = 58          ' type de pieu (caractéristiques de la fondation)
 Private Const ABREVIATIONS As String = "FS|FB|FTP|FTR|FSR, FBR, PU|FTC, FTCD|VM|VT|" & _
     "BPF, BPR|BE|BM|BAF|BAO|HB|HBi|PP|M1|M2|PIGU, MIGU|PIRS, MIRS"   ' tableau A.1, catégories 1 à 20
-Private Const LIGNE_ACIER As Long = 87         ' type d'armature (caractéristiques de l'acier)
+Private Const LIGNE_ACIER As Long = 91         ' type d'armature (caractéristiques de l'acier)
 Private Const CLASSES_EXPOSITION As String = "X0,XC1,XC2,XC3,XC4,XD1,XD2,XD3," & _
     "XS1,XS2,XS3,XF1,XF2,XF3,XF4,XA1,XA2,XA3"
 ' Armatures de la fondation (dimensions courantes, à vérifier auprès du fournisseur).
@@ -133,7 +134,8 @@ Public Sub CreerDonneesProjet()
     Liste ws.Range("C12"), "Bâtiment,Pont"
     Liste ws.Range("C13"), "Fondations superficielles,Fondations semi-profondes," & _
         "Fondations profondes (pieux),Micropieux,Radier"
-    Liste ws.Range("C14"), "A,B,C,D,E,F,G"
+    ' Catégories d'usage (NF EN 1991-1-1) avec sous-catégories
+    Liste ws.Range("C14"), "A,B,C1,C2,C3,C4,C5,D1,D2,E1,E2,F,G"
     Liste ws.Range("C15"), "<=1000 m,>1000 m"
     Liste ws.Range("C16"), "1,2,3,4,5"
 
@@ -239,9 +241,11 @@ Public Sub CreerDonneesProjet()
     ' Les hauteurs de la fondation sont calculées dans « Calcul et vérification ».
     lp = LIGNE_PIEU
     SousTitre ws, lp - 1, "Caractéristiques de la fondation"
-    ws.Range("B" & lp & ":B" & lp + 15).Value = Application.Transpose(Array( _
+    ws.Range("B" & lp & ":B" & lp + 19).Value = Application.Transpose(Array( _
         "Type de pieu - technique de mise en oeuvre (NF P94-262, tableau A.1)", _
-        "Diamètre constant", "Incliné", "Groupe", "Norme de référence", _
+        "Diamètre constant", "Incliné", "Angle d'inclinaison sur la verticale (°)", _
+        "Effet de groupe", "Nombre de lignes de pieux m", "Nombre de pieux par ligne n", _
+        "Entraxe des pieux d (m)", "Norme de référence", _
         "Classe de la fondation", "Catégorie de la fondation", _
         "Abréviation du type de pieu (NF P94-262, tableau A.1)", "Mode de fonctionnement", _
         "Prise en compte de la résistance de pointe", "Type de mise en oeuvre", _
@@ -252,40 +256,45 @@ Public Sub CreerDonneesProjet()
     ws.Range("D" & lp).Value = Split(TypesPieux(), ",")(16)   ' micropieu type I (cat. 17)
     Liste ws.Range("D" & lp + 1), "Oui,Non"
     Liste ws.Range("D" & lp + 2), "Non,Oui"
-    Liste ws.Range("D" & lp + 3), "Non,Oui"
+    Liste ws.Range("D" & lp + 4), "Non,Oui"
+    ' Angle (si incliné) et m, n, d (si effet de groupe) : lignes affichées seulement
+    ' quand le choix vaut « Oui » (AfficherOptionsPieu)
+    ws.Range("D" & lp + 3).NumberFormat = "0.0"
+    ws.Range("D" & lp + 5 & ":D" & lp + 6).NumberFormat = "0"
+    ws.Range("D" & lp + 7).NumberFormat = "0.00"
     ' Tout ce qui suit dépend du type de pieu choisi (tableau A.1 de la NF P94-262) :
     ' la catégorie est le rang du type dans TypesPieux, le reste s'en déduit
-    c = "D" & lp + 6                         ' cellule de la catégorie
+    c = "D" & lp + 10                        ' cellule de la catégorie
     ws.Range(c).Formula = "=IFERROR(MATCH(D" & lp & ",{""" & _
         Replace(TypesPieux(), ",", """,""") & """},0),"""")"
     ' Norme de référence : 1 à 6 NF EN 1536, 7 à 16 NF EN 12699, 17 à 20 les trois
-    ws.Range("D" & lp + 4).Formula = "=IF(" & c & "="""","""",IF(" & c & "<=6,""NF EN 1536""," & _
+    ws.Range("D" & lp + 8).Formula = "=IF(" & c & "="""","""",IF(" & c & "<=6,""NF EN 1536""," & _
         "IF(" & c & "<=16,""NF EN 12699"",""NF EN 1536 / 14199 / 12699"")))"
     ' Classe de pieu selon la catégorie
-    ws.Range("D" & lp + 5).Formula = "=IF(" & c & "="""","""",CHOOSE(" & c & _
+    ws.Range("D" & lp + 9).Formula = "=IF(" & c & "="""","""",CHOOSE(" & c & _
         ",""1"",""1"",""1"",""1"",""1"",""2"",""3"",""3"",""4"",""4"",""4"",""4"",""5""," & _
         """6"",""6"",""7"",""1 bis"",""1 bis"",""8"",""8""))"
-    ws.Range("D" & lp + 7).Formula = FormuleAbreviation(lp)
+    ws.Range("D" & lp + 11).Formula = FormuleAbreviation(lp)
     ' Mode de fonctionnement de la fondation : compression ou traction
-    Liste ws.Range("D" & lp + 8), "Compression,Traction"
+    Liste ws.Range("D" & lp + 12), "Compression,Traction"
     ' Résistance de pointe : non prise en compte pour les micropieux (catégories 17 à 20)
-    ws.Range("D" & lp + 9).Formula = "=IF(" & c & "="""","""",IF(" & c & ">=17,""Non"",""Oui""))"
+    ws.Range("D" & lp + 13).Formula = "=IF(" & c & "="""","""",IF(" & c & ">=17,""Non"",""Oui""))"
     ' Type de mise en oeuvre (colonnes des tableaux C.2.3 de la norme)
-    ws.Range("D" & lp + 10).Formula = "=IF(" & c & "="""","""",IF(" & c & "=6," & _
+    ws.Range("D" & lp + 14).Formula = "=IF(" & c & "="""","""",IF(" & c & "=6," & _
         """Pieu à la tarière continue (CFA)"",IF(AND(" & c & ">=7," & c & "<=16)," & _
         """Pieu foncé"",""Pieu foré"")))"
-    ws.Range("D" & lp + 11).NumberFormat = "0.000"          ' diamètre B (m)
-    ws.Range("D" & lp + 12 & ":D" & lp + 13).NumberFormat = "0"
-    Liste ws.Range("D" & lp + 14), "Libre en tête,Encastré en tête"
-    Liste ws.Range("D" & lp + 15), "Non,Oui"
-    ws.Range("D" & lp & ":D" & lp + 15).HorizontalAlignment = xlCenter
-    For r = lp To lp + 15
+    ws.Range("D" & lp + 15).NumberFormat = "0.000"          ' diamètre B (m)
+    ws.Range("D" & lp + 16 & ":D" & lp + 17).NumberFormat = "0"
+    Liste ws.Range("D" & lp + 18), "Libre en tête,Encastré en tête"
+    Liste ws.Range("D" & lp + 19), "Non,Oui"
+    ws.Range("D" & lp & ":D" & lp + 19).HorizontalAlignment = xlCenter
+    For r = lp To lp + 19
         ws.Range("B" & r & ":C" & r).Merge
     Next r
 
     ' --- Hypothèses relatives aux matériaux constitutifs des fondations profondes ---
     ' Intitulé sur B:C fusionnées, valeur en D, unité en E
-    la = lp + 17                             ' titre de la partie matériaux
+    la = lp + 21                             ' titre de la partie matériaux
     With ws.Range("B" & la & ":I" & la)
         .Merge
         .Value = "HYPOTHÈSES RELATIVES AUX MATÉRIAUX CONSTITUTIFS DES FONDATIONS PROFONDES"
@@ -346,7 +355,7 @@ Public Sub CreerDonneesProjet()
     ' --- Mise en forme ---
     With ws.Range("B4:C9,B12:C16,B19:I26,B28:E29,B" & LIGNE_COUCHES - 2 & ":C" & LIGNE_COUCHES - 2 & _
             ",B" & LIGNE_COUCHES - 1 & ":K" & lc & _
-            ",B" & lm + 1 & ":E" & lm + 5 & ",B" & lp & ":D" & lp + 15 & _
+            ",B" & lm + 1 & ":E" & lm + 5 & ",B" & lp & ":D" & lp + 19 & _
             ",B" & la + 3 & ":E" & la + 9 & ",B" & LIGNE_ACIER & ":E" & LIGNE_ACIER + 13)
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
@@ -373,6 +382,7 @@ Public Sub CreerDonneesProjet()
     AfficherTypeFondation ws
     AfficherCouches ws
     AfficherMethode ws
+    AfficherOptionsPieu ws
     MajArmature ws
     ws.Activate
     Application.EnableEvents = True
@@ -385,9 +395,9 @@ End Sub
 ' la disposition change.
 '   phase (C9) -> type de fondation ; nombre de couches -> lignes de couches ;
 '   type d'armature -> liste des classes d'acier ; classe de l'acier -> dimensions
-'   du tube ; type de pieu -> résistance de pointe affichée ou non dans « Calcul et
-'   vérification » ; méthode de calcul -> colonne pl* ou qc masquée et « Calcul et
-'   vérification » recréée
+'   du tube ; incliné / effet de groupe -> angle / m, n, d affichés ; type de pieu ->
+'   résistance de pointe affichée ou non dans « Calcul et vérification » ; méthode de
+'   calcul -> colonne pl* ou qc masquée et « Calcul et vérification » recréée
 Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
     On Error GoTo Fin
     Application.EnableEvents = False
@@ -395,6 +405,8 @@ Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
     If Not Intersect(Target, ws.Range(CELLULE_NB_COUCHES)) Is Nothing Then AfficherCouches ws
     If Not Intersect(Target, ws.Range("D" & LIGNE_ACIER)) Is Nothing Then MajArmature ws
     If Not Intersect(Target, ws.Range("D" & LIGNE_ACIER + 1)) Is Nothing Then MajAcier ws
+    If Not Intersect(Target, Union(ws.Range("D" & LIGNE_PIEU + 2), ws.Range("D" & LIGNE_PIEU + 4))) _
+        Is Nothing Then AfficherOptionsPieu ws
     ' Type de pieu : colonnes de la résistance de pointe de « Calcul et vérification »
     ' affichées ou masquées (module CalculFondation, s'il est présent)
     If Not Intersect(Target, ws.Range("D" & LIGNE_PIEU)) Is Nothing Then
@@ -412,6 +424,13 @@ Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
     End If
 Fin:
     Application.EnableEvents = True
+End Sub
+
+' Lignes de l'angle d'inclinaison (si « Incliné » vaut Oui) et du nombre de lignes m,
+' du nombre de pieux par ligne n et de l'entraxe d (si « Effet de groupe » vaut Oui)
+Public Sub AfficherOptionsPieu(ws As Worksheet)
+    ws.Rows(LIGNE_PIEU + 3).Hidden = (ws.Range("D" & LIGNE_PIEU + 2).Value <> "Oui")
+    ws.Rows(LIGNE_PIEU + 5).Resize(3).Hidden = (ws.Range("D" & LIGNE_PIEU + 4).Value <> "Oui")
 End Sub
 
 ' Données géotechniques selon la méthode de calcul retenue : colonne de la pression
@@ -443,7 +462,7 @@ Private Function FormuleNuance(valeurs As String, ligne As Long) As String
         Replace(NUANCES, ",", """,""") & """},0))"
 End Function
 
-' Type d'armature choisi (D89) : la liste « Classe de l'acier » propose les tubes
+' Type d'armature choisi (D91) : la liste « Classe de l'acier » propose les tubes
 ' (TUBES) ou les barres (BARRES) ; diamètres et épaisseur ne sont affichés que pour
 ' un tube. Appelée aussi quand le type change (voir CodeFeuilleDonnees.txt).
 Public Sub MajArmature(ws As Worksheet)

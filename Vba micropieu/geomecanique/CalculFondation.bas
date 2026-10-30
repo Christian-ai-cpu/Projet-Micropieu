@@ -128,17 +128,17 @@ Private Sub Construire(activer As Boolean)
     ' --- Caractéristiques de la fondation : 3 groupes séparés par 2 lignes vides ---
     etape = "caractéristiques de la fondation"
     SousTitre ws, 7, "Caractéristiques de la fondation"
-    Ligne ws, 8, "Abréviation", "=" & DONNEES & "D" & LIGNE_PIEU + 7, ""
-    Ligne ws, 9, "Norme de référence", "=" & DONNEES & "D" & LIGNE_PIEU + 4, ""
-    Ligne ws, 10, "Classe de la fondation", "=" & DONNEES & "D" & LIGNE_PIEU + 5, ""
-    Ligne ws, 11, "Catégorie de la fondation", "=" & DONNEES & "D" & LIGNE_PIEU + 6, ""
+    Ligne ws, 8, "Abréviation", "=" & DONNEES & "D" & LIGNE_PIEU + 11, ""
+    Ligne ws, 9, "Norme de référence", "=" & DONNEES & "D" & LIGNE_PIEU + 8, ""
+    Ligne ws, 10, "Classe de la fondation", "=" & DONNEES & "D" & LIGNE_PIEU + 9, ""
+    Ligne ws, 11, "Catégorie de la fondation", "=" & DONNEES & "D" & LIGNE_PIEU + 10, ""
     cat = "$D$11"                            ' catégorie de la fondation (cette feuille)
 
-    Ligne ws, 14, "Mode de fonctionnement", "=" & DONNEES & "D" & LIGNE_PIEU + 8, ""
-    Ligne ws, 15, "Prise en compte de la résistance de pointe", "=" & DONNEES & "D" & LIGNE_PIEU + 9, ""
-    Ligne ws, 16, "Type de mise en oeuvre", "=" & DONNEES & "D" & LIGNE_PIEU + 10, ""
+    Ligne ws, 14, "Mode de fonctionnement", "=" & DONNEES & "D" & LIGNE_PIEU + 12, ""
+    Ligne ws, 15, "Prise en compte de la résistance de pointe", "=" & DONNEES & "D" & LIGNE_PIEU + 13, ""
+    Ligne ws, 16, "Type de mise en oeuvre", "=" & DONNEES & "D" & LIGNE_PIEU + 14, ""
 
-    Ligne ws, 19, "Largeur de la fondation B", "=" & DONNEES & "D" & LIGNE_PIEU + 11, "m"
+    Ligne ws, 19, "Largeur de la fondation B", "=" & DONNEES & "D" & LIGNE_PIEU + 15, "m"
     ' D = somme des épaisseurs des couches du tableau du frottement axial (lignes 39 à 53)
     Ligne ws, 20, "Hauteur totale de la fondation D (somme des épaisseurs)", _
         "=IF(COUNT($F$39:$F$53)=0,"""",SUM($F$39:$F$53))", "m"
@@ -248,10 +248,34 @@ Private Sub Construire(activer As Boolean)
             ws.Range("C" & r & ":D" & r + 1).Value = Array2("Charge de fluage de calcul en compression", _
                 "Rc;cr,d", "Charge de fluage de calcul en traction", "Rt;cr,d")
             ws.Range("E" & r).Formula = "=IF(D62="""","""",D62/" & c & "34)"
-            ws.Range("E" & r + 1).Formula = "=IF(D63="""","""",D63/" & c & "35)"
+            ' sans essai de contrôle : Rt;cr,d x 0,15
+            ws.Range("E" & r + 1).Formula = "=IF(D63="""","""",D63/" & c & "35*IF($D$76=""Non"",0.15,1))"
         End If
     Next i
     ws.Range("E67:E74").NumberFormat = "0.0"" kN""
+    Ligne ws, 76, "Essai de contrôle (sinon Rt;cr,d x 0,15)", "=" & DONNEES & "D" & LIGNE_PIEU + 19, ""
+
+    ' --- Effet de groupe lié au rapprochement des pieux (NF P94-262, J.2) ---
+    ' Ce = 1 si d >= 3B ; sinon Ce = 1 - Cd (2 - (1/m + 1/n)) avec Cd = 1 - (1 + d/B) / 4
+    ' pour 1 <= d/B <= 3 (« - » si d/B < 1) ; Ce = 1 sans effet de groupe
+    etape = "effet de groupe"
+    SousTitre ws, 78, "Effet de groupe - coefficient d'efficacité Ce (NF P94-262, J.2)"
+    Ligne ws, 79, "Effet de groupe", "=" & DONNEES & "D" & LIGNE_PIEU + 4, ""
+    Ligne ws, 80, "Nombre de lignes de pieux m", "=IF(" & DONNEES & "D" & LIGNE_PIEU + 5 & "=""""," & _
+        """""," & DONNEES & "D" & LIGNE_PIEU + 5 & ")", ""
+    Ligne ws, 81, "Nombre de pieux par ligne n", "=IF(" & DONNEES & "D" & LIGNE_PIEU + 6 & "=""""," & _
+        """""," & DONNEES & "D" & LIGNE_PIEU + 6 & ")", ""
+    Ligne ws, 82, "Entraxe des pieux d", "=IF(" & DONNEES & "D" & LIGNE_PIEU + 7 & "=""""," & _
+        """""," & DONNEES & "D" & LIGNE_PIEU + 7 & ")", "m"
+    Ligne ws, 83, "d / B", "=IF(OR(N(D82)=0,N($D$19)=0),"""",D82/$D$19)", ""
+    Ligne ws, 84, "Cd = 1 - (1 + d/B) / 4  (1 <= d/B <= 3)", _
+        "=IF(D83="""","""",IF(D83>=3,0,IF(D83>=1,1-(1+D83)/4,""-"")))", ""
+    Ligne ws, 85, "Ce = 1 si d >= 3B, sinon 1 - Cd (2 - (1/m + 1/n))", _
+        "=IF(D79<>""Oui"",1,IF(D83="""","""",IF(D83>=3,1,IF(D83<1,""-""," & _
+        "IF(OR(N(D80)=0,N(D81)=0),"""",1-D84*(2-(1/D80+1/D81)))))))", ""
+    ws.Range("D80:D81").NumberFormat = "0"
+    ws.Range("D82:D85").NumberFormat = "0.00"
+    ws.Range("B85:D85").Font.Bold = True
 
 
     ' --- Mise en forme ---
@@ -259,7 +283,7 @@ Private Sub Construire(activer As Boolean)
     r = 37
     lt = r + 1 + MAX_COUCHES
     With ws.Range("B4:E5,B8:E11,B14:E16,B19:E24,B27:E31,B33:E35,B" & r + 1 & ":Q" & lt & _
-            ",B57:E58,B60:E63,B66:E74")
+            ",B57:E58,B60:E63,B66:E74,B76:E76,B79:E85")
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
@@ -271,9 +295,9 @@ Private Sub Construire(activer As Boolean)
     End With
     ' Valeurs non saisies (reprises ou calculées) en jaune ; tableau du frottement axial
     ' sans couleur
-    ws.Range("D4:D5,D8:D11,D14:D16,D19:D24,D28:E31,D34:E35,D57:D58,D60:D63,E67:E74").Interior.Color = _
+    ws.Range("D4:D5,D8:D11,D14:D16,D19:D24,D28:E31,D34:E35,D57:D58,D60:D63,E67:E74,D76,D79:D85").Interior.Color = _
         JAUNE_CALCUL
-    ws.Range("D4:F35,C57:E63,B67:B74,D67:E74,B" & r + 2 & ":B" & lt & ",E" & r + 2 & ":Q" & lt _
+    ws.Range("D4:F35,C57:E63,B67:B74,D67:E74,D76:E85,B" & r + 2 & ":B" & lt & ",E" & r + 2 & ":Q" & lt _
         ).HorizontalAlignment = xlCenter
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
