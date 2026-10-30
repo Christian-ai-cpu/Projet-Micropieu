@@ -24,6 +24,10 @@ Private Const LIGNE_SOUS_TITRE As Long = 4
 Private Const PREMIERE_LIGNE As Long = 5
 Private Const NB_LIGNES As Long = 69
 
+' Thème : saisies en vert, valeurs calculées en jaune (comme les autres feuilles)
+Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
+Private Const JAUNE_CALCUL As Long = 13434879  ' RGB(255, 255, 204)
+
 Public Sub CreerTableauChargesPermanentesComplet()
     Dim ws As Worksheet
     Dim derniereLigne As Long
@@ -174,6 +178,10 @@ Public Sub CreerTableauChargesPermanentesComplet()
     If ws.Columns("G").ColumnWidth < 12 Then ws.Columns("G").ColumnWidth = 12   ' place pour le titre
     ws.Range("B" & LIGNE_TITRE & ":K" & derniereLigne + 1).Rows.AutoFit
     ' Ligne 1 : niveau d'étage, catégorie du bâtiment, nombre de murs et % d'ouvertures
+    ' Code couleur de la ligne 1 : niveau, nombre de murs, % d'ouvertures et nombre de
+    ' micropieux à saisir en vert ; catégorie en jaune si reprise de « Données du projet »
+    ws.Range("C1,G1,I1,K1").Interior.Color = VERT_SAISIE
+    ws.Range("E1").Interior.Color = IIf(ws.Range("E1").HasFormula, JAUNE_CALCUL, VERT_SAISIE)
     With ws.Range("B" & LIGNE_NIVEAU & ":K" & LIGNE_NIVEAU)
         .WrapText = True
         .VerticalAlignment = xlCenter

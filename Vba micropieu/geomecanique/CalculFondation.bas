@@ -439,6 +439,9 @@ Private Sub Construire(activer As Boolean)
 
     etape = "graphique de la capacité portante"
     GraphiqueCapacite ws
+
+    etape = "vérification de la profondeur des micropieux"
+    VerificationProfondeur ws
     AfficherGroupe ws
     If activer Then ws.Activate
 
@@ -464,6 +467,163 @@ Public Sub AfficherGroupe(Optional ws As Worksheet)
     End If
     ws.Rows("37:45").Hidden = (ActiveWorkbook.Worksheets("Données du projet").Range("D" & _
         LIGNE_PIEU + 4).Value <> "Oui")
+End Sub
+
+' Vérification de la profondeur des micropieux, sous le tableau de la capacité portante
+' par pas de calcul : pour chaque micropieu de la feuille de descente de charges (matrice
+' des micropieux, module MatriceMicropieux, titre en B80) :
+'   descente de charges : Gmax = G, Gmin = G ou 0 (choix), Qmax = Q, Qmin = 0 (kN) ;
+'   combinaisons verticales max / min :
+'     ELS caractéristique : G + Q ;  ELS quasi permanent : G + psi2 Q ;
+'     ELU fondamental : 1,35 Gmax + 1,5 Qmax (max), 1,0 Gmin + 1,5 Qmin (min) ;
+'     ELU accidentel : G + psi1 Q ; psi1, psi2 selon la catégorie de bâtiment ;
+'   diamètre B de la fondation (celui du tableau de la capacité portante) ;
+'   profondeur minimale requise pour chaque cas : 1re profondeur du tableau par pas de
+'   calcul où la portance de la même combinaison (Rc;cr,d ELS, Rc,d ELU) est
+'   supérieure ou égale à la charge (« Non atteinte » sinon) ;
+'   profondeur retenue : la plus grande des profondeurs requises du micropieu.
+' Le nombre de micropieux et de murs est lu à la création : recréer cette feuille
+' après un changement dans la descente de charges.
+Private Sub VerificationProfondeur(ws As Worksheet)
+    Dim wd As Worksheet, f As Worksheet, L As Long, n As Long, m As Long, i As Long, k As Long
+    Dim r0 As Long, rd As Long, rt As Long, r As Long, dn As String, cap As String, z As String
+    Dim charge As Variant, colCap As Variant, entete As Variant
+
+    L = LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV + 2          ' titre du tableau
+    For Each f In ActiveWorkbook.Worksheets
+        If CStr(f.Range("B80").Value) = "RÉPARTITION DES CHARGES DES MURS SUR LES MICROPIEUX" Then
+            Set wd = f
+            Exit For
+        End If
+    Next f
+
+    With ws.Range("A" & L)
+        .Value = "VÉRIFICATION DE LA PROFONDEUR DES MICROPIEUX (DESCENTE DE CHARGES)"
+        .Font.Bold = True
+        .Font.Size = 16
+        .Font.Color = VERT_FONCE
+    End With
+    Ligne ws, L + 1, "Feuille de descente de charges", IIf(wd Is Nothing, "introuvable", ""), ""
+    If Not wd Is Nothing Then ws.Range("D" & L + 1).Value = wd.Name
+    Ligne ws, L + 2, "Gmin pris égal à (G ou 0)", "", ""
+    With ws.Range("D" & L + 2)
+        .Validation.Add xlValidateList, xlValidAlertStop, , "G,0"
+        .Value = "G"
+        .Interior.Color = VERT_SAISIE
+    End With
+    Ligne ws, L + 3, "Catégorie du bâtiment", "=" & DONNEES & "C14", ""
+    Ligne ws, L + 4, ChrW(968) & "1 (combinaison accidentelle)", "=IFERROR(CHOOSE(MATCH(LEFT(D" & _
+        L + 3 & ",1),{""A"",""B"",""C"",""D"",""E"",""F"",""G""},0),0.5,0.5,0.7,0.7,0.9,0.7,0.5),0.5)", ""
+    Ligne ws, L + 5, ChrW(968) & "2 (combinaison quasi permanente)", "=IFERROR(CHOOSE(MATCH(LEFT(D" & _
+        L + 3 & ",1),{""A"",""B"",""C"",""D"",""E"",""F"",""G""},0),0.3,0.3,0.6,0.6,0.8,0.6,0.3),0.3)", ""
+    ws.Range("D" & L + 1 & ":D" & L + 5).HorizontalAlignment = xlCenter
+    ws.Range("D" & L + 3 & ":D" & L + 5).Interior.Color = JAUNE_CALCUL
+    ws.Range("D" & L + 4 & ":D" & L + 5).NumberFormat = "0.00"
+    With ws.Range("B" & L + 1 & ":E" & L + 5)
+        .Borders.LineStyle = xlContinuous
+        .Font.Bold = True
+    End With
+    If wd Is Nothing Then
+        ws.Range("A" & L + 7).Value = "Créez la matrice des micropieux dans la feuille de descente de " & _
+            "charges, puis relancez CreerCalculVerification."
+        Exit Sub
+    End If
+
+    ' Matrice des micropieux : murs (Mur 01...) à partir de la ligne 86, en-tête à 88 + n,
+    ' micropieux (MP1...) à partir de 91 + n, POIDS TOTAL ÉLÉMENTAIRE DDC G et Q en
+    ' colonnes 8 + n et 9 + n
+    Do While Left(CStr(wd.Range("B" & 86 + n).Value), 4) = "Mur "
+        n = n + 1
+    Loop
+    rd = 88 + n + 3
+    Do While Left(CStr(wd.Range("B" & rd + m).Value), 2) = "MP"
+        m = m + 1
+    Loop
+    dn = "'" & wd.Name & "'!"
+
+    ' En-têtes sur 3 lignes (titres en gras)
+    r0 = L + 7
+    ws.Range("A" & r0).Value = "N° MICROPIEU"
+    ws.Range("B" & r0).Value = "DESCENTE DE CHARGES (kN)"
+    ws.Range("F" & r0).Value = "COMBINAISONS DE CHARGES VERTICALES (kN)"
+    ws.Range("N" & r0).Value = "DIAMÈTRE B (m)"
+    ws.Range("O" & r0).Value = "PROFONDEUR MINIMALE REQUISE (m)"
+    ws.Range("W" & r0).Value = "PROFONDEUR RETENUE (m)"
+    ws.Range("A" & r0 & ":A" & r0 + 2).Merge
+    ws.Range("B" & r0 & ":E" & r0).Merge
+    ws.Range("F" & r0 & ":M" & r0).Merge
+    ws.Range("N" & r0 & ":N" & r0 + 2).Merge
+    ws.Range("O" & r0 & ":V" & r0).Merge
+    ws.Range("W" & r0 & ":W" & r0 + 2).Merge
+    ws.Range("B" & r0 + 1).Value = "G"
+    ws.Range("D" & r0 + 1).Value = "Q"
+    ws.Range("B" & r0 + 1 & ":C" & r0 + 1).Merge
+    ws.Range("D" & r0 + 1 & ":E" & r0 + 1).Merge
+    ws.Range("B" & r0 + 2 & ":E" & r0 + 2).Value = Array("Gmax", "Gmin", "Qmax", "Qmin")
+    entete = Array("ELS CARA", "ELS QP", "ELU FOND", "ELU ACC")
+    For k = 0 To 3
+        ws.Cells(r0 + 1, 6 + 2 * k).Value = entete(k)
+        ws.Range(ws.Cells(r0 + 1, 6 + 2 * k), ws.Cells(r0 + 1, 7 + 2 * k)).Merge
+        ws.Cells(r0 + 1, 15 + 2 * k).Value = entete(k)
+        ws.Range(ws.Cells(r0 + 1, 15 + 2 * k), ws.Cells(r0 + 1, 16 + 2 * k)).Merge
+        ws.Range(ws.Cells(r0 + 2, 6 + 2 * k), ws.Cells(r0 + 2, 7 + 2 * k)).Value = Array("max", "min")
+        ws.Range(ws.Cells(r0 + 2, 15 + 2 * k), ws.Cells(r0 + 2, 16 + 2 * k)).Value = Array("max", "min")
+    Next k
+
+    ' Portance de chaque combinaison dans le tableau par pas de calcul : Rc;cr,d ELS
+    ' caractéristique (N), ELS quasi permanent (P), Rc,d ELU fondamental (R), accidentel (T)
+    colCap = Array("N", "P", "R", "T")
+    z = "$C$" & LIGNE_PROFIL & ":$C$" & LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1
+    For i = 1 To m
+        r = r0 + 2 + i
+        ws.Range("A" & r).Value = "MP" & i
+        ws.Range("B" & r).Formula = "=N(" & dn & wd.Cells(rd + i - 1, 8 + n).Address & ")"
+        ws.Range("C" & r).Formula = "=IF($D$" & L + 2 & "=""G"",B" & r & ",0)"
+        ws.Range("D" & r).Formula = "=N(" & dn & wd.Cells(rd + i - 1, 9 + n).Address & ")"
+        ws.Range("E" & r).Value = 0
+        ws.Range("F" & r).Formula = "=B" & r & "+D" & r
+        ws.Range("G" & r).Formula = "=C" & r & "+E" & r
+        ws.Range("H" & r).Formula = "=B" & r & "+$D$" & L + 5 & "*D" & r
+        ws.Range("I" & r).Formula = "=C" & r & "+$D$" & L + 5 & "*E" & r
+        ws.Range("J" & r).Formula = "=1.35*B" & r & "+1.5*D" & r
+        ws.Range("K" & r).Formula = "=1*C" & r & "+1.5*E" & r
+        ws.Range("L" & r).Formula = "=B" & r & "+$D$" & L + 4 & "*D" & r
+        ws.Range("M" & r).Formula = "=C" & r & "+$D$" & L + 4 & "*E" & r
+        ws.Range("N" & r).Formula = "=$D$19"
+        ' Profondeur minimale : 1re ligne où la portance (nombre) >= la charge
+        For k = 0 To 7
+            charge = Chr(Asc("F") + k) & r
+            cap = "$" & colCap(k \ 2) & "$" & LIGNE_PROFIL & ":$" & colCap(k \ 2) & "$" & _
+                LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1
+            ws.Cells(r, 15 + k).Formula = "=IFERROR(INDEX(" & z & ",MATCH(1,INDEX(ISNUMBER(" & cap & _
+                ")*(" & cap & ">=" & charge & "),0),0)),""Non atteinte"")"
+        Next k
+        ws.Range("W" & r).Formula = "=IF(COUNTIF(O" & r & ":V" & r & ",""Non atteinte"")>0," & _
+            """Non atteinte"",MAX(O" & r & ":V" & r & "))"
+    Next i
+    rt = r0 + 2 + Application.Max(m, 1)
+
+    ' Mise en forme
+    With ws.Range("A" & r0 & ":W" & rt)
+        .Borders.LineStyle = xlContinuous
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+    End With
+    With ws.Range("A" & r0 & ":W" & r0 + 2)
+        .Font.Bold = True
+        .Font.Size = 11
+        .Interior.Color = VERT_ENTETE
+        .WrapText = True
+    End With
+    If m > 0 Then
+        ws.Range("A" & r0 + 3 & ":A" & rt).Font.Bold = True
+        ws.Range("B" & r0 + 3 & ":W" & rt).Interior.Color = JAUNE_CALCUL
+        ws.Range("B" & r0 + 3 & ":M" & rt).NumberFormat = "0.0"
+        ws.Range("N" & r0 + 3 & ":N" & rt).NumberFormat = "0.000"
+        ws.Range("O" & r0 + 3 & ":W" & rt).NumberFormat = "0.00"
+        ws.Range("W" & r0 + 3 & ":W" & rt).Font.Bold = True
+    End If
+    ws.Rows(r0).RowHeight = 30
 End Sub
 
 ' Graphique de la capacité portante en compression en fonction de la profondeur, à
@@ -553,7 +713,7 @@ Private Sub SousTitre(ws As Worksheet, r As Long, texte As String, Optional col 
         .Value = texte
         .Font.Bold = True
         .Font.Underline = xlUnderlineStyleSingle
-        .Font.Size = 12
+        .Font.Size = 14
         .Font.Color = VERT_FONCE
     End With
 End Sub
