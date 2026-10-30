@@ -304,6 +304,13 @@ Private Sub Construire(activer As Boolean)
     ws.Columns("C").ColumnWidth = 30
     ws.Columns("D").ColumnWidth = 30
     ws.Columns("E:Q").ColumnWidth = 12
+    ' Bloc de l'effet de groupe (écrit en lignes 78 à 86) déplacé avant le tableau du
+    ' frottement axial par couche (stratigraphie) : il occupe les lignes 37 à 45 et la
+    ' suite des colonnes B à Q descend de 9 lignes, les formules suivent le déplacement
+    etape = "déplacement de l'effet de groupe"
+    ws.Range("B78:Q86").Cut
+    ws.Range("B37").Insert Shift:=xlDown
+    Application.CutCopyMode = False
     AfficherGroupe ws
     If activer Then ws.Activate
 
@@ -317,9 +324,9 @@ Erreur:
     Resume Fin
 End Sub
 
-' Bloc de l'effet de groupe (lignes 78 à 85) masqué quand « Effet de groupe » vaut Non
-' dans « Données du projet ». Appelée à la création et quand ce choix change
-' (ChangementDonnees, module DonneesProjet).
+' Bloc de l'effet de groupe (lignes 37 à 45, avant le frottement axial) masqué quand
+' « Effet de groupe » vaut Non dans « Données du projet ». Appelée à la création
+' et quand ce choix change (ChangementDonnees, module DonneesProjet).
 Public Sub AfficherGroupe(Optional ws As Worksheet)
     If ws Is Nothing Then
         On Error Resume Next
@@ -327,7 +334,7 @@ Public Sub AfficherGroupe(Optional ws As Worksheet)
         On Error GoTo 0
         If ws Is Nothing Then Exit Sub
     End If
-    ws.Rows("78:85").Hidden = (ActiveWorkbook.Worksheets("Données du projet").Range("D" & _
+    ws.Rows("37:45").Hidden = (ActiveWorkbook.Worksheets("Données du projet").Range("D" & _
         LIGNE_PIEU + 4).Value <> "Oui")
 End Sub
 

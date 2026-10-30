@@ -418,8 +418,12 @@ Public Sub CreerDonneesProjet()
     ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":K" & LIGNE_COUCHES - 1).Font.Bold = True
     ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":K" & LIGNE_COUCHES - 1).Interior.Color = VERT_ENTETE
     ws.Range("B" & LIGNE_COUCHES - 1 & ":K" & LIGNE_COUCHES - 1).HorizontalAlignment = xlCenter
-    ' Cases à remplir en vert, valeurs calculées en jaune ; sans couleur : données
-    ' géotechniques (laboratoire), données et caractéristiques de la fondation
+    ' Cases à remplir en vert, valeurs calculées en jaune (caractéristiques de la
+    ' fondation comprises) ; sans couleur : données géotechniques (laboratoire) et
+    ' données de la fondation
+    ws.Range("D" & lp & ":D" & lp + 7 & ",D" & lp + 12 & ",D" & lp + 15 & ":D" & lp + 19 _
+        ).Interior.Color = VERT_SAISIE
+    ws.Range("D" & lp + 8 & ":D" & lp + 11 & ",D" & lp + 13 & ":D" & lp + 14).Interior.Color = JAUNE_CALCUL
     ws.Range("C4:C9,C12:C16,D28:D29," & CELLULE_NB_COUCHES & ",D" & la + 3 & ",D" & la + 5 & ":D" & _
         la + 6 & ",D" & la + 8 & ":D" & la + 10 & _
         ",D" & LIGNE_ACIER & ":D" & LIGNE_ACIER + 1 & ",D" & LIGNE_ACIER + 8 & ":D" & _
