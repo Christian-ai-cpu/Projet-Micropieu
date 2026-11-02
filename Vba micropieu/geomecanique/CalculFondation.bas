@@ -534,21 +534,30 @@ End Sub
 '   D33) - profondeur retenue >= 5 Phi retenu (NF P94-262, annexe M, M.1 (2) Note 2).
 ' Le nombre de micropieux et de murs est lu à la création : recréer cette feuille
 ' après un changement dans la descente de charges.
-' Largeur des colonnes ajustée au contenu (AutoFit) des valeurs des tableaux de capacité
-' portante (B0 à B3) et du tableau de vérification de la profondeur (en-têtes renvoyés à
-' la ligne), en gardant pour chaque
-' colonne la plus grande largeur obtenue ; colonnes B à D (intitulés) inchangées ;
-' hauteur des lignes d'en-tête ajustée.
+' Largeur des colonnes ajustée pour que chaque texte tienne sur une ligne : valeurs
+' (AutoFit) et en-têtes (longueur du texte, en-têtes d'une seule colonne, fusionnés
+' verticalement ou non) du tableau du frottement axial, des tableaux de capacité portante
+' (B0 à B3) et du tableau de vérification de la profondeur ; pour chaque colonne, la plus
+' grande largeur est gardée ; colonnes B à D (intitulés) inchangées. Les en-têtes d'une
+' seule colonne ne sont plus renvoyés à la ligne. Les graphiques sont ensuite recadrés à
+' droite de leur tableau.
 Private Sub AjusterColonnes(ws As Worksheet)
     Dim zones As Collection, z As Variant, w() As Double, c As Long, k As Long, L As Long, lt As Long
+    Dim cel As Range, entetes As Collection, e As Variant, co As ChartObject, g As Double
     lt = LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1
     L = lt + 3                                ' titre de la vérification
     ReDim w(1 To 25 + (NB_DIAMETRES - 1) * BLOC_PROFIL)
-    Set zones = New Collection
+    Set zones = New Collection                ' valeurs
+    Set entetes = New Collection              ' lignes d'en-tête
+    zones.Add ws.Range("A48:R62")             ' frottement axial par couche
+    entetes.Add ws.Range("A47:R47")
     For k = 0 To NB_DIAMETRES - 1
         zones.Add ws.Range(ws.Cells(LIGNE_PROFIL, 5 + k * BLOC_PROFIL), ws.Cells(lt, 25 + k * BLOC_PROFIL))
+        entetes.Add ws.Range(ws.Cells(LIGNE_PROFIL - 1, 5 + k * BLOC_PROFIL), _
+            ws.Cells(LIGNE_PROFIL - 1, 25 + k * BLOC_PROFIL))
     Next k
     zones.Add ws.Range(ws.Cells(L + 10, 1), ws.Cells(L + 10 + 250, 40))   ' lignes MP1...
+    entetes.Add ws.Range(ws.Cells(L + 8, 1), ws.Cells(L + 9, 40))
     For Each z In zones
         z.Columns.AutoFit
         For c = z.Column To z.Column + z.Columns.Count - 1
@@ -557,13 +566,46 @@ Private Sub AjusterColonnes(ws As Worksheet)
             End If
         Next c
     Next z
+    ' En-têtes d'une seule colonne : largeur pour le texte sur une ligne (gras)
+    For Each e In entetes
+        For Each cel In e.Cells
+            If cel.MergeArea.Columns.Count = 1 And cel.Address = cel.MergeArea.Cells(1, 1).Address Then
+                If Len(CStr(cel.Value)) > 0 And cel.Column <= UBound(w) Then
+                    g = Len(CStr(cel.Value)) * 1.15 + 2
+                    If g > w(cel.Column) Then w(cel.Column) = g
+                    cel.MergeArea.WrapText = False
+                End If
+            End If
+        Next cel
+    Next e
     For c = 1 To UBound(w)
         If c < 2 Or c > 4 Then
-            If w(c) > 0 Then ws.Columns(c).ColumnWidth = Application.Max(w(c), 8)
+            If w(c) > 0 Then ws.Columns(c).ColumnWidth = Application.Min(Application.Max(w(c), 8), 120)
         End If
     Next c
-    ws.Rows(LIGNE_PROFIL - 1).AutoFit
-    ws.Rows(L + 8 & ":" & L + 9).AutoFit
+    ws.Rows(LIGNE_PROFIL - 2 & ":" & LIGNE_PROFIL - 1).AutoFit
+    ws.Rows(L + 7 & ":" & L + 9).AutoFit
+
+    ' Graphiques recadrés : à droite de leur tableau (une colonne d'écart), largeur
+    ' jusqu'au tableau suivant (620 points au plus)
+    For k = 0 To NB_DIAMETRES - 1
+        Set co = Nothing
+        On Error Resume Next
+        Set co = ws.ChartObjects("Capacite_B" & k)
+        On Error GoTo 0
+        If Not co Is Nothing Then
+            co.Left = ws.Cells(LIGNE_PROFIL - 3, 27 + k * BLOC_PROFIL).Left
+            co.Top = ws.Cells(LIGNE_PROFIL - 3, 1).Top
+            g = 620
+            If k < NB_DIAMETRES - 1 Then
+                g = ws.Cells(1, 2 + (k + 1) * BLOC_PROFIL).Left - co.Left - 15
+                If g > 620 Then g = 620
+                If g < 300 Then g = 300
+            End If
+            co.Width = g
+            co.Height = 480
+        End If
+    Next k
 End Sub
 
 ' Recrée le tableau de vérification de la profondeur des micropieux (si la feuille
@@ -895,6 +937,7 @@ Private Sub GraphiqueCapacite(ws As Worksheet, k As Long)
         Set co = ws.ChartObjects.Add(.Left, .Top, 620, 480)
     End With
     co.Placement = xlFreeFloating            ' taille fixe quand les colonnes sont ajustées
+    co.Name = "Capacite_B" & k                ' recadré par AjusterColonnes
     With co.Chart
         .ChartType = xlXYScatterLinesNoMarkers
         Do While .SeriesCollection.Count > 0
