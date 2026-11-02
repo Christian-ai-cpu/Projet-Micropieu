@@ -659,9 +659,9 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     ' calculée avec le diamètre B ($D$19 = B0 de « Données du projet »). Micropieux :
     ' Rb = 0, la portance est proportionnelle au périmètre, donc au diamètre : le tableau
     ' de portance d'un diamètre Bk est celui de B0 multiplié par Bk / B0.
-    ' Phi de chaque combinaison (fonction PhiRequis) : B0, puis B1, ... jusqu'à B7, le
-    ' premier diamètre pour lequel la portance atteint la plus grande charge (Vmax ou
-    ' Vmin) à une profondeur D telle que profondeur de reconnaissance - D >= 5 Phi ;
+    ' Phi de chaque combinaison : plus petit diamètre du tableau des diamètres (B0 < B1 <
+    ' ... < B7) dont la portance maximale (bas du tableau par pas de calcul, portance de
+    ' B0 x Bk / B0) atteint la plus grande charge (Vmax ou Vmin) ;
     ' Phi pieu = le plus grand des 4 ; Phi retenu = max(Phi pieu ; Phi manuel saisi).
     ' Profondeur Dmax / Dmin de chaque cas : 1re profondeur où la portance pour Phi retenu
     ' (portance de B0 x Phi retenu / B0) est >= la charge ; D = la plus grande.
@@ -695,11 +695,14 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         ws.Cells(r, cC + 6).Formula = "=B" & r & "+$D$" & L + 4 & "*D" & r & eAcc
         ws.Cells(r, cC + 7).Formula = "=C" & r & "+$D$" & L + 4 & "*E" & r & eMin
         For k = 0 To 3
-            ' Phi de la combinaison : B0, B1, ... jusqu'à ce que la portance soit vérifiée
+            ' Phi de la combinaison : diamètre requis = B0 x charge / portance max(B0), puis
+            ' plus petit diamètre du tableau B0, B1, ... supérieur ou égal
             cap = "$" & colCap(k) & "$" & LIGNE_PROFIL & ":$" & colCap(k) & "$" & _
                 LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1
-            ws.Cells(r, cD + k).Formula = "=PhiRequis(MAX(" & Ad(ws, r, cC + 2 * k) & "," & _
-                Ad(ws, r, cC + 2 * k + 1) & ")," & cap & "," & z & "," & phi & ",$D$19," & reco & ")"
+            charge = "MAX(" & Ad(ws, r, cC + 2 * k) & "," & Ad(ws, r, cC + 2 * k + 1) & ")"
+            ws.Cells(r, cD + k).Formula = "=IF(OR(N($D$19)=0,MAX(" & cap & ")<=0),"""",IFERROR(INDEX(" & _
+                phi & ",MATCH(1,INDEX((" & phi & ">0)*(" & phi & ">=$D$19*" & charge & "/MAX(" & cap & _
+                ")),0),0)),""Insuffisant""))"
         Next k
         ws.Cells(r, cD + 4).Formula = "=IF(COUNTIF(" & Ad(ws, r, cD) & ":" & Ad(ws, r, cD + 3) & _
             ",""Insuffisant"")>0,""Insuffisant"",IF(COUNT(" & Ad(ws, r, cD) & ":" & Ad(ws, r, cD + 3) & _
@@ -767,42 +770,6 @@ End Sub
 ' Adresse relative (ex. « F395 ») de la cellule ligne r, colonne c
 Private Function Ad(ws As Worksheet, r As Long, c As Long) As String
     Ad = ws.Cells(r, c).Address(False, False)
-End Function
-
-' Diamètre requis d'un micropieu pour une charge : les diamètres du tableau phis (B0,
-' B1, ... croissants, « Données du projet ») sont essayés dans l'ordre ; pour chacun, la
-' portance est celle du tableau par pas de calcul (calculée avec le diamètre b0)
-' multipliée par Phi / b0 (micropieu : Rb = 0, portance proportionnelle au périmètre) ;
-' le premier diamètre est retenu pour lequel la portance atteint la charge à une
-' profondeur z telle que profondeur de reconnaissance - z >= 5 Phi (si la profondeur de
-' reconnaissance est renseignée). « Insuffisant » si aucun diamètre ne convient.
-Public Function PhiRequis(charge As Variant, portance As Range, profondeurs As Range, _
-        phis As Range, b0 As Variant, reconnaissance As Variant) As Variant
-    Dim k As Long, j As Long, ph As Double, zmax As Double
-    PhiRequis = ""
-    If Not IsNumeric(b0) Or IsEmpty(b0) Then Exit Function
-    If Val(b0) <= 0 Or Not IsNumeric(charge) Then Exit Function
-    For k = 1 To phis.Cells.Count
-        If IsNumeric(phis.Cells(k).Value) And Not IsEmpty(phis.Cells(k).Value) Then
-            ph = phis.Cells(k).Value
-            If ph > 0 Then
-                zmax = 1E+30
-                If IsNumeric(reconnaissance) And Not IsEmpty(reconnaissance) Then _
-                    zmax = reconnaissance - 5 * ph
-                For j = 1 To portance.Cells.Count
-                    If IsNumeric(portance.Cells(j).Value) And IsNumeric(profondeurs.Cells(j).Value) _
-                        And Not IsEmpty(portance.Cells(j).Value) Then
-                        If profondeurs.Cells(j).Value > zmax Then Exit For
-                        If portance.Cells(j).Value * ph / b0 >= charge Then
-                            PhiRequis = ph
-                            Exit Function
-                        End If
-                    End If
-                Next j
-            End If
-        End If
-    Next k
-    PhiRequis = "Insuffisant"
 End Function
 
 ' Graphique de la capacité portante en compression en fonction de la profondeur, à
