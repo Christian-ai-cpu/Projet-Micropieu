@@ -798,6 +798,14 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     mPhiManuel = Empty
     rt = r0 + 2 + Application.Max(m, 1)
 
+    ' Diamètre du micropieu B (D19, utilisé pour Ab, Pe et le frottement axial) : Phi
+    ' retenu du premier micropieu (MP1), B0 de « Données du projet » s'il n'est pas défini
+    If m > 0 Then
+        ws.Range("B19").Value = "Diamètre du micropieu B (" & ChrW(934) & " retenu de MP1, sinon B0)"
+        ws.Range("D19").Formula = "=IF(ISNUMBER(" & ws.Cells(r0 + 3, cD + 6).Address & ")," & _
+            ws.Cells(r0 + 3, cD + 6).Address & "," & DONNEES & "D" & LIGNE_PIEU + 15 & ")"
+    End If
+
     ' Mise en forme
     With ws.Range(ws.Cells(r0, 1), ws.Cells(rt, cF))
         .Borders.LineStyle = xlContinuous
