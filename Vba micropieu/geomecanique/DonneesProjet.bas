@@ -509,6 +509,14 @@ Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
         Application.Run "ActualiserCalculVerification"
         On Error GoTo Fin
     End If
+    ' Diamètres B0, B1, ... : « Calcul et vérification » recréée (un tableau de capacité
+    ' portante par diamètre saisi)
+    If Not Intersect(Target, ws.Range("G" & LIGNE_PIEU + 9 & ":G" & LIGNE_PIEU + 8 + NB_DIAMETRES)) _
+        Is Nothing Then
+        On Error Resume Next
+        Application.Run "ActualiserCalculVerification"
+        On Error GoTo Fin
+    End If
     ' Nappe phréatique : colonnes de l'eau de la matrice des micropieux (feuille de
     ' descente de charges) et de la vérification de la profondeur créées ou retirées
     If Not Intersect(Target, ws.Range("D" & LIGNE_DONNEES_FONDATION + 3)) Is Nothing Then
