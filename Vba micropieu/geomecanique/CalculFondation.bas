@@ -330,14 +330,31 @@ Private Sub Construire(activer As Boolean)
 
     etape = "capacité portante par pas de calcul"
     ' Valeurs cumulées en profondeur, pas par pas : ligne précédente + apport du pas
-    '   Rs,k(z) = Rs,k(z - pas) + qs,i x pi x Phi x pas (0 si le terrain est neutralisé), soit
-    '   Rs,i = qs,i x As,i du tableau du frottement avec As,i = pi x Phi x pas (Phi = B0) ;
-    '   Rt,k = Rs,k ;
+    '   Rs,k(z) = Rs,k(z - pas) + qs x As,i / (gamma R;d1 x gamma R;d2 en compression),
+    '   Rt,k(z) = Rt,k(z - pas) + qs x As,i / (gamma R;d1 x gamma R;d2 en traction),
+    '   As,i = pi x Phi x pas (Phi = B0), 0 si le terrain est neutralisé ;
     '   valeurs de calcul déduites de Rs,k et Rt,k cumulés (mêmes relations que le
     '   tableau des valeurs de calcul)
     lt = LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1        ' dernière ligne prévue
     SousTitre ws, LIGNE_PROFIL - 3, "Capacité portante des micropieux en fonction de la " & _
         "profondeur (par pas de calcul, valeurs cumulées)"
+    ' Coefficients de modèle gamma R;d1 x gamma R;d2 (tableau F.2.1 ou G.2.1, ligne des
+    ' micropieux) : colonnes 1 et 3 en compression (Rs,k), 2 et 4 en traction (Rt,k)
+    r = LIGNE_PROFIL - 3
+    ws.Range("N" & r).Value = ChrW(947) & "R;d1 x " & ChrW(947) & "R;d2 compression"
+    ws.Range("P" & r).Formula = "=INDEX(" & zF21 & ",1,1)*INDEX(" & zF21 & ",1,3)"
+    ws.Range("R" & r).Value = ChrW(947) & "R;d1 x " & ChrW(947) & "R;d2 traction"
+    ws.Range("T" & r).Formula = "=INDEX(" & zF21 & ",1,2)*INDEX(" & zF21 & ",1,4)"
+    ws.Range("N" & r & ":O" & r).Merge
+    ws.Range("R" & r & ":S" & r).Merge
+    With ws.Range("N" & r & ":P" & r & ",R" & r & ":T" & r)
+        .Borders.LineStyle = xlContinuous
+        .HorizontalAlignment = xlCenter
+        .Font.Bold = True
+        .WrapText = True
+    End With
+    ws.Range("P" & r & ",T" & r).Interior.Color = JAUNE_CALCUL
+    ws.Range("P" & r & ",T" & r).NumberFormat = "0.000"
     r = LIGNE_PROFIL - 2
     ws.Range("B" & r).Value = "Références suivant couche"
     ws.Range("O" & r).Value = "ELS caractéristique (14.2.1.1)"
@@ -349,7 +366,7 @@ Private Sub Construire(activer As Boolean)
         ws.Range(Chr(Asc("O") + 2 * i) & r & ":" & Chr(Asc("P") + 2 * i) & r).Merge
     Next i
     ws.Range("B" & r + 1 & ":V" & r + 1).Value = Array("N° de couche", "Profondeur z (m)", "Cote", _
-        ChrW(934) & " (m)", "Pas de calcul (m)", "qs,i (kPa)", "Rs,k (kN)", "Rt,k (kN)", "ple* (MPa)", _
+        ChrW(934) & " (m)", "Pas de calcul (m)", "qs (kPa)", "Rs,k (kN)", "Rt,k (kN)", "ple* (MPa)", _
         "h (m)", "kp max", "Def (m)", "Rb,k (kN)", "Rc;cr,d (kN)", "Rt;cr,d (kN)", "Rc;cr,d (kN)", _
         "Rt;cr,d (kN)", "Rc,d (kN)", "Rt,d (kN)", "Rc,d (kN)", "Rt,d (kN)")
     ws.Range("D" & r + 1).Formula = "=""Cote (""&" & DONNEES & "$E$29&"")"""
@@ -370,11 +387,15 @@ Private Sub Construire(activer As Boolean)
         r & "-1))+K" & r & ")"
     ws.Range("D" & r).Formula = "=IF(C" & r & "="""","""",IF(ISNUMBER(" & DONNEES & "$D$29)," & _
         DONNEES & "$D$29-C" & r & ",-C" & r & "))"
-    ws.Range("G" & r).Formula = "=IF(BA" & r & "="""","""",INDEX($O$39:$O$53,BA" & r & "))"
-    ' Rs,k cumulé : valeur de la ligne précédente + qs,i x pi x Phi x pas
+    ' qs de la couche (frottement axial unitaire limite, colonne « qs = min »)
+    ws.Range("G" & r).Formula = "=IF(BA" & r & "="""","""",INDEX($M$39:$M$53,BA" & r & "))"
+    ' Rs,k et Rt,k cumulés : ligne précédente + qs x As,i / (gamma R;d1 x gamma R;d2), avec
+    ' As,i = pi x Phi x pas, gamma de compression ($P$88) pour Rs,k et de traction ($T$88)
+    ' pour Rt,k (0 si le terrain est neutralisé)
     ws.Range("H" & r).Formula = "=IF(BA" & r & "="""","""",N(H" & r - 1 & ")+IF(INDEX($Q$39:$Q$53,BA" & _
-        r & ")=""Oui"",0,N(G" & r & ")*PI()*N(E" & r & ")*F" & r & "))"
-    ws.Range("I" & r).Formula = "=IF(H" & r & "="""","""",H" & r & ")"
+        r & ")=""Oui"",0,N(G" & r & ")*PI()*N(E" & r & ")*F" & r & "/$P$" & LIGNE_PROFIL - 3 & "))"
+    ws.Range("I" & r).Formula = "=IF(BA" & r & "="""","""",N(I" & r - 1 & ")+IF(INDEX($Q$39:$Q$53,BA" & _
+        r & ")=""Oui"",0,N(G" & r & ")*PI()*N(E" & r & ")*F" & r & "/$T$" & LIGNE_PROFIL - 3 & "))"
     ws.Range("J" & r).Formula = "=IF(BA" & r & "="""","""",""-"")"
     ws.Range("L" & r).Formula = "=J" & r
     ws.Range("M" & r).Formula = "=J" & r
