@@ -423,12 +423,11 @@ Private Sub Construire(activer As Boolean)
     End With
     ws.Columns("ZA:ZE").Hidden = True
 
-    ' Tableaux des diamètres B1, B2, ... saisis dans « Données du projet » : copie du
+    ' Tableaux des diamètres B1, B2, B3 de « Données du projet » : copie du
     ' tableau de B0 décalée de k x BLOC_PROFIL colonnes, mêmes calculs avec Phi = Bk
     etape = "capacité portante des autres diamètres"
     For kd = 1 To NB_DIAMETRES - 1
-        vb = ActiveWorkbook.Worksheets("Données du projet").Range("G" & LIGNE_PIEU + 9 + kd).Value
-        If IsNumeric(vb) And Not IsEmpty(vb) Then
+        If True Then                         ' tableau toujours créé (vide si Bk n'est pas saisi)
             ws.Range(ws.Cells(LIGNE_PROFIL - 3, 2), ws.Cells(lt, 25)).Copy _
                 Destination:=ws.Cells(LIGNE_PROFIL - 3, 2 + kd * BLOC_PROFIL)
             ws.Range(ws.Cells(LIGNE_PROFIL, 2 + kd * BLOC_PROFIL), ws.Cells(lt, 25 + kd * BLOC_PROFIL)).Replace _
@@ -484,6 +483,9 @@ Private Sub Construire(activer As Boolean)
 
     etape = "vérification de la profondeur des micropieux"
     VerificationProfondeur ws
+
+    etape = "ajustement des colonnes"
+    AjusterColonnes ws
     AfficherGroupe ws
     If activer Then ws.Activate
 
@@ -532,6 +534,38 @@ End Sub
 '   D33) - profondeur retenue >= 5 Phi retenu (NF P94-262, annexe M, M.1 (2) Note 2).
 ' Le nombre de micropieux et de murs est lu à la création : recréer cette feuille
 ' après un changement dans la descente de charges.
+' Largeur des colonnes ajustée au contenu (AutoFit) des valeurs des tableaux de capacité
+' portante (B0 à B3) et du tableau de vérification de la profondeur (en-têtes renvoyés à
+' la ligne), en gardant pour chaque
+' colonne la plus grande largeur obtenue ; colonnes B à D (intitulés) inchangées ;
+' hauteur des lignes d'en-tête ajustée.
+Private Sub AjusterColonnes(ws As Worksheet)
+    Dim zones As Collection, z As Variant, w() As Double, c As Long, k As Long, L As Long, lt As Long
+    lt = LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1
+    L = lt + 3                                ' titre de la vérification
+    ReDim w(1 To 25 + (NB_DIAMETRES - 1) * BLOC_PROFIL)
+    Set zones = New Collection
+    For k = 0 To NB_DIAMETRES - 1
+        zones.Add ws.Range(ws.Cells(LIGNE_PROFIL, 5 + k * BLOC_PROFIL), ws.Cells(lt, 25 + k * BLOC_PROFIL))
+    Next k
+    zones.Add ws.Range(ws.Cells(L + 10, 1), ws.Cells(L + 10 + 250, 40))   ' lignes MP1...
+    For Each z In zones
+        z.Columns.AutoFit
+        For c = z.Column To z.Column + z.Columns.Count - 1
+            If c <= UBound(w) Then
+                If ws.Columns(c).ColumnWidth > w(c) Then w(c) = ws.Columns(c).ColumnWidth
+            End If
+        Next c
+    Next z
+    For c = 1 To UBound(w)
+        If c < 2 Or c > 4 Then
+            If w(c) > 0 Then ws.Columns(c).ColumnWidth = Application.Max(w(c), 8)
+        End If
+    Next c
+    ws.Rows(LIGNE_PROFIL - 1).AutoFit
+    ws.Rows(L + 8 & ":" & L + 9).AutoFit
+End Sub
+
 ' Recrée le tableau de vérification de la profondeur des micropieux (si la feuille
 ' « Calcul et vérification » existe), le choix de Gmin étant conservé. Appelée quand le
 ' nombre de murs ou de micropieux change dans la descente de charges
@@ -547,13 +581,14 @@ Public Sub ActualiserVerificationProfondeur()
     mPhiManuel = LirePhiManuel(ws)
     ws.Range(ws.Rows(L), ws.Rows(L + 300)).Clear
     VerificationProfondeur ws, gmin
+    AjusterColonnes ws
 End Sub
 
 ' Phi manuels saisis dans la vérification de la profondeur (colonne « Phi MANUEL »,
 ' lignes MP1...)
 Private Function LirePhiManuel(ws As Worksheet) As Variant
     Dim r As Long, i As Long, t() As Variant
-    r = LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV + 2 + 15     ' ligne de MP1
+    r = LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV + 2 + 10     ' ligne de MP1
     Dim c As Long, cm As Long
     For c = 1 To 40                                          ' colonne « Phi MANUEL »
         If CStr(ws.Cells(r - 2, c).Value) = ChrW(934) & " MANUEL" Then cm = c
@@ -577,6 +612,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     Dim eau As Boolean, cC As Long, cD As Long, cP As Long, cR As Long, cL As Long, cF As Long
     Dim reco As String, eMax As String, eMin As String, eAcc As String, phiT As String
     Dim incl As Boolean, cRe As Long, kb As String, capk As String, zk As String
+    Dim fx As String, kd As Long
 
     L = LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV + 2          ' titre du tableau
     For Each f In ActiveWorkbook.Worksheets
@@ -613,50 +649,11 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         .Font.Bold = True
     End With
 
-    ' Portance maximale de chaque diamètre B0, B1, ... (tableaux de capacité portante par
-    ' pas de calcul, B0 en B, Bk décalé de k x BLOC_PROFIL colonnes) : plus grande
-    ' portance de chaque combinaison à une profondeur z <= profondeur de reconnaissance
-    ' - 5 Phi (vérification de la longueur) ; 0 si le tableau du diamètre n'existe pas
     reco = DONNEES & "$D$33"
-    ws.Range("G" & L + 1 & ":M" & L + 1).Value = Array("Diamètre", ChrW(934) & " (m)", _
-        "Profondeur maximale (reconnaissance - 5 " & ChrW(934) & ") (m)", "Portance max ELS CARA (kN)", _
-        "Portance max ELS QP (kN)", "Portance max ELU FOND (kN)", "Portance max ELU ACC (kN)")
     colCap = Array("R", "T", "V", "X")
-    For k = 0 To NB_DIAMETRES - 1
-        r = L + 2 + k
-        ws.Range("G" & r).Value = "B" & k
-        ws.Range("H" & r).Formula = "=IF(ISNUMBER(" & DONNEES & "$G$" & LIGNE_PIEU + 9 + k & ")," & _
-            DONNEES & "$G$" & LIGNE_PIEU + 9 + k & ","""")"
-        ws.Range("I" & r).Formula = "=IF(AND(ISNUMBER(" & reco & "),ISNUMBER(H" & r & "))," & reco & _
-            "-5*H" & r & ","""")"
-        z = ws.Range(ws.Cells(LIGNE_PROFIL, 3 + k * BLOC_PROFIL), _
-            ws.Cells(LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1, 3 + k * BLOC_PROFIL)).Address
-        For i = 0 To 3
-            cap = ws.Range(ws.Cells(LIGNE_PROFIL, ws.Range(colCap(i) & "1").Column + k * BLOC_PROFIL), _
-                ws.Cells(LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1, _
-                ws.Range(colCap(i) & "1").Column + k * BLOC_PROFIL)).Address
-            ws.Cells(r, 10 + i).Formula = "=IF(H" & r & "="""","""",IFERROR(AGGREGATE(14,6," & cap & _
-                "/((" & z & "<=IF(I" & r & "="""",1E+9,I" & r & "))*ISNUMBER(" & cap & ")),1),0))"
-        Next i
-    Next k
-    r = L + 1 + NB_DIAMETRES
-    With ws.Range("G" & L + 1 & ":M" & r)
-        .Borders.LineStyle = xlContinuous
-        .HorizontalAlignment = xlCenter
-        .VerticalAlignment = xlCenter
-    End With
-    With ws.Range("G" & L + 1 & ":M" & L + 1)
-        .Font.Bold = True
-        .Interior.Color = VERT_ENTETE
-        .WrapText = True
-    End With
-    ws.Range("H" & L + 2 & ":M" & r).Interior.Color = JAUNE_CALCUL
-    ws.Range("H" & L + 2 & ":I" & r).NumberFormat = "0.000"
-    ws.Range("J" & L + 2 & ":M" & r).NumberFormat = "0.0"
-    phiT = "$H$" & L + 2 & ":$H$" & L + 1 + NB_DIAMETRES      ' diamètres B0, B1, ...
-
+    phiT = DONNEES & "$G$" & LIGNE_PIEU + 9 & ":$G$" & LIGNE_PIEU + 8 + NB_DIAMETRES   ' B0, B1, ...
     If wd Is Nothing Then
-        ws.Range("A" & L + 12).Value = "Créez la matrice des micropieux dans la feuille de descente de " & _
+        ws.Range("A" & L + 7).Value = "Créez la matrice des micropieux dans la feuille de descente de " & _
             "charges, puis relancez CreerCalculVerification."
         Exit Sub
     End If
@@ -692,7 +689,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     cRe = cR + 1
     cL = cR + IIf(incl, 2, 1)
     cF = cL + 3                               ' dernière colonne
-    r0 = L + 12
+    r0 = L + 7
     ws.Cells(r0, 1).Value = "N° MICROPIEU"
     ws.Cells(r0, 2).Value = "DESCENTE DE CHARGES (kN)"
     ws.Cells(r0, cC).Value = "COMBINAISONS DE CHARGES VERTICALES (kN)"
@@ -748,9 +745,9 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
 
     ' Portance de chaque combinaison dans le tableau par pas de calcul : Rc;cr,d ELS
     ' caractéristique (R), ELS quasi permanent (T), Rc,d ELU fondamental (V), accidentel (X),
-    ' lue dans le tableau de chaque diamètre B0, B1, ... (portance maximale ci-dessus).
-    ' Phi de chaque combinaison : plus petit diamètre (B0 < B1 < ... < B7) dont la portance
-    ' maximale atteint la plus grande charge (Vmax ou Vmin) ;
+    ' lue dans le tableau de chaque diamètre B0, B1, B2, B3.
+    ' Phi de chaque combinaison : plus petit diamètre (B0 < B1 < B2 < B3) dont la portance
+    ' maximale (tableau de ce diamètre) atteint la plus grande charge (Vmax ou Vmin) ;
     ' Phi pieu = le plus grand des 4 ; Phi retenu = max(Phi pieu ; Phi manuel saisi).
     ' Profondeur Dmax / Dmin de chaque cas : 1re profondeur du tableau de Phi retenu où
     ' la portance est >= la charge ; D = la plus grande ; profondeur réelle D / cos(angle)
@@ -782,14 +779,19 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         ws.Cells(r, cC + 6).Formula = "=B" & r & "+$D$" & L + 4 & "*D" & r & eAcc
         ws.Cells(r, cC + 7).Formula = "=C" & r & "+$D$" & L + 4 & "*E" & r & eMin
         For k = 0 To 3
-            ' Phi de la combinaison : B0, puis B1, ... le premier diamètre dont la portance
-            ' maximale (tableau de ce diamètre, profondeur limitée par la reconnaissance)
-            ' atteint la plus grande charge (Vmax ou Vmin)
-            cap = "$" & Chr(Asc("J") + k) & "$" & L + 2 & ":$" & Chr(Asc("J") + k) & "$" & L + 1 + NB_DIAMETRES
+            ' Phi de la combinaison : charge verticale (plus grande de Vmax et Vmin) comparée
+            ' à la portance maximale de chaque diamètre (tableau de B0, B1, ...) ; le plus
+            ' petit diamètre qui vérifie la condition est retenu
             charge = "MAX(" & Ad(ws, r, cC + 2 * k) & "," & Ad(ws, r, cC + 2 * k + 1) & ")"
-            ws.Cells(r, cD + k).Formula = "=IF(COUNT(" & phiT & ")=0,"""",IFERROR(INDEX(" & phiT & _
-                ",MATCH(1,INDEX(ISNUMBER(" & phiT & ")*ISNUMBER(" & cap & ")*(" & cap & ">=" & charge & _
-                "),0),0)),""Insuffisant""))"
+            fx = """Insuffisant"""
+            For kd = NB_DIAMETRES - 1 To 0 Step -1
+                cap = ws.Range(ws.Cells(LIGNE_PROFIL, ws.Range(colCap(k) & "1").Column + kd * BLOC_PROFIL), _
+                    ws.Cells(LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1, _
+                    ws.Range(colCap(k) & "1").Column + kd * BLOC_PROFIL)).Address
+                fx = "IF(AND(ISNUMBER(" & DONNEES & "$G$" & LIGNE_PIEU + 9 + kd & "),MAX(" & cap & ")>=" & _
+                    charge & ")," & DONNEES & "$G$" & LIGNE_PIEU + 9 + kd & "," & fx & ")"
+            Next kd
+            ws.Cells(r, cD + k).Formula = "=IF(COUNT(" & phiT & ")=0,""""," & fx & ")"
         Next k
         ws.Cells(r, cD + 4).Formula = "=IF(COUNTIF(" & Ad(ws, r, cD) & ":" & Ad(ws, r, cD + 3) & _
             ",""Insuffisant"")>0,""Insuffisant"",IF(COUNT(" & Ad(ws, r, cD) & ":" & Ad(ws, r, cD + 3) & _
@@ -812,7 +814,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
                 "IFERROR(IF(ISNUMBER(MATCH(" & Ad(ws, r, cD + 6) & "," & phiT & ",0)),INDEX(" & zk & _
                 ",MATCH(1,INDEX(ISNUMBER(" & capk & ")*(" & capk & ">=" & Ad(ws, r, cC + k) & "),0),0))," & _
                 "INDEX(" & z & ",MATCH(1,INDEX(ISNUMBER(" & cap & ")*(" & cap & ">=" & Ad(ws, r, cC + k) & _
-                "*$H$" & L + 2 & "/" & Ad(ws, r, cD + 6) & "),0),0))),""Non atteinte""))"
+                "*" & DONNEES & "$G$" & LIGNE_PIEU + 9 & "/" & Ad(ws, r, cD + 6) & "),0),0))),""Non atteinte""))"
         Next k
         ws.Cells(r, cR).Formula = "=IF(COUNTIF(" & Ad(ws, r, cP) & ":" & Ad(ws, r, cP + 7) & _
             ",""Non atteinte"")>0,""Non atteinte"",MAX(" & Ad(ws, r, cP) & ":" & Ad(ws, r, cP + 7) & "))"
@@ -860,7 +862,6 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
             .Add(xlCellValue, xlEqual, "=""Non vérifiée""").Font.Color = RGB(192, 0, 0)
         End With
     End If
-    ws.Range(ws.Columns(cD), ws.Columns(cF)).ColumnWidth = 12
     ws.Rows(r0).RowHeight = 30
 End Sub
 
@@ -893,6 +894,7 @@ Private Sub GraphiqueCapacite(ws As Worksheet, k As Long)
     With ws.Cells(LIGNE_PROFIL - 3, 30 + d)
         Set co = ws.ChartObjects.Add(.Left, .Top, 620, 480)
     End With
+    co.Placement = xlFreeFloating            ' taille fixe quand les colonnes sont ajustées
     With co.Chart
         .ChartType = xlXYScatterLinesNoMarkers
         Do While .SeriesCollection.Count > 0
