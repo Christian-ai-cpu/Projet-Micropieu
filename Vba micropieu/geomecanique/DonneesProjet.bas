@@ -55,6 +55,7 @@ Public Const CELLULE_NB_COUCHES As String = "C39"   ' nombre de couches saisi
 Public Const LIGNE_COUCHES As Long = 41       ' première couche de sol
 Public Const MAX_COUCHES As Long = 15         ' lignes prévues (au-delà du nombre : masquées)
 Public Const LIGNE_PIEU As Long = 58          ' type de pieu (caractéristiques de la fondation)
+Public Const NB_DIAMETRES As Long = 8         ' diamètres B0 à B7 (G67:G74, à droite)
 Private Const ABREVIATIONS As String = "M1|M2|PIGU, MIGU|PIRS, MIRS"   ' tableau A.1, catégories 17 à 20
 Private Const LIGNE_ACIER As Long = 92         ' type d'armature (caractéristiques de l'acier)
 Private Const CLASSES_EXPOSITION As String = "X0,XC1,XC2,XC3,XC4,XD1,XD2,XD3," & _
@@ -285,7 +286,7 @@ Public Sub CreerDonneesProjet()
         "Classe de la fondation", "Catégorie de la fondation", _
         "Abréviation du type de pieu (NF P94-262, tableau A.1)", "Mode de fonctionnement", _
         "Prise en compte de la résistance de pointe", "Type de mise en oeuvre", _
-        "Diamètre de la fondation B (m)", _
+        "Diamètre de référence B = B0 (m), tableau des diamètres en F:G", _
         "Nombre de fondations / appui du bâtiment", "Nombre total de fondations", _
         "Conditions en tête de la fondation", "Essai de contrôle"))
     ListeLongue ws.Range("D" & lp), TypesPieux(), "Pieux NF P94-262"
@@ -314,6 +315,32 @@ Public Sub CreerDonneesProjet()
     ws.Range("D" & lp + 13).Formula = "=IF(" & c & "="""","""",""Non"")"
     ' Type de mise en oeuvre (colonnes des tableaux C.2.3 de la norme) : pieu foré
     ws.Range("D" & lp + 14).Formula = "=IF(" & c & "="""","""",""Pieu foré"")"
+    ' Tableau des diamètres disponibles (F:G, à droite des caractéristiques, lignes
+    ' toujours affichées lp + 8 à lp + 16) : B0 < B1 < B2 ... ; B0 est le diamètre de
+    ' référence (calcul de la portance), les suivants sont pris tour à tour quand la
+    ' portance n'est pas vérifiée (« Calcul et vérification »)
+    ws.Range("F" & lp + 8 & ":G" & lp + 8).Value = Array("Diamètre", "B (m)")
+    For r = 1 To NB_DIAMETRES
+        ws.Range("F" & lp + 8 + r).Value = "B" & r - 1
+        With ws.Range("G" & lp + 8 + r)
+            .NumberFormat = "0.000"
+            .Interior.Color = VERT_SAISIE
+            If r > 1 Then
+                .Validation.Add xlValidateCustom, xlValidAlertStop, , "=OR(G" & lp + 8 + r & _
+                    "="""",G" & lp + 8 + r & ">G" & lp + 7 + r & ")"
+                .Validation.ErrorMessage = "Chaque diamètre doit être supérieur au précédent."
+            End If
+        End With
+    Next r
+    With ws.Range("F" & lp + 8 & ":G" & lp + 8 + NB_DIAMETRES)
+        .Borders.LineStyle = xlContinuous
+        .HorizontalAlignment = xlCenter
+    End With
+    With ws.Range("F" & lp + 8 & ":G" & lp + 8)
+        .Font.Bold = True
+        .Interior.Color = VERT_ENTETE
+    End With
+    ws.Range("D" & lp + 15).Formula = "=IF(G" & lp + 9 & "="""","""",G" & lp + 9 & ")"   ' B = B0
     ws.Range("D" & lp + 15).NumberFormat = "0.000"          ' diamètre B (m)
     ws.Range("D" & lp + 16 & ":D" & lp + 17).NumberFormat = "0"
     Liste ws.Range("D" & lp + 18), "Libre en tête,Encastré en tête"
@@ -421,9 +448,9 @@ Public Sub CreerDonneesProjet()
     ' Cases à remplir en vert, valeurs calculées en jaune (caractéristiques de la
     ' fondation comprises) ; sans couleur : données géotechniques (laboratoire) et
     ' données de la fondation
-    ws.Range("D" & lp & ":D" & lp + 7 & ",D" & lp + 12 & ",D" & lp + 15 & ":D" & lp + 19 _
+    ws.Range("D" & lp & ":D" & lp + 7 & ",D" & lp + 12 & ",D" & lp + 16 & ":D" & lp + 19 _
         ).Interior.Color = VERT_SAISIE
-    ws.Range("D" & lp + 8 & ":D" & lp + 11 & ",D" & lp + 13 & ":D" & lp + 14).Interior.Color = JAUNE_CALCUL
+    ws.Range("D" & lp + 8 & ":D" & lp + 11 & ",D" & lp + 13 & ":D" & lp + 15).Interior.Color = JAUNE_CALCUL
     ws.Range("C4:C9,C12:C16,D28:D29," & CELLULE_NB_COUCHES & ",D" & la + 3 & ",D" & la + 5 & ":D" & _
         la + 6 & ",D" & la + 8 & ":D" & la + 10 & _
         ",D" & LIGNE_ACIER & ":D" & LIGNE_ACIER + 1 & ",D" & LIGNE_ACIER + 8 & ":D" & _
