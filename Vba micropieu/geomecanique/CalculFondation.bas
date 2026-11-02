@@ -330,45 +330,30 @@ Private Sub Construire(activer As Boolean)
 
     etape = "capacité portante par pas de calcul"
     ' Valeurs cumulées en profondeur, pas par pas : ligne précédente + apport du pas
-    '   Rs,k(z) = Rs,k(z - pas) + qs x As,i / (gamma R;d1 x gamma R;d2 en compression),
-    '   Rt,k(z) = Rt,k(z - pas) + qs x As,i / (gamma R;d1 x gamma R;d2 en traction),
+    '   Rs,k(z) = Rs,k(z - pas) + qs x As,i / (gamma R;d1 compression x gamma R;d2),
+    '   Rt,k(z) = Rt,k(z - pas) + qs x As,i / (gamma R;d1 traction x gamma R;d2),
+    '   coefficients de modèle repris dans le tableau après le pas de calcul,
     '   As,i = pi x Phi x pas (Phi = B0), 0 si le terrain est neutralisé ;
     '   valeurs de calcul déduites de Rs,k et Rt,k cumulés (mêmes relations que le
     '   tableau des valeurs de calcul)
     lt = LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1        ' dernière ligne prévue
     SousTitre ws, LIGNE_PROFIL - 3, "Capacité portante des micropieux en fonction de la " & _
         "profondeur (par pas de calcul, valeurs cumulées)"
-    ' Coefficients de modèle gamma R;d1 x gamma R;d2 (tableau F.2.1 ou G.2.1, ligne des
-    ' micropieux) : colonnes 1 et 3 en compression (Rs,k), 2 et 4 en traction (Rt,k)
-    r = LIGNE_PROFIL - 3
-    ws.Range("N" & r).Value = ChrW(947) & "R;d1 x " & ChrW(947) & "R;d2 compression"
-    ws.Range("P" & r).Formula = "=INDEX(" & zF21 & ",1,1)*INDEX(" & zF21 & ",1,3)"
-    ws.Range("R" & r).Value = ChrW(947) & "R;d1 x " & ChrW(947) & "R;d2 traction"
-    ws.Range("T" & r).Formula = "=INDEX(" & zF21 & ",1,2)*INDEX(" & zF21 & ",1,4)"
-    ws.Range("N" & r & ":O" & r).Merge
-    ws.Range("R" & r & ":S" & r).Merge
-    With ws.Range("N" & r & ":P" & r & ",R" & r & ":T" & r)
-        .Borders.LineStyle = xlContinuous
-        .HorizontalAlignment = xlCenter
-        .Font.Bold = True
-        .WrapText = True
-    End With
-    ws.Range("P" & r & ",T" & r).Interior.Color = JAUNE_CALCUL
-    ws.Range("P" & r & ",T" & r).NumberFormat = "0.000"
     r = LIGNE_PROFIL - 2
     ws.Range("B" & r).Value = "Références suivant couche"
-    ws.Range("O" & r).Value = "ELS caractéristique (14.2.1.1)"
-    ws.Range("Q" & r).Value = "ELS quasi permanent (14.2.1.2)"
-    ws.Range("S" & r).Value = "ELU fondamental (C.2.3.1)"
-    ws.Range("U" & r).Value = "ELU accidentel (C.2.3.2)"
-    ws.Range("B" & r & ":N" & r).Merge
+    ws.Range("R" & r).Value = "ELS caractéristique (14.2.1.1)"
+    ws.Range("T" & r).Value = "ELS quasi permanent (14.2.1.2)"
+    ws.Range("V" & r).Value = "ELU fondamental (C.2.3.1)"
+    ws.Range("X" & r).Value = "ELU accidentel (C.2.3.2)"
+    ws.Range("B" & r & ":Q" & r).Merge
     For i = 0 To 3
-        ws.Range(Chr(Asc("O") + 2 * i) & r & ":" & Chr(Asc("P") + 2 * i) & r).Merge
+        ws.Range(Chr(Asc("R") + 2 * i) & r & ":" & Chr(Asc("S") + 2 * i) & r).Merge
     Next i
-    ws.Range("B" & r + 1 & ":V" & r + 1).Value = Array("N° de couche", "Profondeur z (m)", "Cote", _
-        ChrW(934) & " (m)", "Pas de calcul (m)", "qs (kPa)", "Rs,k (kN)", "Rt,k (kN)", "ple* (MPa)", _
-        "h (m)", "kp max", "Def (m)", "Rb,k (kN)", "Rc;cr,d (kN)", "Rt;cr,d (kN)", "Rc;cr,d (kN)", _
-        "Rt;cr,d (kN)", "Rc,d (kN)", "Rt,d (kN)", "Rc,d (kN)", "Rt,d (kN)")
+    ws.Range("B" & r + 1 & ":Y" & r + 1).Value = Array("N° de couche", "Profondeur z (m)", "Cote", _
+        ChrW(934) & " (m)", "Pas de calcul (m)", ChrW(947) & "R;d1 compression", _
+        ChrW(947) & "R;d1 traction", ChrW(947) & "R;d2", "qs (kPa)", "Rs,k (kN)", "Rt,k (kN)", _
+        "ple* (MPa)", "h (m)", "kp max", "Def (m)", "Rb,k (kN)", "Rc;cr,d (kN)", "Rt;cr,d (kN)", _
+        "Rc;cr,d (kN)", "Rt;cr,d (kN)", "Rc,d (kN)", "Rt,d (kN)", "Rc,d (kN)", "Rt,d (kN)")
     ws.Range("D" & r + 1).Formula = "=""Cote (""&" & DONNEES & "$E$29&"")"""
     ' Formules de la 1re ligne (j = rang du pas = ligne - LIGNE_PROFIL + 1), recopiées
     ' vers le bas ; la ligne précédente de la 1re ligne est l'en-tête (texte -> N() = 0)
@@ -382,47 +367,53 @@ Private Sub Construire(activer As Boolean)
     ' Diamètre Phi du micropieu (B de la fondation, B0 de « Données du projet »)
     ws.Range("E" & r).Formula = "=IF(BA" & r & "="""","""",$D$19)"
     ws.Range("F" & r).Formula = "=IF(BA" & r & "="""","""",INDEX($A$39:$A$53,BA" & r & "))"
-    ws.Range("K" & r).Formula = "=IF(BA" & r & "="""","""",BB" & r & "*F" & r & ")"
+    ' Coefficients de modèle (tableau F.2.1 ou G.2.1, ligne des micropieux) : gamma R;d1
+    ' compression (colonne 1), traction (colonne 2), gamma R;d2 (colonne 3)
+    ws.Range("G" & r).Formula = "=IF(BA" & r & "="""","""",INDEX(" & zF21 & ",1,1))"
+    ws.Range("H" & r).Formula = "=IF(BA" & r & "="""","""",INDEX(" & zF21 & ",1,2))"
+    ws.Range("I" & r).Formula = "=IF(BA" & r & "="""","""",INDEX(" & zF21 & ",1,3))"
+    ws.Range("N" & r).Formula = "=IF(BA" & r & "="""","""",BB" & r & "*F" & r & ")"
     ws.Range("C" & r).Formula = "=IF(BA" & r & "="""","""",IF(BA" & r & "=1,0,INDEX($AY$39:$AY$53,BA" & _
-        r & "-1))+K" & r & ")"
+        r & "-1))+N" & r & ")"
     ws.Range("D" & r).Formula = "=IF(C" & r & "="""","""",IF(ISNUMBER(" & DONNEES & "$D$29)," & _
         DONNEES & "$D$29-C" & r & ",-C" & r & "))"
     ' qs de la couche (frottement axial unitaire limite, colonne « qs = min »)
-    ws.Range("G" & r).Formula = "=IF(BA" & r & "="""","""",INDEX($M$39:$M$53,BA" & r & "))"
+    ws.Range("J" & r).Formula = "=IF(BA" & r & "="""","""",INDEX($M$39:$M$53,BA" & r & "))"
     ' Rs,k et Rt,k cumulés : ligne précédente + qs x As,i / (gamma R;d1 x gamma R;d2), avec
-    ' As,i = pi x Phi x pas, gamma de compression ($P$88) pour Rs,k et de traction ($T$88)
-    ' pour Rt,k (0 si le terrain est neutralisé)
-    ws.Range("H" & r).Formula = "=IF(BA" & r & "="""","""",N(H" & r - 1 & ")+IF(INDEX($Q$39:$Q$53,BA" & _
-        r & ")=""Oui"",0,N(G" & r & ")*PI()*N(E" & r & ")*F" & r & "/$P$" & LIGNE_PROFIL - 3 & "))"
-    ws.Range("I" & r).Formula = "=IF(BA" & r & "="""","""",N(I" & r - 1 & ")+IF(INDEX($Q$39:$Q$53,BA" & _
-        r & ")=""Oui"",0,N(G" & r & ")*PI()*N(E" & r & ")*F" & r & "/$T$" & LIGNE_PROFIL - 3 & "))"
-    ws.Range("J" & r).Formula = "=IF(BA" & r & "="""","""",""-"")"
-    ws.Range("L" & r).Formula = "=J" & r
-    ws.Range("M" & r).Formula = "=J" & r
-    ws.Range("N" & r).Formula = "=IF(BA" & r & "="""","""",0)"
+    ' As,i = pi x Phi x pas, gamma R;d1 de compression pour Rs,k, de traction pour Rt,k
+    ' (0 si le terrain est neutralisé)
+    ws.Range("K" & r).Formula = "=IF(BA" & r & "="""","""",N(K" & r - 1 & ")+IF(INDEX($Q$39:$Q$53,BA" & _
+        r & ")=""Oui"",0,N(J" & r & ")*PI()*E" & r & "*F" & r & "/(G" & r & "*I" & r & ")))"
+    ws.Range("L" & r).Formula = "=IF(BA" & r & "="""","""",N(L" & r - 1 & ")+IF(INDEX($Q$39:$Q$53,BA" & _
+        r & ")=""Oui"",0,N(J" & r & ")*PI()*E" & r & "*F" & r & "/(H" & r & "*I" & r & ")))"
+    ws.Range("M" & r).Formula = "=IF(BA" & r & "="""","""",""-"")"
+    ws.Range("O" & r).Formula = "=M" & r
+    ws.Range("P" & r).Formula = "=M" & r
+    ws.Range("Q" & r).Formula = "=IF(BA" & r & "="""","""",0)"
     ' ELS : Rc;cr,d = (0,5 Rb,k + 0,7 Rs,k) / gamma cr ; Rt;cr,d = 0,7 Rt,k / gamma s;cr
     ' (x 0,15 sans essai de contrôle) ; ELU : Rc,d = Rb,k / gamma b + Rs,k / gamma s ;
     ' Rt,d = Rt,k / gamma s;t
     For i = 0 To 1
         c = Chr(Asc("D") + i)                ' colonne du facteur : D ou E
-        ws.Range(Chr(Asc("O") + 2 * i) & r).Formula = "=IF(H" & r & "="""","""",(0.5*N" & r & _
-            "+0.7*H" & r & ")/$" & c & "$34)"
-        ws.Range(Chr(Asc("P") + 2 * i) & r).Formula = "=IF(I" & r & "="""","""",0.7*I" & r & "/$" & c & _
+        ws.Range(Chr(Asc("R") + 2 * i) & r).Formula = "=IF(K" & r & "="""","""",(0.5*Q" & r & _
+            "+0.7*K" & r & ")/$" & c & "$34)"
+        ws.Range(Chr(Asc("S") + 2 * i) & r).Formula = "=IF(L" & r & "="""","""",0.7*L" & r & "/$" & c & _
             "$35*IF($D$76=""Non"",0.15,1))"
-        ws.Range(Chr(Asc("S") + 2 * i) & r).Formula = "=IF(H" & r & "="""","""",N" & r & "/$" & c & _
-            "$28+H" & r & "/$" & c & "$29)"
-        ws.Range(Chr(Asc("T") + 2 * i) & r).Formula = "=IF(I" & r & "="""","""",I" & r & "/$" & c & "$31)"
+        ws.Range(Chr(Asc("V") + 2 * i) & r).Formula = "=IF(K" & r & "="""","""",Q" & r & "/$" & c & _
+            "$28+K" & r & "/$" & c & "$29)"
+        ws.Range(Chr(Asc("W") + 2 * i) & r).Formula = "=IF(L" & r & "="""","""",L" & r & "/$" & c & "$31)"
     Next i
     ws.Range("B" & r & ":BB" & lt).FillDown
-    ws.Range("C" & r & ":D" & lt & ",K" & r & ":K" & lt).NumberFormat = "0.00"
+    ws.Range("C" & r & ":D" & lt & ",N" & r & ":N" & lt).NumberFormat = "0.00"
     ws.Range("E" & r & ":F" & lt).NumberFormat = "0.000"
-    ws.Range("G" & r & ":I" & lt & ",N" & r & ":V" & lt).NumberFormat = "0.0"
-    With ws.Range("B" & LIGNE_PROFIL - 2 & ":V" & lt)
+    ws.Range("G" & r & ":I" & lt).NumberFormat = "0.00"
+    ws.Range("J" & r & ":L" & lt & ",Q" & r & ":Y" & lt).NumberFormat = "0.0"
+    With ws.Range("B" & LIGNE_PROFIL - 2 & ":Y" & lt)
         .Borders.LineStyle = xlContinuous
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
     End With
-    With ws.Range("B" & LIGNE_PROFIL - 2 & ":V" & LIGNE_PROFIL - 1)
+    With ws.Range("B" & LIGNE_PROFIL - 2 & ":Y" & LIGNE_PROFIL - 1)
         .Font.Bold = True
         .Interior.Color = VERT_ENTETE
         .WrapText = True
@@ -454,7 +445,7 @@ Private Sub Construire(activer As Boolean)
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 30
     ws.Columns("D").ColumnWidth = 30
-    ws.Columns("E:V").ColumnWidth = 12
+    ws.Columns("E:Y").ColumnWidth = 12
     ' Bloc de l'effet de groupe (écrit en lignes 78 à 86) déplacé avant le tableau du
     ' frottement axial par couche (stratigraphie) : il occupe les lignes 37 à 45 et la
     ' suite des colonnes A à BB descend de 9 lignes (jusqu'à la ligne 86 ; le tableau par
@@ -679,7 +670,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     Next k
 
     ' Portance de chaque combinaison dans le tableau par pas de calcul : Rc;cr,d ELS
-    ' caractéristique (O), ELS quasi permanent (Q), Rc,d ELU fondamental (S), accidentel (U),
+    ' caractéristique (R), ELS quasi permanent (T), Rc,d ELU fondamental (V), accidentel (X),
     ' calculée avec le diamètre B ($D$19 = B0 de « Données du projet »). Micropieux :
     ' Rb = 0, la portance est proportionnelle au périmètre, donc au diamètre : le tableau
     ' de portance d'un diamètre Bk est celui de B0 multiplié par Bk / B0.
@@ -691,7 +682,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     ' (portance de B0 x Phi retenu / B0) est >= la charge ; D = la plus grande.
     ' Eau ajoutée avec un coefficient 1 : EH aux combinaisons max, EB aux combinaisons
     ' min, EE à l'ELU accidentel max
-    colCap = Array("O", "Q", "S", "U")
+    colCap = Array("R", "T", "V", "X")
     z = "$C$" & LIGNE_PROFIL & ":$C$" & LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1
     phi = DONNEES & "$G$" & LIGNE_PIEU + 9 & ":$G$" & LIGNE_PIEU + 8 + NB_DIAMETRES
     reco = DONNEES & "$D$33"
@@ -797,17 +788,17 @@ Private Function Ad(ws As Worksheet, r As Long, c As Long) As String
 End Function
 
 ' Graphique de la capacité portante en compression en fonction de la profondeur, à
-' droite du tableau par pas de calcul : Rc;cr,d ELS caractéristique (colonne O),
-' Rc;cr,d ELS quasi permanent (Q) et Rc,d ELU fondamental (S) en abscisse, profondeur z
+' droite du tableau par pas de calcul : Rc;cr,d ELS caractéristique (colonne R),
+' Rc;cr,d ELS quasi permanent (T) et Rc,d ELU fondamental (V) en abscisse, profondeur z
 ' (C) en ordonnée, croissante vers le bas. Les séries renvoient à des noms de la feuille
-' (CP_z, CP_O, CP_Q, CP_S) limités aux pas renseignés (OFFSET sur le nombre de z), pour
+' (CP_z, CP_R, CP_T, CP_V) limités aux pas renseignés (OFFSET sur le nombre de z), pour
 ' que le graphique suive le nombre de couches et leurs épaisseurs.
 Private Sub GraphiqueCapacite(ws As Worksheet)
     Dim co As ChartObject, f As String, nb As String, k As Long, cols As Variant, noms As Variant
     f = "'" & ws.Name & "'!"
     nb = "MAX(1,COUNT(" & f & "$C$" & LIGNE_PROFIL & ":$C$" & _
         LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1 & "))"
-    cols = Array("C", "O", "Q", "S")
+    cols = Array("C", "R", "T", "V")
     noms = Array("Profondeur z", "ELS caractéristique - Rc;cr,d", "ELS quasi permanent - Rc;cr,d", _
         "ELU fondamental - Rc,d")
     For k = 0 To 3
