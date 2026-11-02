@@ -485,6 +485,7 @@ End Sub
 '   méthode de calcul -> colonne pl* ou qc masquée et « Calcul et
 '   vérification » recréée
 Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
+    Dim f As Worksheet
     On Error GoTo Fin
     Application.EnableEvents = False
     If Not Intersect(Target, ws.Range(CELLULE_PHASE)) Is Nothing Then AfficherTypeFondation ws
@@ -506,6 +507,17 @@ Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
         AfficherMethode ws
         On Error Resume Next
         Application.Run "ActualiserCalculVerification"
+        On Error GoTo Fin
+    End If
+    ' Nappe phréatique : colonnes de l'eau de la matrice des micropieux (feuille de
+    ' descente de charges) et de la vérification de la profondeur créées ou retirées
+    If Not Intersect(Target, ws.Range("D" & LIGNE_DONNEES_FONDATION + 3)) Is Nothing Then
+        On Error Resume Next
+        For Each f In ws.Parent.Worksheets
+            If CStr(f.Range("B80").Value) = "RÉPARTITION DES CHARGES DES MURS SUR LES MICROPIEUX" Then _
+                Application.Run "ConstruireMatrice", f
+        Next f
+        Application.Run "ActualiserVerificationProfondeur"
     End If
 Fin:
     Application.EnableEvents = True

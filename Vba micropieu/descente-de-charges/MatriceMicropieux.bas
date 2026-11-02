@@ -19,8 +19,8 @@ Option Explicit
 '               somme des longueurs de murs de la ligne du micropieu / 2 (si L, sinon 0) ;
 '               POIDS TOTAL ÉLÉMENTAIRE DDC : G = G des murs + massif + longrine, Q ;
 '               CHARGES DE L'EAU EB (basses eaux), EH (hautes eaux), EE (eaux
-'               exceptionnelles) en kN : 0 sans nappe phréatique (« Données du
-'               projet », D34), à saisir sinon.
+'               exceptionnelles) en kN, à saisir : colonnes créées seulement s'il y a
+'               une nappe phréatique (« Données du projet », D34).
 ' Les saisies (dimensions, longueurs Li, longueurs modifiées de la matrice, choix M / L,
 ' charges de l'eau)
 ' sont conservées quand le tableau est recréé (nombre de murs ou de micropieux changé).
@@ -41,7 +41,7 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     Dim nOld As Long, mOld As Long, r0Old As Long, x0 As Long, r As Long, derniere As Long
     Dim li() As Variant, mat() As Variant, gc() As Variant, dims As Variant, eau() As Variant
     Dim ligne As String, cG As String, cQ As String, c As Range, evenements As Boolean
-    Dim nappe As Boolean, f As Worksheet
+    Dim nappe As Boolean, f As Worksheet, xf As Long
 
     If ws Is Nothing Then Set ws = ActiveSheet
     L = LIGNE_MATRICE
@@ -147,9 +147,13 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     Next i
     ws.Cells(r0, x0 + 5).Value = "POIDS TOTAL ÉLÉMENTAIRE DDC"
     ws.Range(ws.Cells(r0, x0 + 5), ws.Cells(r0, x0 + 6)).Merge
-    ws.Cells(r0, x0 + 7).Value = "CHARGES DE L'EAU (kN)"
-    ws.Range(ws.Cells(r0, x0 + 7), ws.Cells(r0, x0 + 9)).Merge
-    ws.Range(ws.Cells(r0 + 1, x0 + 7), ws.Cells(r0 + 1, x0 + 9)).Value = Array("EAU EB", "EAU EH", "EAU EE")
+    ' Charges de l'eau : colonnes créées seulement s'il y a une nappe phréatique
+    xf = x0 + IIf(nappe, 9, 6)               ' dernière colonne du tableau
+    If nappe Then
+        ws.Cells(r0, x0 + 7).Value = "CHARGES DE L'EAU (kN)"
+        ws.Range(ws.Cells(r0, x0 + 7), ws.Cells(r0, x0 + 9)).Merge
+        ws.Range(ws.Cells(r0 + 1, x0 + 7), ws.Cells(r0 + 1, x0 + 9)).Value = Array("EAU EB", "EAU EH", "EAU EE")
+    End If
     For j = 1 To n
         ws.Cells(r0 + 1, 2 + j).Value = "Mur " & Format(j, "00")
     Next j
@@ -194,32 +198,34 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         ws.Cells(r, x0 + 6).Formula = "=N(" & ws.Cells(r, x0 + 1).Address(False, False) & ")"
         ' Eau (basses eaux EB, hautes eaux EH, eaux exceptionnelles EE) : 0 sans nappe
         ' phréatique (« Données du projet », D34) ; à saisir sinon
-        For j = 7 To 9
-            ws.Cells(r, x0 + j).Value = IIf(nappe And Not IsEmpty(eau(i, j - 6)), eau(i, j - 6), 0)
-        Next j
+        If nappe Then
+            For j = 7 To 9
+                ws.Cells(r, x0 + j).Value = IIf(IsEmpty(eau(i, j - 6)), 0, eau(i, j - 6))
+            Next j
+        End If
     Next i
 
     ' Ligne TOTAL
     r = r0 + 3 + m
     ws.Cells(r, 2).Value = "TOTAL"
-    For i = 0 To 9
+    For i = 0 To xf - x0
         If i <> 2 Then ws.Cells(r, x0 + i).Formula = "=SUM(" & _
             ws.Range(ws.Cells(r0 + 3, x0 + i), ws.Cells(r - 1, x0 + i)).Address(False, False) & ")"
     Next i
-    ws.Range(ws.Cells(r, 2), ws.Cells(r, x0 + 9)).Font.Bold = True
+    ws.Range(ws.Cells(r, 2), ws.Cells(r, xf)).Font.Bold = True
 
     ' --- Mise en forme ---
     With ws.Range(ws.Cells(L + 5, 2), ws.Cells(L + 5 + n, 4))
         .Borders.LineStyle = xlContinuous
         .HorizontalAlignment = xlCenter
     End With
-    With ws.Range(ws.Cells(r0, 2), ws.Cells(r, x0 + 9))
+    With ws.Range(ws.Cells(r0, 2), ws.Cells(r, xf))
         .Borders.LineStyle = xlContinuous
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
     End With
     With Union(ws.Range("B" & L + 5 & ":D" & L + 5), _
-            ws.Range(ws.Cells(r0, 2), ws.Cells(r0 + 1, x0 + 9)))
+            ws.Range(ws.Cells(r0, 2), ws.Cells(r0 + 1, xf)))
         .Font.Bold = True
         .Interior.Color = VERT_ENTETE
         .WrapText = True
@@ -228,11 +234,11 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     ws.Range(ws.Cells(r0 + 3, x0 + 2), ws.Cells(r - 1, x0 + 2)).Interior.Color = VERT_SAISIE
     ws.Range(ws.Cells(r0 + 3, x0), ws.Cells(r, x0 + 1)).Interior.Color = JAUNE_CALCUL
     ws.Range(ws.Cells(r0 + 3, x0 + 3), ws.Cells(r, x0 + 6)).Interior.Color = JAUNE_CALCUL
-    ' Eau : à saisir (vert) s'il y a une nappe, sinon 0 (jaune)
-    ws.Range(ws.Cells(r0 + 3, x0 + 7), ws.Cells(r - 1, x0 + 9)).Interior.Color = _
-        IIf(nappe, VERT_SAISIE, JAUNE_CALCUL)
-    ws.Range(ws.Cells(r, x0 + 7), ws.Cells(r, x0 + 9)).Interior.Color = JAUNE_CALCUL
-    ws.Range(ws.Cells(r0 + 2, 3), ws.Cells(r, x0 + 9)).NumberFormat = "0.00"
+    If nappe Then                            ' eau à saisir (vert), total en jaune
+        ws.Range(ws.Cells(r0 + 3, x0 + 7), ws.Cells(r - 1, x0 + 9)).Interior.Color = VERT_SAISIE
+        ws.Range(ws.Cells(r, x0 + 7), ws.Cells(r, x0 + 9)).Interior.Color = JAUNE_CALCUL
+    End If
+    ws.Range(ws.Cells(r0 + 2, 3), ws.Cells(r, xf)).NumberFormat = "0.00"
     ws.Range("C" & L + 1 & ":E" & L + 3 & ",C" & L + 6 & ":D" & L + 5 + n).NumberFormat = "0.00"
     ws.Range("C" & L + 1 & ":E" & L + 3).HorizontalAlignment = xlCenter
     ws.Rows(r0).RowHeight = 45

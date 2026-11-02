@@ -154,7 +154,8 @@ Private Sub Construire(activer As Boolean)
     Ligne ws, 15, "Prise en compte de la résistance de pointe", "=" & DONNEES & "D" & LIGNE_PIEU + 13, ""
     Ligne ws, 16, "Type de mise en oeuvre", "=" & DONNEES & "D" & LIGNE_PIEU + 14, ""
 
-    Ligne ws, 19, "Largeur de la fondation B", "=" & DONNEES & "D" & LIGNE_PIEU + 15, "m"
+    Ligne ws, 19, "Diamètre du micropieu B (B0 de « Données du projet »)", "=" & DONNEES & "D" & _
+        LIGNE_PIEU + 15, "m"
     ' D = somme des épaisseurs des couches du tableau du frottement axial (lignes 39 à 53)
     Ligne ws, 20, "Hauteur totale de la fondation D (somme des épaisseurs)", _
         "=IF(COUNT($F$39:$F$53)=0,"""",SUM($F$39:$F$53))", "m"
@@ -509,18 +510,23 @@ Public Sub ActualiserVerificationProfondeur()
     VerificationProfondeur ws, gmin
 End Sub
 
-' Phi manuels saisis dans la vérification de la profondeur (colonne V, lignes MP1...)
+' Phi manuels saisis dans la vérification de la profondeur (colonne « Phi MANUEL »,
+' lignes MP1...)
 Private Function LirePhiManuel(ws As Worksheet) As Variant
     Dim r As Long, i As Long, t() As Variant
     r = LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV + 2 + 10     ' ligne de MP1
-    If CStr(ws.Range("V" & r - 2).Value) <> ChrW(934) & " MANUEL" Then Exit Function
+    Dim c As Long, cm As Long
+    For c = 1 To 40                                          ' colonne « Phi MANUEL »
+        If CStr(ws.Cells(r - 2, c).Value) = ChrW(934) & " MANUEL" Then cm = c
+    Next c
+    If cm = 0 Then Exit Function
     Do While Left(CStr(ws.Range("A" & r + i).Value), 2) = "MP"
         i = i + 1
     Loop
     If i = 0 Then Exit Function
     ReDim t(1 To i)
     For i = 1 To UBound(t)
-        t(i) = ws.Range("V" & r + i - 1).Value
+        t(i) = ws.Cells(r + i - 1, cm).Value
     Next i
     LirePhiManuel = t
 End Function
@@ -529,6 +535,8 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     Dim wd As Worksheet, f As Worksheet, L As Long, n As Long, m As Long, i As Long, k As Long
     Dim r0 As Long, rd As Long, rt As Long, r As Long, dn As String, cap As String, z As String
     Dim charge As Variant, colCap As Variant, entete As Variant, phi As String, c As Long
+    Dim eau As Boolean, cC As Long, cD As Long, cP As Long, cR As Long, cL As Long, cF As Long
+    Dim reco As String, eMax As String, eMin As String, eAcc As String
 
     L = LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV + 2          ' titre du tableau
     For Each f In ActiveWorkbook.Worksheets
@@ -582,73 +590,87 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     Loop
     dn = "'" & wd.Name & "'!"
 
-    ' En-têtes sur 3 lignes (titres en gras). Colonnes : A micropieu ; B à H descente de
-    ' charges (Gmax, Gmin, Qmax, Qmin, eau EB, EH, EE) ; I à P combinaisons max / min ;
-    ' Q à W diamètres (Phi CARA, QP, FOND, ACC, Phi pieu, Phi manuel, Phi retenu) ; X à AE
-    ' profondeurs requises ; AF profondeur retenue ; AG à AJ vérification de la longueur
-    ' (profondeur de reconnaissance - longueur >= 5 Phi retenu)
+    ' Charges de l'eau (EB basses eaux, EH hautes eaux, EE eaux exceptionnelles) : colonnes
+    ' créées seulement s'il y a une nappe phréatique (« Données du projet », D34) et si la
+    ' matrice de la descente de charges les contient (colonnes 10 + n à 12 + n)
+    eau = (CStr(ActiveWorkbook.Worksheets("Données du projet").Range("D34").Value) = "Oui") And _
+        (Left(CStr(wd.Cells(88 + n, 10 + n).Value), 15) = "CHARGES DE L'EA")
+    ' Colonnes : A micropieu ; B à E Gmax, Gmin, Qmax, Qmin (+ 3 colonnes d'eau) ; cC
+    ' combinaisons Vmax / Vmin ; cD diamètres (Phi CARA, QP, FOND, ACC, Phi pieu, Phi
+    ' manuel, Phi retenu) ; cP profondeurs Dmax / Dmin ; cR profondeur retenue D ; cL
+    ' vérification de la longueur (profondeur de reconnaissance - D >= 5 Phi retenu)
+    cC = 6 + IIf(eau, 3, 0)
+    cD = cC + 8
+    cP = cD + 7
+    cR = cP + 8
+    cL = cR + 1
+    cF = cL + 3                               ' dernière colonne
     r0 = L + 7
-    ws.Range("A" & r0).Value = "N° MICROPIEU"
-    ws.Range("B" & r0).Value = "DESCENTE DE CHARGES (kN)"
-    ws.Range("I" & r0).Value = "COMBINAISONS DE CHARGES VERTICALES (kN)"
-    ws.Range("Q" & r0).Value = "DIAMÈTRE (m)"
-    ws.Range("X" & r0).Value = "PROFONDEUR MINIMALE REQUISE (m)"
-    ws.Range("AF" & r0).Value = "PROFONDEUR RETENUE (m)"
-    ws.Range("AG" & r0).Value = "VÉRIFICATION DE LA LONGUEUR (profondeur de reconnaissance - longueur >= 5 " & _
+    ws.Cells(r0, 1).Value = "N° MICROPIEU"
+    ws.Cells(r0, 2).Value = "DESCENTE DE CHARGES (kN)"
+    ws.Cells(r0, cC).Value = "COMBINAISONS DE CHARGES VERTICALES (kN)"
+    ws.Cells(r0, cD).Value = "DIAMÈTRE DU MICROPIEU (m)"
+    ws.Cells(r0, cP).Value = "PROFONDEUR MINIMALE REQUISE (m)"
+    ws.Cells(r0, cR).Value = "PROFONDEUR RETENUE (m)"
+    ws.Cells(r0, cL).Value = "VÉRIFICATION DE LA LONGUEUR (profondeur de reconnaissance - D >= 5 " & _
         ChrW(934) & ")"
-    ws.Range("A" & r0 & ":A" & r0 + 2).Merge
-    ws.Range("B" & r0 & ":H" & r0).Merge
-    ws.Range("I" & r0 & ":P" & r0).Merge
-    ws.Range("Q" & r0 & ":W" & r0).Merge
-    ws.Range("X" & r0 & ":AE" & r0).Merge
-    ws.Range("AF" & r0 & ":AF" & r0 + 2).Merge
-    ws.Range("AG" & r0 & ":AJ" & r0).Merge
+    ws.Range(ws.Cells(r0, 1), ws.Cells(r0 + 2, 1)).Merge
+    ws.Range(ws.Cells(r0, 2), ws.Cells(r0, cC - 1)).Merge
+    ws.Range(ws.Cells(r0, cC), ws.Cells(r0, cD - 1)).Merge
+    ws.Range(ws.Cells(r0, cD), ws.Cells(r0, cP - 1)).Merge
+    ws.Range(ws.Cells(r0, cP), ws.Cells(r0, cR - 1)).Merge
+    ws.Range(ws.Cells(r0, cR), ws.Cells(r0 + 1, cR)).Merge
+    ws.Range(ws.Cells(r0, cL), ws.Cells(r0, cF)).Merge
     ws.Range("B" & r0 + 1).Value = "G"
     ws.Range("D" & r0 + 1).Value = "Q"
-    ws.Range("F" & r0 + 1).Value = "EAU"
     ws.Range("B" & r0 + 1 & ":C" & r0 + 1).Merge
     ws.Range("D" & r0 + 1 & ":E" & r0 + 1).Merge
-    ws.Range("F" & r0 + 1 & ":H" & r0 + 1).Merge
-    ws.Range("B" & r0 + 2 & ":H" & r0 + 2).Value = Array("Gmax", "Gmin", "Qmax", "Qmin", _
-        "Eau EB", "Eau EH", "Eau EE")
-    ws.Range("Q" & r0 + 1 & ":W" & r0 + 1).Value = Array(ChrW(934) & " CARA", ChrW(934) & " QP", _
-        ChrW(934) & " FOND", ChrW(934) & " ACC", ChrW(934) & " PIEU", ChrW(934) & " MANUEL", _
-        ChrW(934) & " RETENU")
-    ws.Range("AG" & r0 + 1 & ":AJ" & r0 + 1).Value = Array("Profondeur de reconnaissance (m)", _
-        "Profondeur de reconnaissance - longueur (m)", "5 x " & ChrW(934) & " retenu (m)", "Vérification")
+    ws.Range("B" & r0 + 2 & ":E" & r0 + 2).Value = Array("Gmax", "Gmin", "Qmax", "Qmin")
+    If eau Then
+        ws.Range("F" & r0 + 1).Value = "EAU"
+        ws.Range("F" & r0 + 1 & ":H" & r0 + 1).Merge
+        ws.Range("F" & r0 + 2 & ":H" & r0 + 2).Value = Array("Eau EB", "Eau EH", "Eau EE")
+    End If
+    ws.Range(ws.Cells(r0 + 1, cD), ws.Cells(r0 + 1, cD + 6)).Value = Array(ChrW(934) & " CARA", _
+        ChrW(934) & " QP", ChrW(934) & " FOND", ChrW(934) & " ACC", ChrW(934) & " PIEU", _
+        ChrW(934) & " MANUEL", ChrW(934) & " RETENU")
+    ws.Cells(r0 + 2, cR).Value = "D"
+    ws.Range(ws.Cells(r0 + 1, cL), ws.Cells(r0 + 1, cF)).Value = Array("Profondeur de reconnaissance (m)", _
+        "Profondeur de reconnaissance - D (m)", "5 x " & ChrW(934) & " retenu (m)", "Vérification")
     For k = 0 To 6
-        ws.Range(ws.Cells(r0 + 1, 17 + k), ws.Cells(r0 + 2, 17 + k)).Merge
+        ws.Range(ws.Cells(r0 + 1, cD + k), ws.Cells(r0 + 2, cD + k)).Merge
     Next k
     For k = 0 To 3
-        ws.Range(ws.Cells(r0 + 1, 33 + k), ws.Cells(r0 + 2, 33 + k)).Merge
+        ws.Range(ws.Cells(r0 + 1, cL + k), ws.Cells(r0 + 2, cL + k)).Merge
     Next k
     entete = Array("ELS CARA", "ELS QP", "ELU FOND", "ELU ACC")
     For k = 0 To 3
-        For i = 0 To 1                       ' combinaisons (I), profondeurs (X)
-            c = IIf(i = 0, 9, 24) + 2 * k
+        For i = 0 To 1                       ' combinaisons (V), profondeurs (D)
+            c = IIf(i = 0, cC, cP) + 2 * k
             ws.Cells(r0 + 1, c).Value = entete(k)
             ws.Range(ws.Cells(r0 + 1, c), ws.Cells(r0 + 1, c + 1)).Merge
-            ws.Range(ws.Cells(r0 + 2, c), ws.Cells(r0 + 2, c + 1)).Value = Array("max", "min")
+            ws.Range(ws.Cells(r0 + 2, c), ws.Cells(r0 + 2, c + 1)).Value = _
+                IIf(i = 0, Array("Vmax", "Vmin"), Array("Dmax", "Dmin"))
         Next i
     Next k
 
     ' Portance de chaque combinaison dans le tableau par pas de calcul : Rc;cr,d ELS
     ' caractéristique (N), ELS quasi permanent (P), Rc,d ELU fondamental (R), accidentel (T),
-    ' calculée avec le diamètre de référence B0 ($D$19). Micropieux : Rb = 0, la portance
-    ' est proportionnelle au périmètre, donc au diamètre : portance(Phi) = portance(B0) x
-    ' Phi / B0.
-    ' Phi de chaque combinaison : plus petit diamètre du tableau des diamètres (« Données
-    ' du projet », B0 < B1 < ...) dont la portance maximale (bas du tableau par pas de
-    ' calcul) couvre la plus grande charge (max ou min) de la combinaison ; Phi pieu = le
-    ' plus grand des 4 ; Phi retenu = max(Phi pieu ; Phi manuel saisi).
-    ' Profondeur minimale de chaque cas : 1re profondeur où portance(B0) x Phi retenu / B0
-    ' >= charge.
-    ' Eau (charges de l'eau EB basses eaux, EH hautes eaux, EE eaux exceptionnelles, 0 sans
-    ' nappe) ajoutée avec un coefficient 1 : EH aux combinaisons max, EB aux combinaisons
+    ' calculée avec le diamètre B ($D$19 = B0 de « Données du projet »). Micropieux :
+    ' Rb = 0, la portance est proportionnelle au périmètre, donc au diamètre : le tableau
+    ' de portance d'un diamètre Bk est celui de B0 multiplié par Bk / B0.
+    ' Phi de chaque combinaison (fonction PhiRequis) : B0, puis B1, ... jusqu'à B7, le
+    ' premier diamètre pour lequel la portance atteint la plus grande charge (Vmax ou
+    ' Vmin) à une profondeur D telle que profondeur de reconnaissance - D >= 5 Phi ;
+    ' Phi pieu = le plus grand des 4 ; Phi retenu = max(Phi pieu ; Phi manuel saisi).
+    ' Profondeur Dmax / Dmin de chaque cas : 1re profondeur où la portance pour Phi retenu
+    ' (portance de B0 x Phi retenu / B0) est >= la charge ; D = la plus grande.
+    ' Eau ajoutée avec un coefficient 1 : EH aux combinaisons max, EB aux combinaisons
     ' min, EE à l'ELU accidentel max
     colCap = Array("N", "P", "R", "T")
     z = "$C$" & LIGNE_PROFIL & ":$C$" & LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1
     phi = DONNEES & "$G$" & LIGNE_PIEU + 9 & ":$G$" & LIGNE_PIEU + 8 + NB_DIAMETRES
+    reco = DONNEES & "$D$33"
     For i = 1 To m
         r = r0 + 2 + i
         ws.Range("A" & r).Value = "MP" & i
@@ -656,64 +678,67 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         ws.Range("C" & r).Formula = "=IF($D$" & L + 2 & "=""G"",B" & r & ",0)"
         ws.Range("D" & r).Formula = "=N(" & dn & wd.Cells(rd + i - 1, 9 + n).Address & ")"
         ws.Range("E" & r).Value = 0
-        For k = 0 To 2                       ' eau EB, EH, EE de la descente de charges
-            ws.Cells(r, 6 + k).Formula = "=N(" & dn & wd.Cells(rd + i - 1, 10 + n + k).Address & ")"
-        Next k
-        ws.Range("I" & r).Formula = "=B" & r & "+D" & r & "+G" & r
-        ws.Range("J" & r).Formula = "=C" & r & "+E" & r & "+F" & r
-        ws.Range("K" & r).Formula = "=B" & r & "+$D$" & L + 5 & "*D" & r & "+G" & r
-        ws.Range("L" & r).Formula = "=C" & r & "+$D$" & L + 5 & "*E" & r & "+F" & r
-        ws.Range("M" & r).Formula = "=1.35*B" & r & "+1.5*D" & r & "+G" & r
-        ws.Range("N" & r).Formula = "=1*C" & r & "+1.5*E" & r & "+F" & r
-        ws.Range("O" & r).Formula = "=B" & r & "+$D$" & L + 4 & "*D" & r & "+H" & r
-        ws.Range("P" & r).Formula = "=C" & r & "+$D$" & L + 4 & "*E" & r & "+F" & r
+        If eau Then
+            For k = 0 To 2                   ' eau EB, EH, EE de la descente de charges
+                ws.Cells(r, 6 + k).Formula = "=N(" & dn & wd.Cells(rd + i - 1, 10 + n + k).Address & ")"
+            Next k
+            eMax = "+G" & r: eMin = "+F" & r: eAcc = "+H" & r
+        Else
+            eMax = "": eMin = "": eAcc = ""
+        End If
+        ws.Cells(r, cC).Formula = "=B" & r & "+D" & r & eMax
+        ws.Cells(r, cC + 1).Formula = "=C" & r & "+E" & r & eMin
+        ws.Cells(r, cC + 2).Formula = "=B" & r & "+$D$" & L + 5 & "*D" & r & eMax
+        ws.Cells(r, cC + 3).Formula = "=C" & r & "+$D$" & L + 5 & "*E" & r & eMin
+        ws.Cells(r, cC + 4).Formula = "=1.35*B" & r & "+1.5*D" & r & eMax
+        ws.Cells(r, cC + 5).Formula = "=1*C" & r & "+1.5*E" & r & eMin
+        ws.Cells(r, cC + 6).Formula = "=B" & r & "+$D$" & L + 4 & "*D" & r & eAcc
+        ws.Cells(r, cC + 7).Formula = "=C" & r & "+$D$" & L + 4 & "*E" & r & eMin
         For k = 0 To 3
-            ' Phi de la combinaison : diamètre requis = B0 x charge / portance max(B0)
+            ' Phi de la combinaison : B0, B1, ... jusqu'à ce que la portance soit vérifiée
             cap = "$" & colCap(k) & "$" & LIGNE_PROFIL & ":$" & colCap(k) & "$" & _
                 LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1
-            charge = "MAX(" & ws.Cells(r, 9 + 2 * k).Address(False, False) & "," & _
-                ws.Cells(r, 10 + 2 * k).Address(False, False) & ")"
-            ws.Cells(r, 17 + k).Formula = "=IF(OR(N($D$19)=0,MAX(" & cap & ")<=0),"""",IFERROR(INDEX(" & _
-                phi & ",MATCH(1,INDEX((" & phi & ">0)*(" & phi & ">=$D$19*" & charge & "/MAX(" & cap & _
-                ")),0),0)),""Insuffisant""))"
+            ws.Cells(r, cD + k).Formula = "=PhiRequis(MAX(" & Ad(ws, r, cC + 2 * k) & "," & _
+                Ad(ws, r, cC + 2 * k + 1) & ")," & cap & "," & z & "," & phi & ",$D$19," & reco & ")"
         Next k
-        ws.Range("U" & r).Formula = "=IF(COUNTIF(Q" & r & ":T" & r & ",""Insuffisant"")>0,""Insuffisant""," & _
-            "IF(COUNT(Q" & r & ":T" & r & ")=0,"""",MAX(Q" & r & ":T" & r & ")))"
+        ws.Cells(r, cD + 4).Formula = "=IF(COUNTIF(" & Ad(ws, r, cD) & ":" & Ad(ws, r, cD + 3) & _
+            ",""Insuffisant"")>0,""Insuffisant"",IF(COUNT(" & Ad(ws, r, cD) & ":" & Ad(ws, r, cD + 3) & _
+            ")=0,"""",MAX(" & Ad(ws, r, cD) & ":" & Ad(ws, r, cD + 3) & ")))"
         If IsArray(mPhiManuel) Then
-            If i <= UBound(mPhiManuel) Then ws.Range("V" & r).Value = mPhiManuel(i)
+            If i <= UBound(mPhiManuel) Then ws.Cells(r, cD + 5).Value = mPhiManuel(i)
         End If
-        ws.Range("W" & r).Formula = "=IF(ISNUMBER(U" & r & "),MAX(U" & r & ",N(V" & r & "))," & _
-            "IF(N(V" & r & ")>0,V" & r & ",IF(U" & r & "="""","""",""Insuffisant"")))"
-        ' Profondeur minimale de chaque cas avec Phi retenu
+        ws.Cells(r, cD + 6).Formula = "=IF(ISNUMBER(" & Ad(ws, r, cD + 4) & "),MAX(" & Ad(ws, r, cD + 4) & _
+            ",N(" & Ad(ws, r, cD + 5) & ")),IF(N(" & Ad(ws, r, cD + 5) & ")>0," & Ad(ws, r, cD + 5) & _
+            ",IF(" & Ad(ws, r, cD + 4) & "="""","""",""Insuffisant"")))"
+        ' Profondeurs Dmax / Dmin avec Phi retenu
         For k = 0 To 7
-            charge = ws.Cells(r, 9 + k).Address(False, False)
             cap = "$" & colCap(k \ 2) & "$" & LIGNE_PROFIL & ":$" & colCap(k \ 2) & "$" & _
                 LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1
-            ws.Cells(r, 24 + k).Formula = "=IF(NOT(ISNUMBER($W" & r & ")),""Non atteinte"",IFERROR(INDEX(" & _
-                z & ",MATCH(1,INDEX(ISNUMBER(" & cap & ")*(" & cap & ">=" & charge & "*$D$19/$W" & r & _
-                "),0),0)),""Non atteinte""))"
+            ws.Cells(r, cP + k).Formula = "=IF(NOT(ISNUMBER(" & Ad(ws, r, cD + 6) & ")),""Non atteinte""," & _
+                "IFERROR(INDEX(" & z & ",MATCH(1,INDEX(ISNUMBER(" & cap & ")*(" & cap & ">=" & _
+                Ad(ws, r, cC + k) & "*$D$19/" & Ad(ws, r, cD + 6) & "),0),0)),""Non atteinte""))"
         Next k
-        ws.Range("AF" & r).Formula = "=IF(COUNTIF(X" & r & ":AE" & r & ",""Non atteinte"")>0," & _
-            """Non atteinte"",MAX(X" & r & ":AE" & r & "))"
-        ' Vérification de la longueur : profondeur de reconnaissance (« Données du
-        ' projet ») - longueur retenue >= 5 Phi retenu
-        ws.Range("AG" & r).Formula = "=IF(ISNUMBER(" & DONNEES & "$D$33)," & DONNEES & "$D$33,"""")"
-        ws.Range("AH" & r).Formula = "=IF(AND(ISNUMBER(AG" & r & "),ISNUMBER(AF" & r & ")),AG" & r & _
-            "-AF" & r & ","""")"
-        ws.Range("AI" & r).Formula = "=IF(ISNUMBER(W" & r & "),5*W" & r & ","""")"
-        ws.Range("AJ" & r).Formula = "=IF(OR(AH" & r & "="""",AI" & r & "=""""),""-"",IF(AH" & r & _
-            ">=AI" & r & ",""Vérifiée"",""Non vérifiée""))"
+        ws.Cells(r, cR).Formula = "=IF(COUNTIF(" & Ad(ws, r, cP) & ":" & Ad(ws, r, cP + 7) & _
+            ",""Non atteinte"")>0,""Non atteinte"",MAX(" & Ad(ws, r, cP) & ":" & Ad(ws, r, cP + 7) & "))"
+        ' Vérification de la longueur : profondeur de reconnaissance - D >= 5 Phi retenu
+        ws.Cells(r, cL).Formula = "=IF(ISNUMBER(" & reco & ")," & reco & ","""")"
+        ws.Cells(r, cL + 1).Formula = "=IF(AND(ISNUMBER(" & Ad(ws, r, cL) & "),ISNUMBER(" & Ad(ws, r, cR) & _
+            "))," & Ad(ws, r, cL) & "-" & Ad(ws, r, cR) & ","""")"
+        ws.Cells(r, cL + 2).Formula = "=IF(ISNUMBER(" & Ad(ws, r, cD + 6) & "),5*" & Ad(ws, r, cD + 6) & ","""")"
+        ws.Cells(r, cF).Formula = "=IF(OR(" & Ad(ws, r, cL + 1) & "=""""," & Ad(ws, r, cL + 2) & _
+            "=""""),""-"",IF(" & Ad(ws, r, cL + 1) & ">=" & Ad(ws, r, cL + 2) & _
+            ",""Vérifiée"",""Non vérifiée""))"
     Next i
     mPhiManuel = Empty
     rt = r0 + 2 + Application.Max(m, 1)
 
     ' Mise en forme
-    With ws.Range("A" & r0 & ":AJ" & rt)
+    With ws.Range(ws.Cells(r0, 1), ws.Cells(rt, cF))
         .Borders.LineStyle = xlContinuous
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
     End With
-    With ws.Range("A" & r0 & ":AJ" & r0 + 2)
+    With ws.Range(ws.Cells(r0, 1), ws.Cells(r0 + 2, cF))
         .Font.Bold = True
         .Font.Size = 11
         .Interior.Color = VERT_ENTETE
@@ -721,21 +746,64 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     End With
     If m > 0 Then
         ws.Range("A" & r0 + 3 & ":A" & rt).Font.Bold = True
-        ws.Range("B" & r0 + 3 & ":AJ" & rt).Interior.Color = JAUNE_CALCUL
-        ws.Range("V" & r0 + 3 & ":V" & rt).Interior.Color = VERT_SAISIE      ' Phi manuel
-        ws.Range("B" & r0 + 3 & ":P" & rt).NumberFormat = "0.0"
-        ws.Range("Q" & r0 + 3 & ":W" & rt).NumberFormat = "0.000"
-        ws.Range("X" & r0 + 3 & ":AI" & rt).NumberFormat = "0.00"
-        ws.Range("W" & r0 + 3 & ":W" & rt & ",AF" & r0 + 3 & ":AF" & rt & ",AJ" & r0 + 3 & ":AJ" & rt).Font.Bold = True
+        ws.Range(ws.Cells(r0 + 3, 2), ws.Cells(rt, cF)).Interior.Color = JAUNE_CALCUL
+        ws.Range(ws.Cells(r0 + 3, cD + 5), ws.Cells(rt, cD + 5)).Interior.Color = VERT_SAISIE ' Phi manuel
+        ws.Range(ws.Cells(r0 + 3, 2), ws.Cells(rt, cD - 1)).NumberFormat = "0.0"
+        ws.Range(ws.Cells(r0 + 3, cD), ws.Cells(rt, cP - 1)).NumberFormat = "0.000"
+        ws.Range(ws.Cells(r0 + 3, cP), ws.Cells(rt, cL + 2)).NumberFormat = "0.00"
+        ws.Range(ws.Cells(r0 + 3, cD + 6), ws.Cells(rt, cD + 6)).Font.Bold = True
+        ws.Range(ws.Cells(r0 + 3, cR), ws.Cells(rt, cR)).Font.Bold = True
+        ws.Range(ws.Cells(r0 + 3, cF), ws.Cells(rt, cF)).Font.Bold = True
         ' Vérification en rouge si non vérifiée
-        With ws.Range("AJ" & r0 + 3 & ":AJ" & rt).FormatConditions
+        With ws.Range(ws.Cells(r0 + 3, cF), ws.Cells(rt, cF)).FormatConditions
             .Delete
             .Add(xlCellValue, xlEqual, "=""Non vérifiée""").Font.Color = RGB(192, 0, 0)
         End With
     End If
-    ws.Columns("V:AJ").ColumnWidth = 12
+    ws.Range(ws.Columns(cD), ws.Columns(cF)).ColumnWidth = 12
     ws.Rows(r0).RowHeight = 30
 End Sub
+
+' Adresse relative (ex. « F395 ») de la cellule ligne r, colonne c
+Private Function Ad(ws As Worksheet, r As Long, c As Long) As String
+    Ad = ws.Cells(r, c).Address(False, False)
+End Function
+
+' Diamètre requis d'un micropieu pour une charge : les diamètres du tableau phis (B0,
+' B1, ... croissants, « Données du projet ») sont essayés dans l'ordre ; pour chacun, la
+' portance est celle du tableau par pas de calcul (calculée avec le diamètre b0)
+' multipliée par Phi / b0 (micropieu : Rb = 0, portance proportionnelle au périmètre) ;
+' le premier diamètre est retenu pour lequel la portance atteint la charge à une
+' profondeur z telle que profondeur de reconnaissance - z >= 5 Phi (si la profondeur de
+' reconnaissance est renseignée). « Insuffisant » si aucun diamètre ne convient.
+Public Function PhiRequis(charge As Variant, portance As Range, profondeurs As Range, _
+        phis As Range, b0 As Variant, reconnaissance As Variant) As Variant
+    Dim k As Long, j As Long, ph As Double, zmax As Double
+    PhiRequis = ""
+    If Not IsNumeric(b0) Or IsEmpty(b0) Then Exit Function
+    If Val(b0) <= 0 Or Not IsNumeric(charge) Then Exit Function
+    For k = 1 To phis.Cells.Count
+        If IsNumeric(phis.Cells(k).Value) And Not IsEmpty(phis.Cells(k).Value) Then
+            ph = phis.Cells(k).Value
+            If ph > 0 Then
+                zmax = 1E+30
+                If IsNumeric(reconnaissance) And Not IsEmpty(reconnaissance) Then _
+                    zmax = reconnaissance - 5 * ph
+                For j = 1 To portance.Cells.Count
+                    If IsNumeric(portance.Cells(j).Value) And IsNumeric(profondeurs.Cells(j).Value) _
+                        And Not IsEmpty(portance.Cells(j).Value) Then
+                        If profondeurs.Cells(j).Value > zmax Then Exit For
+                        If portance.Cells(j).Value * ph / b0 >= charge Then
+                            PhiRequis = ph
+                            Exit Function
+                        End If
+                    End If
+                Next j
+            End If
+        End If
+    Next k
+    PhiRequis = "Insuffisant"
+End Function
 
 ' Graphique de la capacité portante en compression en fonction de la profondeur, à
 ' droite du tableau par pas de calcul : Rc;cr,d ELS caractéristique (colonne N),
