@@ -475,14 +475,15 @@ Private Sub Construire(activer As Boolean)
     ws.Range("A37").Insert Shift:=xlDown
     Application.CutCopyMode = False
 
+    etape = "vérification de la profondeur des micropieux"
+    VerificationProfondeur ws
+
+    ' Graphiques créés une fois les largeurs de colonnes fixées
     etape = "graphique de la capacité portante"
     GraphiqueCapacite ws, 0
     For kd = 1 To NB_DIAMETRES - 1           ' graphique de chaque diamètre B1, B2, ... créé
         If ws.Cells(LIGNE_PROFIL, 3 + kd * BLOC_PROFIL).HasFormula Then GraphiqueCapacite ws, kd
     Next kd
-
-    etape = "vérification de la profondeur des micropieux"
-    VerificationProfondeur ws
     AfficherGroupe ws
     If activer Then ws.Activate
 
@@ -855,7 +856,7 @@ End Function
 ' z), pour que le graphique suive le nombre de couches et leurs épaisseurs.
 Private Sub GraphiqueCapacite(ws As Worksheet, k As Long)
     Dim co As ChartObject, f As String, nb As String, j As Long, cols As Variant, noms As Variant
-    Dim d As Long, col As String
+    Dim d As Long, col As String, lg As Double
     f = "'" & ws.Name & "'!"
     d = k * BLOC_PROFIL
     nb = "MAX(1,COUNT(" & f & ws.Cells(LIGNE_PROFIL, 3 + d).Address & ":" & _
@@ -867,9 +868,18 @@ Private Sub GraphiqueCapacite(ws As Worksheet, k As Long)
         ws.Names.Add Name:="CP" & k & "_" & IIf(j = 0, "z", CStr(j)), _
             RefersTo:="=OFFSET(" & f & ws.Cells(LIGNE_PROFIL, cols(j) + d).Address & ",0,0," & nb & ")"
     Next j
-    With ws.Cells(LIGNE_PROFIL - 3, 30 + d)
-        Set co = ws.ChartObjects.Add(.Left, .Top, 620, 480)
+    ' Position : à droite du tableau (colonne AA + décalage), largeur jusqu'au tableau du
+    ' diamètre suivant (620 points au plus) ; taille fixe si les colonnes changent ensuite
+    lg = 620
+    If k < NB_DIAMETRES - 1 Then
+        lg = ws.Cells(1, 2 + (k + 1) * BLOC_PROFIL).Left - ws.Cells(1, 27 + d).Left - 15
+        If lg > 620 Then lg = 620
+        If lg < 300 Then lg = 300
+    End If
+    With ws.Cells(LIGNE_PROFIL - 3, 27 + d)
+        Set co = ws.ChartObjects.Add(.Left, .Top, lg, 480)
     End With
+    co.Placement = xlFreeFloating
     With co.Chart
         .ChartType = xlXYScatterLinesNoMarkers
         Do While .SeriesCollection.Count > 0
