@@ -210,7 +210,7 @@ Private Sub Construire(activer As Boolean)
     ws.Range("B" & r + 1 & ":Q" & r + 1).Value = Array("N°", "Nom de couche", "Catégorie de sol", _
         "Profondeur (m/TN)", "hi (m)", "pl*,i (MPa)", "Courbe fsol", ChrW(945) & "pieu-sol", _
         "fsol,i (kPa)", ChrW(945) & "pieu-sol x fsol,i (kPa)", "qs,max (kPa)", "qs = min (kPa)", _
-        "As,i (m²)", "qs,i (kPa)", "Rs,i (kN)", "Terrain neutralisé")
+        "As,i = " & ChrW(960) & ".B.hi (m²)", "qs,i (kPa)", "Rs,i (kN)", "Terrain neutralisé")
     ' Unité de la profondeur : celle de « Données du projet » (m + référentiel altimétrique)
     ws.Range("E" & r + 1).Formula = "=""Profondeur (""&" & DONNEES & "$E$29&"")"""
     ' En-têtes selon la méthode de calcul : pl* et tableaux F, ou qc et tableaux G
@@ -798,12 +798,15 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     mPhiManuel = Empty
     rt = r0 + 2 + Application.Max(m, 1)
 
-    ' Diamètre du micropieu B (D19, utilisé pour Ab, Pe et le frottement axial) : Phi
-    ' retenu du premier micropieu (MP1), B0 de « Données du projet » s'il n'est pas défini
+    ' Diamètre du micropieu B (D19) = diamètre final retenu : le plus grand Phi retenu
+    ' des micropieux (B0 de « Données du projet » s'il n'y en a pas) ; il sert à évaluer
+    ' la section As,i = pi x B x hi du tableau du frottement axial (et Ab, Pe)
     If m > 0 Then
-        ws.Range("B19").Value = "Diamètre du micropieu B (" & ChrW(934) & " retenu de MP1, sinon B0)"
-        ws.Range("D19").Formula = "=IF(ISNUMBER(" & ws.Cells(r0 + 3, cD + 6).Address & ")," & _
-            ws.Cells(r0 + 3, cD + 6).Address & "," & DONNEES & "D" & LIGNE_PIEU + 15 & ")"
+        ws.Range("B19").Value = "Diamètre final retenu du micropieu B (plus grand " & ChrW(934) & _
+            " retenu, sinon B0)"
+        ws.Range("D19").Formula = "=IF(COUNT(" & ws.Range(ws.Cells(r0 + 3, cD + 6), ws.Cells(rt, cD + 6)).Address & _
+            ")>0,MAX(" & ws.Range(ws.Cells(r0 + 3, cD + 6), ws.Cells(rt, cD + 6)).Address & ")," & _
+            DONNEES & "D" & LIGNE_PIEU + 15 & ")"
     End If
 
     ' Mise en forme
@@ -1017,8 +1020,9 @@ Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat A
     mCellule = "L" & r
     ws.Range("L" & r).Formula = cond & "IFERROR(" & IndexNorme(zQs, cat, sol, True) & ",""""))"
     ws.Range("M" & r).Formula = FormuleQs("$K$" & r, "$L$" & r)
-    ws.Range("N" & r).Formula = "=IF(OR(B" & r & "="""",F" & r & "="""",N($D$23)=0),""""," & _
-        "$D$23*F" & r & ")"
+    ' As,i = pi x B x hi, B = diamètre final retenu (D19)
+    ws.Range("N" & r).Formula = "=IF(OR(B" & r & "="""",F" & r & "="""",N($D$19)=0),""""," & _
+        "PI()*$D$19*F" & r & ")"
     ' qs,i = qs / (gamma R;d1 x gamma R;d2) ; 0 si le terrain est neutralisé
     ws.Range("O" & r).Formula = "=IF(B" & r & "="""","""",IF(Q" & r & "=""Oui"",0," & _
         "IFERROR(M" & r & "/(" & gamma & "),""-"")))"
