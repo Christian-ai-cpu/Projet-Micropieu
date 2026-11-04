@@ -54,6 +54,8 @@ Private Const BLOC_PROFIL As Long = 40
 Private Const TABLEAUX As String = "Tableaux NF P94-262"
 Private mCellule As String     ' cellule en cours d'écriture (indiquée en cas d'erreur)
 Private mPhiManuel As Variant  ' Phi manuels saisis, conservés quand la vérification est recréée
+Private mGeo As Variant, mGsn As Variant, mAmax As Variant, mAmin As Variant   ' idem : Geo,
+                               ' frottement négatif Gsn, action accidentelle A max et min
 ' Méthode de calcul lue dans « Données du projet » à la création de la feuille : les
 ' formules sont écrites pour cette seule méthode (pl* et tableaux F, ou qc et tableaux G)
 ' et la feuille est recréée quand la méthode change (ActualiserCalculVerification,
@@ -120,6 +122,7 @@ Private Sub Construire(activer As Boolean)
         ws.Name = NOM_FEUILLE
     End If
     mPhiManuel = LirePhiManuel(ws)           ' Phi manuels de la vérification, conservés
+    LireActions ws
     ws.Cells.Clear
     Do While ws.ChartObjects.Count > 0       ' graphique de la création précédente
         ws.ChartObjects(1).Delete
@@ -514,8 +517,9 @@ End Sub
 ' Vérification de la profondeur des micropieux, sous le tableau de la capacité portante
 ' par pas de calcul : pour chaque micropieu de la feuille de descente de charges (matrice
 ' des micropieux, module MatriceMicropieux, titre en B80) :
-'   descente de charges : Gmax = G, Gmin = G ou 0 (choix), Qmax = Q, Qmin = 0, eau
-'   EB, EH, EE (kN, 0 sans nappe) ;
+'   descente de charges : Gmax = G, Gmin = G ou 0 (choix), Qmax = Q, Qmin = 0 ; actions
+'   saisies : poussée des terres Geo (min = max), frottement négatif Gsn, action
+'   accidentelle A max et min ; eau EB, EH, EE (kN, avec nappe seulement) ;
 '   combinaisons verticales max / min :
 '     ELS caractéristique : G + Q ;  ELS quasi permanent : G + psi2 Q ;
 '     ELU fondamental : 1,35 Gmax + 1,5 Qmax (max), 1,0 Gmin + 1,5 Qmin (min) ;
@@ -545,6 +549,7 @@ Public Sub ActualiserVerificationProfondeur()
     L = LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV + 2
     gmin = CStr(ws.Range("D" & L + 2).Value)
     mPhiManuel = LirePhiManuel(ws)
+    LireActions ws
     ws.Range(ws.Rows(L), ws.Rows(L + 300)).Clear
     VerificationProfondeur ws, gmin
 End Sub
@@ -552,11 +557,17 @@ End Sub
 ' Phi manuels saisis dans la vérification de la profondeur (colonne « Phi MANUEL »,
 ' lignes MP1...)
 Private Function LirePhiManuel(ws As Worksheet) As Variant
-    Dim r As Long, i As Long, t() As Variant
+    LirePhiManuel = LireSaisie(ws, ChrW(934) & " MANUEL")
+End Function
+
+' Valeurs saisies d'une colonne du tableau de vérification de la profondeur (en-tête
+' entete sur l'une des 2 lignes d'en-tête au-dessus de MP1), lignes MP1... ; vide si la
+' colonne n'existe pas
+Private Function LireSaisie(ws As Worksheet, entete As String) As Variant
+    Dim r As Long, i As Long, t() As Variant, c As Long, cm As Long
     r = LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV + 2 + 10     ' ligne de MP1
-    Dim c As Long, cm As Long
-    For c = 1 To 40                                          ' colonne « Phi MANUEL »
-        If CStr(ws.Cells(r - 2, c).Value) = ChrW(934) & " MANUEL" Then cm = c
+    For c = 1 To 60
+        If CStr(ws.Cells(r - 2, c).Value) = entete Or CStr(ws.Cells(r - 1, c).Value) = entete Then cm = c
     Next c
     If cm = 0 Then Exit Function
     Do While Left(CStr(ws.Range("A" & r + i).Value), 2) = "MP"
@@ -567,7 +578,26 @@ Private Function LirePhiManuel(ws As Worksheet) As Variant
     For i = 1 To UBound(t)
         t(i) = ws.Cells(r + i - 1, cm).Value
     Next i
-    LirePhiManuel = t
+    LireSaisie = t
+End Function
+
+' Actions saisies de la vérification de la profondeur (Geo max, Gsn, A max, A min),
+' conservées quand elle est recréée
+Private Sub LireActions(ws As Worksheet)
+    mGeo = LireSaisie(ws, "Geo max")
+    mGsn = LireSaisie(ws, "Gsn")
+    mAmax = LireSaisie(ws, "A max")
+    mAmin = LireSaisie(ws, "A min")
+End Sub
+
+' Valeurs saisies de la ligne i (1 = MP1) d'une colonne lue par LireSaisie ; 0 sinon
+Private Function Saisie(t As Variant, i As Long) As Variant
+    Saisie = 0
+    If IsArray(t) Then
+        If i <= UBound(t) Then
+            If Not IsEmpty(t(i)) Then Saisie = t(i)
+        End If
+    End If
 End Function
 
 Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G")
@@ -577,7 +607,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     Dim eau As Boolean, cC As Long, cD As Long, cP As Long, cR As Long, cL As Long, cF As Long
     Dim reco As String, eMax As String, eMin As String, eAcc As String, phiT As String
     Dim incl As Boolean, cRe As Long, kb As String, capk As String, zk As String
-    Dim fx As String, kd As Long
+    Dim fx As String, kd As Long, cE As Long
 
     L = LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV + 2          ' titre du tableau
     For Each f In ActiveWorkbook.Worksheets
@@ -640,11 +670,15 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     ' matrice de la descente de charges les contient (colonnes 10 + n à 12 + n)
     eau = (CStr(ActiveWorkbook.Worksheets("Données du projet").Range("D34").Value) = "Oui") And _
         (Left(CStr(wd.Cells(88 + n, 10 + n).Value), 15) = "CHARGES DE L'EA")
-    ' Colonnes : A micropieu ; B à E Gmax, Gmin, Qmax, Qmin (+ 3 colonnes d'eau) ; cC
+    ' Colonnes : A micropieu ; B à E Gmax, Gmin, Qmax, Qmin ; F à J Geo max, Geo min, Gsn,
+    ' A max, A min (saisis) (+ 3 colonnes d'eau) ; cC
     ' combinaisons Vmax / Vmin ; cD diamètres (Phi CARA, QP, FOND, ACC, Phi pieu, Phi
     ' manuel, Phi retenu) ; cP profondeurs Dmax / Dmin ; cR profondeur retenue D ; cL
     ' vérification de la longueur (profondeur de reconnaissance - D >= 5 Phi retenu)
-    cC = 6 + IIf(eau, 3, 0)
+    ' Actions : Geo max, Geo min (= Geo max) en F, G ; frottement négatif Gsn en H ;
+    ' action accidentelle A max, A min en I, J ; eau éventuelle en K à M
+    cE = 11                                   ' 1re colonne de l'eau
+    cC = cE + IIf(eau, 3, 0)
     cD = cC + 8
     cP = cD + 7
     cR = cP + 8
@@ -656,7 +690,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     cF = cL + 3                               ' dernière colonne
     r0 = L + 7
     ws.Cells(r0, 1).Value = "N° MICROPIEU"
-    ws.Cells(r0, 2).Value = "DESCENTE DE CHARGES (kN)"
+    ws.Cells(r0, 2).Value = "DESCENTE DE CHARGES ET ACTIONS (kN)"
     ws.Cells(r0, cC).Value = "COMBINAISONS DE CHARGES VERTICALES (kN)"
     ws.Cells(r0, cD).Value = "DIAMÈTRE DU MICROPIEU (m)"
     ws.Cells(r0, cP).Value = "PROFONDEUR MINIMALE REQUISE (m)"
@@ -680,10 +714,18 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     ws.Range("B" & r0 + 1 & ":C" & r0 + 1).Merge
     ws.Range("D" & r0 + 1 & ":E" & r0 + 1).Merge
     ws.Range("B" & r0 + 2 & ":E" & r0 + 2).Value = Array("Gmax", "Gmin", "Qmax", "Qmin")
+    ws.Range("F" & r0 + 1).Value = "Geo (poussée des terres)"
+    ws.Range("F" & r0 + 1 & ":G" & r0 + 1).Merge
+    ws.Range("F" & r0 + 2 & ":G" & r0 + 2).Value = Array("Geo max", "Geo min")
+    ws.Range("H" & r0 + 1).Value = "Gsn"
+    ws.Range("H" & r0 + 1 & ":H" & r0 + 2).Merge
+    ws.Range("I" & r0 + 1).Value = "A (accidentel)"
+    ws.Range("I" & r0 + 1 & ":J" & r0 + 1).Merge
+    ws.Range("I" & r0 + 2 & ":J" & r0 + 2).Value = Array("A max", "A min")
     If eau Then
-        ws.Range("F" & r0 + 1).Value = "EAU"
-        ws.Range("F" & r0 + 1 & ":H" & r0 + 1).Merge
-        ws.Range("F" & r0 + 2 & ":H" & r0 + 2).Value = Array("Eau EB", "Eau EH", "Eau EE")
+        ws.Range("K" & r0 + 1).Value = "EAU"
+        ws.Range("K" & r0 + 1 & ":M" & r0 + 1).Merge
+        ws.Range("K" & r0 + 2 & ":M" & r0 + 2).Value = Array("Eau EB", "Eau EH", "Eau EE")
     End If
     ws.Range(ws.Cells(r0 + 1, cD), ws.Cells(r0 + 1, cD + 6)).Value = Array(ChrW(934) & " CARA", _
         ChrW(934) & " QP", ChrW(934) & " FOND", ChrW(934) & " ACC", ChrW(934) & " PIEU", _
@@ -727,22 +769,36 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         ws.Range("C" & r).Formula = "=IF($D$" & L + 2 & "=""G"",B" & r & ",0)"
         ws.Range("D" & r).Formula = "=N(" & dn & wd.Cells(rd + i - 1, 9 + n).Address & ")"
         ws.Range("E" & r).Value = 0
+        ' Actions saisies (0 par défaut, conservées quand le tableau est recréé)
+        ws.Range("F" & r).Value = Saisie(mGeo, i)
+        ws.Range("G" & r).Formula = "=F" & r                    ' Geo min = Geo max
+        ws.Range("H" & r).Value = Saisie(mGsn, i)
+        ws.Range("I" & r).Value = Saisie(mAmax, i)
+        ws.Range("J" & r).Value = Saisie(mAmin, i)
         If eau Then
             For k = 0 To 2                   ' eau EB, EH, EE de la descente de charges
-                ws.Cells(r, 6 + k).Formula = "=N(" & dn & wd.Cells(rd + i - 1, 10 + n + k).Address & ")"
+                ws.Cells(r, cE + k).Formula = "=N(" & dn & wd.Cells(rd + i - 1, 10 + n + k).Address & ")"
             Next k
-            eMax = "+G" & r: eMin = "+F" & r: eAcc = "+H" & r
+            eMax = "+L" & r: eMin = "+K" & r: eAcc = "+M" & r
         Else
             eMax = "": eMin = "": eAcc = ""
         End If
-        ws.Cells(r, cC).Formula = "=B" & r & "+D" & r & eMax
-        ws.Cells(r, cC + 1).Formula = "=C" & r & "+E" & r & eMin
-        ws.Cells(r, cC + 2).Formula = "=B" & r & "+$D$" & L + 5 & "*D" & r & eMax
-        ws.Cells(r, cC + 3).Formula = "=C" & r & "+$D$" & L + 5 & "*E" & r & eMin
-        ws.Cells(r, cC + 4).Formula = "=1.35*B" & r & "+1.5*D" & r & eMax
-        ws.Cells(r, cC + 5).Formula = "=1*C" & r & "+1.5*E" & r & eMin
-        ws.Cells(r, cC + 6).Formula = "=B" & r & "+$D$" & L + 4 & "*D" & r & eAcc
-        ws.Cells(r, cC + 7).Formula = "=C" & r & "+$D$" & L + 4 & "*E" & r & eMin
+        ' Combinaisons (NF EN 1990 et NF P94-262) : permanentes G + Geo + Gsn (Gsn
+        ' défavorable, compté seulement aux combinaisons max)
+        '   ELS caractéristique : G + Geo + Gsn + Q
+        '   ELS quasi permanent : G + Geo + Gsn + psi2 Q
+        '   ELU fondamental     : 1,35 (Gmax + Geo + Gsn) + 1,5 Q (max) ;
+        '                         1,0 (Gmin + Geo) + 1,5 Qmin (min)
+        '   ELU accidentel      : G + Geo + Gsn + A + psi1 Q (A max au max, A min au min)
+        ws.Cells(r, cC).Formula = "=B" & r & "+F" & r & "+H" & r & "+D" & r & eMax
+        ws.Cells(r, cC + 1).Formula = "=C" & r & "+G" & r & "+E" & r & eMin
+        ws.Cells(r, cC + 2).Formula = "=B" & r & "+F" & r & "+H" & r & "+$D$" & L + 5 & "*D" & r & eMax
+        ws.Cells(r, cC + 3).Formula = "=C" & r & "+G" & r & "+$D$" & L + 5 & "*E" & r & eMin
+        ws.Cells(r, cC + 4).Formula = "=1.35*(B" & r & "+F" & r & "+H" & r & ")+1.5*D" & r & eMax
+        ws.Cells(r, cC + 5).Formula = "=1*(C" & r & "+G" & r & ")+1.5*E" & r & eMin
+        ws.Cells(r, cC + 6).Formula = "=B" & r & "+F" & r & "+H" & r & "+I" & r & "+$D$" & L + 4 & _
+            "*D" & r & eAcc
+        ws.Cells(r, cC + 7).Formula = "=C" & r & "+G" & r & "+J" & r & "+$D$" & L + 4 & "*E" & r & eMin
         For k = 0 To 3
             ' Phi de la combinaison : charge verticale (plus grande de Vmax et Vmin) comparée
             ' à la portance maximale de chaque diamètre (tableau de B0, B1, ...) ; le plus
@@ -797,6 +853,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
             ",""Vérifiée"",""Non vérifiée""))"
     Next i
     mPhiManuel = Empty
+    mGeo = Empty: mGsn = Empty: mAmax = Empty: mAmin = Empty
     rt = r0 + 2 + Application.Max(m, 1)
 
     ' Diamètre du micropieu B (D19) = diamètre final retenu : le plus grand Phi retenu
@@ -826,6 +883,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         ws.Range("A" & r0 + 3 & ":A" & rt).Font.Bold = True
         ws.Range(ws.Cells(r0 + 3, 2), ws.Cells(rt, cF)).Interior.Color = JAUNE_CALCUL
         ws.Range(ws.Cells(r0 + 3, cD + 5), ws.Cells(rt, cD + 5)).Interior.Color = VERT_SAISIE ' Phi manuel
+        ws.Range("F" & r0 + 3 & ":F" & rt & ",H" & r0 + 3 & ":J" & rt).Interior.Color = VERT_SAISIE ' actions
         ws.Range(ws.Cells(r0 + 3, 2), ws.Cells(rt, cD - 1)).NumberFormat = "0.0"
         ws.Range(ws.Cells(r0 + 3, cD), ws.Cells(rt, cP - 1)).NumberFormat = "0.000"
         ws.Range(ws.Cells(r0 + 3, cP), ws.Cells(rt, cL + 2)).NumberFormat = "0.00"
