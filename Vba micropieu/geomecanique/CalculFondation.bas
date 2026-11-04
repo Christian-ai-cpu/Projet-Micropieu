@@ -607,7 +607,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     Dim eau As Boolean, cC As Long, cD As Long, cP As Long, cR As Long, cL As Long, cF As Long
     Dim reco As String, eMax As String, eMin As String, eAcc As String, phiT As String
     Dim incl As Boolean, cRe As Long, kb As String, capk As String, zk As String
-    Dim fx As String, kd As Long, cE As Long
+    Dim fx As String, kd As Long, cE As Long, tC As Long, tP As Long
 
     L = LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV + 2          ' titre du tableau
     For Each f In ActiveWorkbook.Worksheets
@@ -761,6 +761,69 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     ' pour un micropieu incliné.
     ' Eau ajoutée avec un coefficient 1 : EH aux combinaisons max, EB aux combinaisons
     ' min, EE à l'ELU accidentel max
+    ' --- Coefficients des combinaisons (NF EN 1990), sous le tableau de vérification ---
+    ' Tableau des combinaisons (lignes tC + 2 à tC + 5 : ELS CARA, ELS QP, ELU FOND, ELU ACC)
+    '   Vmax = gamma G,sup x (Gmax + Geo + Gsn) + gamma Q x psi x Qmax + gamma A x A max
+    '   Vmin = gamma G,inf x (Gmin + Geo min) + gamma Q x psi x Qmin + gamma A x A min
+    ' coefficients gamma des tableaux A1.2(B) (6.10), A1.3 (6.11b) et A1.4 (6.14b, 6.16b) ;
+    ' psi du tableau A1.1 (valeurs recommandées) selon la catégorie du bâtiment
+    tC = r0 + 2 + Application.Max(m, 1) + 3
+    tP = tC + 8
+    With ws.Range("A" & tC)
+        .Value = "COEFFICIENTS DES COMBINAISONS D'ACTIONS (NF EN 1990)"
+        .Font.Bold = True
+        .Font.Size = 14
+        .Font.Color = VERT_FONCE
+    End With
+    ws.Range("B" & tC + 1 & ":I" & tC + 1).Value = Array("Combinaison", "Expression (NF EN 1990)", _
+        ChrW(947) & "G,sup (Gmax, Geo, Gsn)", ChrW(947) & "G,inf (Gmin, Geo min)", ChrW(947) & "Q", _
+        ChrW(968) & " appliqué à Q", "Valeur de " & ChrW(968), ChrW(947) & "A (accidentel)")
+    ws.Range("B" & tC + 2 & ":G" & tC + 2).Value = Array("ELS caractéristique", "6.14b (tableau A1.4)", _
+        1, 1, 1, "- (Q dominante)")
+    ws.Range("B" & tC + 3 & ":G" & tC + 3).Value = Array("ELS quasi permanent", "6.16b (tableau A1.4)", _
+        1, 1, 1, ChrW(968) & "2")
+    ws.Range("B" & tC + 4 & ":G" & tC + 4).Value = Array("ELU fondamental", "6.10 (tableau A1.2(B))", _
+        1.35, 1, 1.5, "- (Q dominante)")
+    ws.Range("B" & tC + 5 & ":G" & tC + 5).Value = Array("ELU accidentel", "6.11b (tableau A1.3)", _
+        1, 1, 1, ChrW(968) & "1")
+    ws.Range("H" & tC + 2).Value = 1
+    ws.Range("H" & tC + 3).Formula = "=IFERROR(VLOOKUP(LEFT($D$" & L + 3 & ",1),$B$" & tP + 2 & ":$F$" & _
+        tP + 9 & ",5,FALSE),0.3)"
+    ws.Range("H" & tC + 4).Value = 1
+    ws.Range("H" & tC + 5).Formula = "=IFERROR(VLOOKUP(LEFT($D$" & L + 3 & ",1),$B$" & tP + 2 & ":$F$" & _
+        tP + 9 & ",4,FALSE),0.5)"
+    ws.Range("I" & tC + 2 & ":I" & tC + 5).Value = Application.Transpose(Array(0, 0, 0, 1))
+    ' Tableau A1.1 : coefficients psi pour les bâtiments (charges d'exploitation)
+    ws.Range("A" & tP).Value = "Tableau A1.1 - Valeurs recommandées des coefficients " & ChrW(968) & _
+        " pour les bâtiments (NF EN 1990)"
+    ws.Range("A" & tP).Font.Bold = True
+    ws.Range("B" & tP + 1 & ":F" & tP + 1).Value = Array("Catégorie", "Charges d'exploitation", _
+        ChrW(968) & "0", ChrW(968) & "1", ChrW(968) & "2")
+    ws.Range("B" & tP + 2 & ":F" & tP + 9).Value = Array2D(Array( _
+        Array("A", "Habitation, zones résidentielles", 0.7, 0.5, 0.3), _
+        Array("B", "Bureaux", 0.7, 0.5, 0.3), _
+        Array("C", "Lieux de réunion", 0.7, 0.7, 0.6), _
+        Array("D", "Commerces", 0.7, 0.7, 0.6), _
+        Array("E", "Stockage", 1, 0.9, 0.8), _
+        Array("F", "Zone de trafic, véhicules <= 30 kN", 0.7, 0.7, 0.6), _
+        Array("G", "Zone de trafic, véhicules de 30 à 160 kN", 0.7, 0.5, 0.3), _
+        Array("H", "Toits", 0, 0, 0)))
+    With ws.Range("B" & tC + 1 & ":I" & tC + 5 & ",B" & tP + 1 & ":F" & tP + 9)
+        .Borders.LineStyle = xlContinuous
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .WrapText = True
+    End With
+    With ws.Range("B" & tC + 1 & ":I" & tC + 1 & ",B" & tP + 1 & ":F" & tP + 1)
+        .Font.Bold = True
+        .Interior.Color = VERT_ENTETE
+    End With
+    ws.Range("D" & tC + 2 & ":I" & tC + 5 & ",D" & tP + 2 & ":F" & tP + 9).NumberFormat = "0.00"
+    ws.Range("D" & tC + 2 & ":I" & tC + 5).Interior.Color = JAUNE_CALCUL
+    ' psi en tête de la vérification : repris du tableau des combinaisons
+    ws.Range("D" & L + 4).Formula = "=$H$" & tC + 5
+    ws.Range("D" & L + 5).Formula = "=$H$" & tC + 3
+
     z = "$C$" & LIGNE_PROFIL & ":$C$" & LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1
     For i = 1 To m
         r = r0 + 2 + i
@@ -790,15 +853,13 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         '   ELU fondamental     : 1,35 (Gmax + Geo + Gsn) + 1,5 Q (max) ;
         '                         1,0 (Gmin + Geo) + 1,5 Qmin (min)
         '   ELU accidentel      : G + Geo + Gsn + A + psi1 Q (A max au max, A min au min)
-        ws.Cells(r, cC).Formula = "=B" & r & "+F" & r & "+H" & r & "+D" & r & eMax
-        ws.Cells(r, cC + 1).Formula = "=C" & r & "+G" & r & "+E" & r & eMin
-        ws.Cells(r, cC + 2).Formula = "=B" & r & "+F" & r & "+H" & r & "+$D$" & L + 5 & "*D" & r & eMax
-        ws.Cells(r, cC + 3).Formula = "=C" & r & "+G" & r & "+$D$" & L + 5 & "*E" & r & eMin
-        ws.Cells(r, cC + 4).Formula = "=1.35*(B" & r & "+F" & r & "+H" & r & ")+1.5*D" & r & eMax
-        ws.Cells(r, cC + 5).Formula = "=1*(C" & r & "+G" & r & ")+1.5*E" & r & eMin
-        ws.Cells(r, cC + 6).Formula = "=B" & r & "+F" & r & "+H" & r & "+I" & r & "+$D$" & L + 4 & _
-            "*D" & r & eAcc
-        ws.Cells(r, cC + 7).Formula = "=C" & r & "+G" & r & "+J" & r & "+$D$" & L + 4 & "*E" & r & eMin
+        For k = 0 To 3                       ' coefficients : ligne tC + 2 + k
+            c = tC + 2 + k
+            ws.Cells(r, cC + 2 * k).Formula = "=$D$" & c & "*(B" & r & "+F" & r & "+H" & r & ")+$F$" & c & _
+                "*$H$" & c & "*D" & r & "+$I$" & c & "*I" & r & IIf(k = 3, eAcc, eMax)
+            ws.Cells(r, cC + 2 * k + 1).Formula = "=$E$" & c & "*(C" & r & "+G" & r & ")+$F$" & c & _
+                "*$H$" & c & "*E" & r & "+$I$" & c & "*J" & r & eMin
+        Next k
         For k = 0 To 3
             ' Phi de la combinaison : charge verticale (plus grande de Vmax et Vmin) comparée
             ' à la portance maximale de chaque diamètre (tableau de B0, B1, ...) ; le plus
@@ -1035,6 +1096,18 @@ Private Function IndexNorme(zones As String, lig As String, sol As String, _
     Else
         IndexNorme = "INDEX(" & z(1) & "," & lig & "," & IIf(f6, Rang6(sol), Rang5(sol)) & ")"
     End If
+End Function
+
+' Tableau 2D (lignes x colonnes) à partir d'un tableau de lignes (Array d'Array)
+Private Function Array2D(lignes As Variant) As Variant
+    Dim t() As Variant, i As Long, j As Long
+    ReDim t(1 To UBound(lignes) + 1, 1 To UBound(lignes(0)) + 1)
+    For i = 0 To UBound(lignes)
+        For j = 0 To UBound(lignes(i))
+            t(i + 1, j + 1) = lignes(i)(j)
+        Next j
+    Next i
+    Array2D = t
 End Function
 
 ' Valeur d'un tableau de la norme (zone) en ligne lig et colonne col ; vide si erreur
