@@ -58,7 +58,7 @@ Public Const MAX_COUCHES As Long = 15         ' lignes prévues (au-delà du nom
 Public Const LIGNE_PIEU As Long = 65          ' type de pieu (caractéristiques de la fondation)
 Public Const NB_DIAMETRES As Long = 4         ' diamètres B0 à B3 (G67:G70, à droite)
 Private Const ABREVIATIONS As String = "M1|M2|PIGU, MIGU|PIRS, MIRS"   ' tableau A.1, catégories 17 à 20
-Private Const LIGNE_ACIER As Long = 102         ' type d'armature (caractéristiques de l'acier)
+Public Const LIGNE_ACIER As Long = 102         ' type d'armature (caractéristiques de l'acier)
 Private Const CLASSES_EXPOSITION As String = "X0,XC1,XC2,XC3,XC4,XD1,XD2,XD3," & _
     "XS1,XS2,XS3,XF1,XF2,XF3,XF4,XA1,XA2,XA3"
 ' Classe de résistance minimale du béton selon la classe d'exposition (NF EN 206/CN,
