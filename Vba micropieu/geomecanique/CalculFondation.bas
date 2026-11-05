@@ -709,11 +709,11 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         ws.Cells(r0 + 2, cRe).Value = "D / cos " & ChrW(945)
     End If
     ws.Range(ws.Cells(r0, cL), ws.Cells(r0, cF)).Merge
-    ws.Range("B" & r0 + 1).Value = "G"
+    ws.Range("B" & r0 + 1).Value = "Gstr"
     ws.Range("D" & r0 + 1).Value = "Q"
     ws.Range("B" & r0 + 1 & ":C" & r0 + 1).Merge
     ws.Range("D" & r0 + 1 & ":E" & r0 + 1).Merge
-    ws.Range("B" & r0 + 2 & ":E" & r0 + 2).Value = Array("Gmax", "Gmin", "Qmax", "Qmin")
+    ws.Range("B" & r0 + 2 & ":E" & r0 + 2).Value = Array("Gstr max", "Gstr min", "Qmax", "Qmin")
     ws.Range("F" & r0 + 1).Value = "Geo (poussée des terres)"
     ws.Range("F" & r0 + 1 & ":G" & r0 + 1).Merge
     ws.Range("F" & r0 + 2 & ":G" & r0 + 2).Value = Array("Geo max", "Geo min")
@@ -750,6 +750,59 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         Next i
     Next k
 
+    ' Commentaires des en-têtes : signification des abréviations
+    Commentaire ws.Range("B" & r0 + 1), "Gstr : charges permanentes de la structure (descente de " & _
+        "charges : poids des murs, planchers, massifs, longrines...)"
+    Commentaire ws.Range("B" & r0 + 2), "Gstr max : charge permanente de la structure (valeur " & _
+        "défavorable, coefficient " & ChrW(947) & "G,sup)"
+    Commentaire ws.Range("C" & r0 + 2), "Gstr min : charge permanente favorable (G ou 0 selon le " & _
+        "choix en tête du tableau, coefficient " & ChrW(947) & "G,inf)"
+    Commentaire ws.Range("D" & r0 + 1), "Q : charges d'exploitation (descente de charges)"
+    Commentaire ws.Range("D" & r0 + 2), "Qmax : charge d'exploitation défavorable"
+    Commentaire ws.Range("E" & r0 + 2), "Qmin : charge d'exploitation favorable, prise égale à 0"
+    Commentaire ws.Range("F" & r0 + 1), "Geo : action géotechnique permanente (poussée des terres) " & _
+        "transmise au micropieu"
+    Commentaire ws.Range("F" & r0 + 2), "Geo max : valeur de la poussée des terres (à saisir)"
+    Commentaire ws.Range("G" & r0 + 2), "Geo min : prise égale à Geo max"
+    Commentaire ws.Range("H" & r0 + 1), "Gsn : frottement négatif (action permanente due au " & _
+        "tassement du sol autour du micropieu), compté aux combinaisons max"
+    Commentaire ws.Range("I" & r0 + 1), "A : action accidentelle (choc, explosion...), " & _
+        "combinaison ELU accidentelle seulement"
+    Commentaire ws.Range("I" & r0 + 2), "A max : action accidentelle de la combinaison max"
+    Commentaire ws.Range("J" & r0 + 2), "A min : action accidentelle de la combinaison min"
+    If eau Then
+        Commentaire ws.Range("K" & r0 + 1), "Charges de l'eau (nappe phréatique)"
+        Commentaire ws.Range("K" & r0 + 2), "Eau EB : niveau des basses eaux"
+        Commentaire ws.Range("L" & r0 + 2), "Eau EH : niveau des hautes eaux"
+        Commentaire ws.Range("M" & r0 + 2), "Eau EE : niveau des eaux exceptionnelles"
+    End If
+    entete = Array("ELS caractéristique (NF EN 1990, 6.14b)", "ELS quasi permanent (6.16b)", _
+        "ELU fondamental (6.10)", "ELU accidentel (6.11b)")
+    For k = 0 To 3
+        Commentaire ws.Cells(r0 + 1, cC + 2 * k), "Combinaison " & entete(k) & " : coefficients " & _
+            "dans le tableau des combinaisons sous la vérification"
+        Commentaire ws.Cells(r0 + 2, cC + 2 * k), "Vmax : charge verticale de calcul maximale " & _
+            "(actions défavorables)"
+        Commentaire ws.Cells(r0 + 2, cC + 2 * k + 1), "Vmin : charge verticale de calcul minimale " & _
+            "(actions favorables)"
+        Commentaire ws.Cells(r0 + 1, cD + k), ChrW(934) & " " & Split("CARA,QP,FOND,ACC", ",")(k) & _
+            " : plus petit diamètre (B0 à B3) dont la portance maximale couvre la charge de la " & _
+            "combinaison " & entete(k)
+        Commentaire ws.Cells(r0 + 2, cP + 2 * k), "Dmax : profondeur minimale pour reprendre Vmax"
+        Commentaire ws.Cells(r0 + 2, cP + 2 * k + 1), "Dmin : profondeur minimale pour reprendre Vmin"
+    Next k
+    Commentaire ws.Cells(r0 + 1, cD + 4), ChrW(934) & " PIEU : le plus grand des diamètres des " & _
+        "combinaisons"
+    Commentaire ws.Cells(r0 + 1, cD + 5), ChrW(934) & " MANUEL : diamètre imposé (à saisir)"
+    Commentaire ws.Cells(r0 + 1, cD + 6), ChrW(934) & " RETENU : max(" & ChrW(934) & " pieu ; " & _
+        ChrW(934) & " manuel)"
+    Commentaire ws.Cells(r0 + 2, cR), "D : profondeur retenue, la plus grande des profondeurs requises"
+    If incl Then Commentaire ws.Cells(r0 + 2, cRe), "Profondeur réelle : longueur du micropieu " & _
+        "incliné = D / cos " & ChrW(945) & " (" & ChrW(945) & " : angle sur la verticale)"
+    Commentaire ws.Cells(r0 + 1, cL), "Profondeur de reconnaissance (« Données du projet »)"
+    Commentaire ws.Cells(r0 + 1, cL + 2), "5 " & ChrW(934) & " : longueur reconnue sous la base " & _
+        "(NF P94-262, annexe M, M.1)"
+
     ' Portance de chaque combinaison dans le tableau par pas de calcul : Rc;cr,d ELS
     ' caractéristique (R), ELS quasi permanent (T), Rc,d ELU fondamental (V), accidentel (X),
     ' lue dans le tableau de chaque diamètre B0, B1, B2, B3.
@@ -776,7 +829,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         .Font.Color = VERT_FONCE
     End With
     ws.Range("B" & tC + 1 & ":I" & tC + 1).Value = Array("Combinaison", "Expression (NF EN 1990)", _
-        ChrW(947) & "G,sup (Gmax, Geo, Gsn)", ChrW(947) & "G,inf (Gmin, Geo min)", ChrW(947) & "Q", _
+        ChrW(947) & "G,sup (Gstr max, Geo, Gsn)", ChrW(947) & "G,inf (Gstr min, Geo min)", ChrW(947) & "Q", _
         ChrW(968) & " appliqué à Q", "Valeur de " & ChrW(968), ChrW(947) & "A (accidentel)")
     ws.Range("B" & tC + 2 & ":G" & tC + 2).Value = Array("ELS caractéristique", "6.14b (tableau A1.4)", _
         1, 1, 1, "- (Q dominante)")
@@ -1097,6 +1150,13 @@ Private Function IndexNorme(zones As String, lig As String, sol As String, _
         IndexNorme = "INDEX(" & z(1) & "," & lig & "," & IIf(f6, Rang6(sol), Rang5(sol)) & ")"
     End If
 End Function
+
+' Commentaire (signification) sur une cellule d'en-tête
+Private Sub Commentaire(c As Range, texte As String)
+    c.ClearComments
+    c.AddComment texte
+    c.Comment.Shape.TextFrame.AutoSize = True
+End Sub
 
 ' Tableau 2D (lignes x colonnes) à partir d'un tableau de lignes (Array d'Array)
 Private Function Array2D(lignes As Variant) As Variant

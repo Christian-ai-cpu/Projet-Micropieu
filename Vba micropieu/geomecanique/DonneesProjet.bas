@@ -16,25 +16,25 @@ Option Explicit
 '   B18 à I26 : Références normatives (référence, date, intitulé)
 '   B28 à E29 : Référentiel altimétrique (liste) et niveau du terrain naturel (unité
 '               m + référentiel, reprise pour les profondeurs et les cotes)
-'   B31 à E36 : Données de la fondation (arase supérieure, profondeur de
+'   B31 à E43 : Données de la fondation (arase supérieure, profondeur de
 '               reconnaissance, nappe, méthode de calcul, niveau d'eau ; intitulé sur
 '               B:C, valeur en D, unité en E)
-'   B38 à K55 : Données géotechniques : nombre de couches (C39, 1 à 15) et tableau
+'   B45 à N62 : Données géotechniques : nombre de couches (C46, 1 à 15) et tableau
 '               des couches de sol (seules les lignes jusqu'à ce nombre sont affichées) ;
 '               colonne pl* masquée en méthode pénétrométrique, colonne qc masquée en
 '               méthode pressiométrique (AfficherMethode) ; couche d'ancrage en K
-'   B57 à D77 : Caractéristiques de la fondation (type de pieu du tableau A.1 de la
+'   B64 à D87 : Caractéristiques de la fondation (type de pieu du tableau A.1 de la
 '               NF P94-262, diamètre constant, incliné et angle, effet de groupe et m,
 '               n, entraxe d (lignes affichées si « Oui »), norme de référence,
 '               classe, catégorie, abréviation, mode de fonctionnement (compression / traction),
 '               résistance de pointe, type de mise en oeuvre, B, nombres,
 '               conditions en tête, essai de contrôle ; intitulé sur B:C, valeur en D)
-'   B79       : HYPOTHÈSES RELATIVES AUX MATÉRIAUX CONSTITUTIFS DES FONDATIONS PROFONDES
-'   B81 à E89 : Caractéristiques du béton (classe d'exposition, classe de résistance
+'   B89       : HYPOTHÈSES RELATIVES AUX MATÉRIAUX CONSTITUTIFS DES FONDATIONS PROFONDES
+'   B91 à E99 : Caractéristiques du béton (classe d'exposition, classe de résistance
 '               minimale associée (NF EN 206/CN) et conformité de la classe nominale,
 '               classe structurale, classe de résistance, fc28, coefficients gamma c ELU /
 '               accidentel / sismique)
-'   B91 à E110: Caractéristiques de l'acier (type d'armature Tube N80, Barre HA ou Barre
+'   B101 à E120: Caractéristiques de l'acier (type d'armature Tube N80, Barre HA ou Barre
 '               GEWI, désignation, dimensions, section, E et fyk associés, coefficients
 '               gamma s, durée d'utilisation du projet, environnement et perte
 '               d'épaisseur due à la corrosion (NF EN 1993-5, tableaux 4.1 et 4.2),
@@ -51,13 +51,14 @@ Private Const CELLULE_PHASE As String = "C9"
 Private Const LIGNE_FONDATION As Long = 13
 Private Const LIGNE_DONNEES_FONDATION As Long = 31   ' sous-titre « Données de la fondation »
 Public Const CELLULE_METHODE As String = "D35"      ' méthode de calcul retenue
-Public Const CELLULE_NB_COUCHES As String = "C39"   ' nombre de couches saisi
-Public Const LIGNE_COUCHES As Long = 41       ' première couche de sol
+Public Const LIGNE_COUCHE_MOLLE As Long = 37 ' frottement négligé et couche molle (37 à 43)
+Public Const CELLULE_NB_COUCHES As String = "C46"   ' nombre de couches saisi
+Public Const LIGNE_COUCHES As Long = 48       ' première couche de sol
 Public Const MAX_COUCHES As Long = 15         ' lignes prévues (au-delà du nombre : masquées)
-Public Const LIGNE_PIEU As Long = 58          ' type de pieu (caractéristiques de la fondation)
+Public Const LIGNE_PIEU As Long = 65          ' type de pieu (caractéristiques de la fondation)
 Public Const NB_DIAMETRES As Long = 4         ' diamètres B0 à B3 (G67:G70, à droite)
 Private Const ABREVIATIONS As String = "M1|M2|PIGU, MIGU|PIRS, MIRS"   ' tableau A.1, catégories 17 à 20
-Private Const LIGNE_ACIER As Long = 92         ' type d'armature (caractéristiques de l'acier)
+Private Const LIGNE_ACIER As Long = 102         ' type d'armature (caractéristiques de l'acier)
 Private Const CLASSES_EXPOSITION As String = "X0,XC1,XC2,XC3,XC4,XD1,XD2,XD3," & _
     "XS1,XS2,XS3,XF1,XF2,XF3,XF4,XA1,XA2,XA3"
 ' Classe de résistance minimale du béton selon la classe d'exposition (NF EN 206/CN,
@@ -118,6 +119,11 @@ Private Const NUANCES_FY As String = "235,275,355,440,275,275,355,355,420,420,46
     "275,275,355,355,420,420,460,460"
 Private Const NUANCES_FU As String = "360,430,510,550,390,390,490,490,520,520,540,540," & _
     "370,370,470,470,520,520,540,540"
+' Coefficient rhéologique alpha (NF P94-262, annexe I) : catégorie et nature du sol
+Private Const CATEGORIES_RHEO As String = "I - surconsolidé ou très serré," & _
+    "II - normalement consolidé ou normalement serré,III - sous-consolidé altéré et remanié ou lâche"
+Private Const NATURES_SOL As String = "Tourbe,Argile,Limon,Sable,Grave,Rocher très peu fracturé," & _
+    "Rocher normal,Rocher très fracturé,Rocher très altéré"
 Public Const CATEGORIES_SOL As String = "Argiles et limons," & _
     "Sols intermédiaires (sable limoneux / sable argileux / argile sableuse)," & _
     "Sables et graves,Craies,Marnes et calcaires marneux,Roches"
@@ -229,7 +235,45 @@ Public Sub CreerDonneesProjet()
     Liste ws.Range("D" & lm + 3), "Non,Oui"
     Liste ws.Range("D" & lm + 4), "Méthode pressiométrique,Méthode pénétrométrique," & _
         "Essais de chargement statique"
-    For r = lm + 1 To lm + 5
+    ' Frottement négligé et couche molle (terrain neutralisé), lignes 37 à 43 : épaisseur
+    ' des terrains neutralisés, EM (ou qc) et épaisseur du terrain neutralisé, sol rocheux,
+    ' catégorie et nature du sol, coefficient rhéologique alpha (NF P94-262, tableaux
+    ' I.1.3.1 et I.1.3.2) pour la réaction du sol (« Vérification structurelle »)
+    r = LIGNE_COUCHE_MOLLE
+    ws.Range("B" & r & ":B" & r + 6).Value = Application.Transpose(Array( _
+        "Frottement négligé : épaisseur des terrains neutralisés", _
+        "Couche molle (terrain neutralisé) : module", "Couche molle : épaisseur D", _
+        "Sol rocheux", "Catégorie du sol", "Nature du sol", "Coefficient rhéologique " & ChrW(945)))
+    ws.Range("B" & r + 1).Formula = "=IF(" & CELLULE_METHODE & "=""Méthode pénétrométrique""," & _
+        """Couche molle (terrain neutralisé) : résistance de pointe qc""," & _
+        """Couche molle (terrain neutralisé) : module pressiométrique EM"")"
+    ws.Range("E" & r & ":E" & r + 6).Value = Application.Transpose(Array("m", "MPa", "m", "", "", "", ""))
+    ws.Range("D" & r).Formula = "=SUMIF($J$" & LIGNE_COUCHES & ":$J$" & LIGNE_COUCHES + MAX_COUCHES - 1 & _
+        ",""Oui"",$F$" & LIGNE_COUCHES & ":$F$" & LIGNE_COUCHES + MAX_COUCHES - 1 & ")"
+    ' EM (ou qc) de la 1re couche neutralisée
+    ws.Range("D" & r + 1).Formula = "=IFERROR(INDEX(IF(" & CELLULE_METHODE & "=""Méthode pénétrométrique""," & _
+        "$I$" & LIGNE_COUCHES & ":$I$" & LIGNE_COUCHES + MAX_COUCHES - 1 & ",$H$" & LIGNE_COUCHES & ":$H$" & _
+        LIGNE_COUCHES + MAX_COUCHES - 1 & "),MATCH(""Oui"",$J$" & LIGNE_COUCHES & ":$J$" & _
+        LIGNE_COUCHES + MAX_COUCHES - 1 & ",0)),"""")"
+    ws.Range("D" & r + 2).Formula = "=D" & r
+    Liste ws.Range("D" & r + 3), "Non,Oui"
+    Liste ws.Range("D" & r + 4), CATEGORIES_RHEO
+    ws.Range("D" & r + 4).Value = Split(CATEGORIES_RHEO, ",")(1)
+    Liste ws.Range("D" & r + 5), NATURES_SOL
+    ws.Range("D" & r + 5).Value = "Argile"
+    ' alpha : rocher (tableau I.1.3.2) ou sol (tableau I.1.3.1, nature x catégorie ;
+    ' tourbe : 1, grave sous-consolidée : 1/4)
+    ws.Range("D" & r + 6).Formula = "=IFERROR(IF(OR(D" & r + 3 & "=""Oui"",LEFT(D" & r + 5 & _
+        ",6)=""Rocher""),CHOOSE(MATCH(D" & r + 5 & ",{""Rocher très peu fracturé"",""Rocher normal""," & _
+        """Rocher très fracturé"",""Rocher très altéré""},0),2/3,1/2,1/3,2/3)," & _
+        "INDEX({1,1,1;1,0.6667,0.5;0.6667,0.5,0.5;0.5,0.3333,0.3333;0.3333,0.25,0.25},MATCH(D" & r + 5 & _
+        ",{""Tourbe"",""Argile"",""Limon"",""Sable"",""Grave""},0),MATCH(D" & r + 4 & ",{""" & _
+        Replace(CATEGORIES_RHEO, ",", """,""") & """},0))),"""")"
+    ws.Range("D" & r & ":D" & r + 2 & ",D" & r + 6).NumberFormat = "0.00"
+    ws.Range("D" & r & ":E" & r + 6).HorizontalAlignment = xlCenter
+    ws.Range("D" & r & ":D" & r + 2 & ",D" & r + 6).Interior.Color = JAUNE_CALCUL
+    ws.Range("D" & r + 3 & ":D" & r + 5).Interior.Color = VERT_SAISIE
+    For r = lm + 1 To LIGNE_COUCHE_MOLLE + 6
         ws.Range("B" & r & ":C" & r).Merge
     Next r
 
@@ -247,6 +291,9 @@ Public Sub CreerDonneesProjet()
         "Nom de couche (NF P11-300)", "Catégorie de sol (NF P94-262)", "Prof. bas", _
         "Épaisseur (m)", "Pression limite pl* (MPa)", "Module pressiométrique EM (MPa)", _
         "Résistance de pointe qc (MPa)", "Terrain neutralisé", "Prise comme couche d'ancrage")
+    ws.Range("L" & LIGNE_COUCHES - 1 & ":N" & LIGNE_COUCHES - 1).Value = Array( _
+        "Poids volumique " & ChrW(947) & " (kN/m3)", "Cohésion c' (kPa)", "Angle de frottement " & _
+        ChrW(966) & "' (°)")
     ' Unité de la profondeur : celle du niveau du terrain naturel (m + référentiel)
     ws.Range("E" & LIGNE_COUCHES - 1).Formula = "=""Prof. bas (""&$E$29&"")"""
     For r = LIGNE_COUCHES To LIGNE_COUCHES + MAX_COUCHES - 1
@@ -268,7 +315,8 @@ Public Sub CreerDonneesProjet()
     lc = LIGNE_COUCHES + MAX_COUCHES - 1
     ' Formats des valeurs d'entrée : profondeur, épaisseur, pl*, EM et qc à 2 décimales
     ws.Range("E" & LIGNE_COUCHES & ":I" & lc).NumberFormat = "0.00"
-    ws.Range("B" & LIGNE_COUCHES & ":B" & lc & ",E" & LIGNE_COUCHES & ":K" & lc).HorizontalAlignment = xlCenter
+    ws.Range("L" & LIGNE_COUCHES & ":N" & lc).NumberFormat = "0.0"
+    ws.Range("B" & LIGNE_COUCHES & ":B" & lc & ",E" & LIGNE_COUCHES & ":N" & lc).HorizontalAlignment = xlCenter
 
     ' --- Caractéristiques de la fondation (sous le tableau précédent) ---
     ' Intitulé (unité comprise) sur B:C fusionnées, valeur en D. Norme de référence,
@@ -278,7 +326,7 @@ Public Sub CreerDonneesProjet()
     ' Les hauteurs de la fondation sont calculées dans « Calcul et vérification ».
     lp = LIGNE_PIEU
     SousTitre ws, lp - 1, "Caractéristiques de la fondation"
-    ws.Range("B" & lp & ":B" & lp + 19).Value = Application.Transpose(Array( _
+    ws.Range("B" & lp & ":B" & lp + 22).Value = Application.Transpose(Array( _
         "Type de pieu - technique de mise en oeuvre (NF P94-262, tableau A.1)", _
         "Diamètre constant", "Incliné", "Angle d'inclinaison sur la verticale (°)", _
         "Effet de groupe", "Nombre de lignes de pieux m", "Nombre de pieux par ligne n", _
@@ -288,7 +336,9 @@ Public Sub CreerDonneesProjet()
         "Prise en compte de la résistance de pointe", "Type de mise en oeuvre", _
         "Diamètre de référence B = B0 (m), tableau des diamètres en F:G", _
         "Nombre de fondations / appui du bâtiment", "Nombre total de fondations", _
-        "Conditions en tête de la fondation", "Essai de contrôle"))
+        "Conditions en tête de la fondation", "Essai de contrôle", _
+        "Durée d'utilisation de l'ouvrage (ans)", "Durée de sollicitation", _
+        "Largeur de référence B0 pour la réaction du sol (m)"))
     ListeLongue ws.Range("D" & lp), TypesPieux(), "Pieux NF P94-262"
     ws.Range("D" & lp).Value = Split(TypesPieux(), ",")(0)    ' micropieu type I (cat. 17)
     Liste ws.Range("D" & lp + 1), "Oui,Non"
@@ -345,14 +395,22 @@ Public Sub CreerDonneesProjet()
     ws.Range("D" & lp + 16 & ":D" & lp + 17).NumberFormat = "0"
     Liste ws.Range("D" & lp + 18), "Libre en tête,Encastré en tête"
     Liste ws.Range("D" & lp + 19), "Non,Oui"
-    ws.Range("D" & lp & ":D" & lp + 19).HorizontalAlignment = xlCenter
-    For r = lp To lp + 19
+    ' Durée d'utilisation (perte d'épaisseur par corrosion, NF EN 1993-5), durée de
+    ' sollicitation (réaction du sol à court ou long terme) et largeur de référence B0
+    ' (0,30 m pour un micropieu)
+    Liste ws.Range("D" & lp + 20), DUREES
+    ws.Range("D" & lp + 20).Value = 50
+    Liste ws.Range("D" & lp + 21), "Long terme,Court terme"
+    ws.Range("D" & lp + 22).Value = 0.3
+    ws.Range("D" & lp + 22).NumberFormat = "0.000"
+    ws.Range("D" & lp & ":D" & lp + 22).HorizontalAlignment = xlCenter
+    For r = lp To lp + 22
         ws.Range("B" & r & ":C" & r).Merge
     Next r
 
     ' --- Hypothèses relatives aux matériaux constitutifs des fondations profondes ---
     ' Intitulé sur B:C fusionnées, valeur en D, unité en E
-    la = lp + 21                             ' titre de la partie matériaux
+    la = lp + 24                             ' titre de la partie matériaux
     With ws.Range("B" & la & ":I" & la)
         .Merge
         .Value = "HYPOTHÈSES RELATIVES AUX MATÉRIAUX CONSTITUTIFS DES FONDATIONS PROFONDES"
@@ -411,8 +469,8 @@ Public Sub CreerDonneesProjet()
     ws.Range("D" & LIGNE_ACIER + 5 & ":D" & LIGNE_ACIER + 7).NumberFormat = "0"
     ws.Range("D" & LIGNE_ACIER + 8 & ":D" & LIGNE_ACIER + 10).Value = Application.Transpose(Array(1.15, 1, 1))
     ws.Range("D" & LIGNE_ACIER + 8 & ":D" & LIGNE_ACIER + 10).NumberFormat = "0.00"
-    Liste ws.Range("D" & LIGNE_ACIER + 11), DUREES
-    ws.Range("D" & LIGNE_ACIER + 11).Value = 50
+    ' Durée d'utilisation : celle de l'ouvrage (caractéristiques de la fondation)
+    ws.Range("D" & LIGNE_ACIER + 11).Formula = "=D" & LIGNE_PIEU + 20
     ListeLongue ws.Range("D" & LIGNE_ACIER + 12), ENVIRONNEMENTS, "Environnements NF EN 1993-5"
     ' Perte d'épaisseur : tableau PERTES (environnement en ligne, durée en colonne)
     ws.Range("D" & LIGNE_ACIER + 13).Formula = "=IFERROR(INDEX({" & PERTES & "},MATCH(D" & _
@@ -435,34 +493,34 @@ Public Sub CreerDonneesProjet()
 
     ' --- Mise en forme ---
     With ws.Range("B4:C9,B12:C16,B19:I26,B28:E29,B" & LIGNE_COUCHES - 2 & ":C" & LIGNE_COUCHES - 2 & _
-            ",B" & LIGNE_COUCHES - 1 & ":K" & lc & _
-            ",B" & lm + 1 & ":E" & lm + 5 & ",B" & lp & ":D" & lp + 19 & _
+            ",B" & LIGNE_COUCHES - 1 & ":N" & lc & _
+            ",B" & lm + 1 & ":E" & LIGNE_COUCHE_MOLLE + 6 & ",B" & lp & ":D" & lp + 22 & _
             ",B" & la + 3 & ":E" & la + 10 & ",B" & LIGNE_ACIER & ":E" & LIGNE_ACIER + 18)
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":K" & LIGNE_COUCHES - 1).Font.Bold = True
-    ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":K" & LIGNE_COUCHES - 1).Interior.Color = VERT_ENTETE
-    ws.Range("B" & LIGNE_COUCHES - 1 & ":K" & LIGNE_COUCHES - 1).HorizontalAlignment = xlCenter
+    ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":N" & LIGNE_COUCHES - 1).Font.Bold = True
+    ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":N" & LIGNE_COUCHES - 1).Interior.Color = VERT_ENTETE
+    ws.Range("B" & LIGNE_COUCHES - 1 & ":N" & LIGNE_COUCHES - 1).HorizontalAlignment = xlCenter
     ' Cases à remplir en vert, valeurs calculées en jaune (caractéristiques de la
     ' fondation comprises) ; sans couleur : données géotechniques (laboratoire) et
     ' données de la fondation
-    ws.Range("D" & lp & ":D" & lp + 7 & ",D" & lp + 12 & ",D" & lp + 16 & ":D" & lp + 19 _
+    ws.Range("D" & lp & ":D" & lp + 7 & ",D" & lp + 12 & ",D" & lp + 16 & ":D" & lp + 22 _
         ).Interior.Color = VERT_SAISIE
     ws.Range("D" & lp + 8 & ":D" & lp + 11 & ",D" & lp + 13 & ":D" & lp + 15).Interior.Color = JAUNE_CALCUL
     ws.Range("C4:C9,C12:C16,D28:D29," & CELLULE_NB_COUCHES & ",D" & la + 3 & ",D" & la + 5 & ":D" & _
         la + 6 & ",D" & la + 8 & ":D" & la + 10 & _
         ",D" & LIGNE_ACIER & ":D" & LIGNE_ACIER + 1 & ",D" & LIGNE_ACIER + 8 & ":D" & _
-        LIGNE_ACIER + 12 & ",D" & LIGNE_ACIER + 15 & ":D" & LIGNE_ACIER + 16).Interior.Color = VERT_SAISIE
+        LIGNE_ACIER + 10 & ",D" & LIGNE_ACIER + 12 & ",D" & LIGNE_ACIER + 15 & ":D" & LIGNE_ACIER + 16).Interior.Color = VERT_SAISIE
     ws.Range("D" & la + 4 & ",D" & la + 7 & ",D" & LIGNE_ACIER + 2 & ":D" & LIGNE_ACIER + 7 & _
-        ",D" & LIGNE_ACIER + 13 & ":D" & LIGNE_ACIER + 14 & _
+        ",D" & LIGNE_ACIER + 11 & ":D" & LIGNE_ACIER + 14 & _
         ",D" & LIGNE_ACIER + 17 & ":D" & LIGNE_ACIER + 18).Interior.Color = JAUNE_CALCUL
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 40
     ws.Columns("D").ColumnWidth = 28         ' valeurs de la fondation, catégorie de sol
-    ws.Columns("E:K").ColumnWidth = 14
+    ws.Columns("E:N").ColumnWidth = 14
     ws.Rows("19:" & LIGNE_ACIER + 18).AutoFit
 
     AfficherTypeFondation ws
