@@ -119,6 +119,10 @@ Private Const NUANCES_FY As String = "235,275,355,440,275,275,355,355,420,420,46
     "275,275,355,355,420,420,460,460"
 Private Const NUANCES_FU As String = "360,430,510,550,390,390,490,490,520,520,540,540," & _
     "370,370,470,470,520,520,540,540"
+' Types de sollicitation transversale (choix de la courbe de réaction du sol)
+Public Const TYPES_SOLLICITATION As String = "a - Sollicitations permanentes en tête dominantes," & _
+    "b - Poussées latérales du sol dominantes,c - Sollicitations de courte durée en tête dominantes," & _
+    "d - Sollicitations accidentelles très brèves en tête dominantes"
 ' Coefficient rhéologique alpha (NF P94-262, annexe I) : catégorie et nature du sol
 Private Const CATEGORIES_RHEO As String = "I - surconsolidé ou très serré," & _
     "II - normalement consolidé ou normalement serré,III - sous-consolidé altéré et remanié ou lâche"
@@ -337,7 +341,7 @@ Public Sub CreerDonneesProjet()
         "Diamètre de référence B = B0 (m), tableau des diamètres en F:G", _
         "Nombre de fondations / appui du bâtiment", "Nombre total de fondations", _
         "Conditions en tête de la fondation", "Essai de contrôle", _
-        "Durée d'utilisation de l'ouvrage (ans)", "Durée de sollicitation", _
+        "Durée d'utilisation de l'ouvrage (ans)", "Type de sollicitation (courbe de réaction)", _
         "Largeur de référence B0 pour la réaction du sol (m)"))
     ListeLongue ws.Range("D" & lp), TypesPieux(), "Pieux NF P94-262"
     ws.Range("D" & lp).Value = Split(TypesPieux(), ",")(0)    ' micropieu type I (cat. 17)
@@ -395,12 +399,13 @@ Public Sub CreerDonneesProjet()
     ws.Range("D" & lp + 16 & ":D" & lp + 17).NumberFormat = "0"
     Liste ws.Range("D" & lp + 18), "Libre en tête,Encastré en tête"
     Liste ws.Range("D" & lp + 19), "Non,Oui"
-    ' Durée d'utilisation (perte d'épaisseur par corrosion, NF EN 1993-5), durée de
-    ' sollicitation (réaction du sol à court ou long terme) et largeur de référence B0
-    ' (0,30 m pour un micropieu)
+    ' Durée d'utilisation (perte d'épaisseur par corrosion, NF EN 1993-5), type de
+    ' sollicitation (courbe de réaction du sol) et largeur de référence B0 (0,30 m pour un
+    ' micropieu)
     Liste ws.Range("D" & lp + 20), DUREES
     ws.Range("D" & lp + 20).Value = 50
-    Liste ws.Range("D" & lp + 21), "Long terme,Court terme"
+    ' Type de sollicitation : choix de la courbe de réaction (situations a à d)
+    Liste ws.Range("D" & lp + 21), TYPES_SOLLICITATION
     ws.Range("D" & lp + 22).Value = 0.3
     ws.Range("D" & lp + 22).NumberFormat = "0.000"
     ws.Range("D" & lp & ":D" & lp + 22).HorizontalAlignment = xlCenter

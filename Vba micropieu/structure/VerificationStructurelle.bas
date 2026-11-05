@@ -10,19 +10,21 @@ Option Explicit
 '         sacrificielle si nappe phréatique (NF EN 1993-5, tableaux 4.1 / 4.2, selon la
 '         durée d'utilisation de l'ouvrage), section, inertie et raideur EI de l'armature
 '         (après corrosion)
-'   B22 : réaction du sol dans la couche molle (terrain neutralisé) et longueur de
-'         transfert (NF P94-262, annexe I) :
-'           pressiomètre : Kf = 12 EM / [4/3 (B0/B) (2,65 B/B0)^alpha + alpha] si B >= B0,
-'                          Kf = 12 EM / [4/3 (2,65)^alpha + alpha] si B < B0 ;
-'           pénétromètre : Kf = beta x qc (tableau I.4.1) ;
-'           long terme   : Es = Kf / 2 (I.1.4), court terme : Es = Kf ;
-'           longueur de transfert l0 = (4 EI / Es)^(1/4)
-'   B40 : poussée des terres au repos sur la fondation existante (soubassement de la
+'   B22 : réaction du sol dans la couche molle (terrain neutralisé) : courbe de réaction
+'         selon le type de sollicitation (a : permanentes en tête, Es = Kf ; b : poussées
+'         latérales du sol, Kf puis Kf/2 ; c : courte durée en tête, Es = 2 Kf ; d :
+'         accidentelles très brèves, 2 Kf puis Kf), paliers Pf et Pu ;
+'           essai pressiométrique : Kf = EM x 18 rho / [4 (2,65 rho)^alpha + 3 alpha rho],
+'                                   rho = max(B/B0 ; 1), Pf = pf* B, Pu = pl* B ;
+'           essai CPT : Kf = beta qc / 2, Pf = B qc / beta1, Pu = B qc / beta2 ;
+'           longueur de transfert l0 = (4 EpIp / Es)^(1/4), micropieu rigide (l0 >= D)
+'           ou souple (D >= 3 l0)
+'   B50 : poussée des terres au repos sur la fondation existante (soubassement de la
 '         descente de charges) : h = hauteur du poteau du soubassement + hauteur de la
 '         semelle, K0 = 1 - sin phi', sigma v = gamma h, sigma h = K0 sigma v,
 '         H = K0 gamma h² / 2 (kN/ml), excentricité e = h / 3 au-dessus de la fibre
 '         inférieure de la semelle (tête des micropieux)
-'   A54 : efforts dans chaque micropieu et chaque combinaison (ELS caractéristique, ELS
+'   A64 : efforts dans chaque micropieu et chaque combinaison (ELS caractéristique, ELS
 '         quasi permanent, ELU fondamental, ELU accidentel) : compression Nc = Vmax de la
 '         vérification de la profondeur, traction Nt = - Nc, effort tranchant en tête
 '         V = gamma G,sup x H x L (L : longueur de mur reprise par le micropieu, matrice
@@ -33,7 +35,7 @@ Option Explicit
 Private Const NOM_FEUILLE As String = "Vérification structurelle"
 Private Const DONNEES As String = "'Données du projet'!"
 Private Const CALCUL As String = "'Calcul et vérification'!"
-Private Const LIGNE_EFFORTS As Long = 54      ' titre du tableau des efforts
+Private Const LIGNE_EFFORTS As Long = 64      ' titre du tableau des efforts
 
 ' Thème : saisies en vert, valeurs calculées en jaune, en-têtes en vert clair
 Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
@@ -116,45 +118,72 @@ Public Sub CreerVerificationStructurelle()
     ws.Range("D19").NumberFormat = "0.00"
 
     ' --- Réaction du sol dans la couche molle et longueur de transfert ---
+    ' Courbe de réaction (fonction linéaire par morceaux : pente Es, palier de fluage Pf,
+    ' palier ultime Pu) selon le type de sollicitation (situations a à d) :
+    '   a - permanentes en tête dominantes      : Es = Kf jusqu'à Pf
+    '   b - poussées latérales du sol dominantes : Es = Kf jusqu'à Pf, Kf / 2 jusqu'à Pu
+    '   c - courte durée en tête dominantes      : Es = 2 Kf jusqu'à Pf
+    '   d - accidentelles très brèves en tête    : Es = 2 Kf jusqu'à Pf, Kf jusqu'à Pu
+    ' Essai pressiométrique : Kf = EM x 18 rho / [4 (2,65 rho)^alpha + 3 alpha rho],
+    ' rho = max(B / B0 ; 1), Pf = pf* B, Pu = pl* B ; essai CPT : Kf = beta qc / 2,
+    ' Pf = B qc / beta1, Pu = B qc / beta2 (beta, beta1, beta2 : tableau I.4.1 / I.4.2).
+    ' Longueur de transfert l0 = (4 EI / Es)^(1/4) ; micropieu rigide si l0 >= D, souple
+    ' si D >= 3 l0.
     etape = "réaction du sol"
-    SousTitre ws, 22, "Réaction du sol dans la couche molle et longueur de transfert (NF P94-262, annexe I)"
+    SousTitre ws, 22, "Réaction du sol dans la couche molle et longueur de transfert (courbe de réaction)"
     Ligne ws, 23, "Méthode de calcul (type d'essai)", "=" & DONNEES & CELLULE_METHODE, ""
-    Ligne ws, 24, "Durée de sollicitation", "=" & DONNEES & "D" & lp + 21, ""
+    Ligne ws, 24, "Type de sollicitation", "=" & DONNEES & "D" & lp + 21, ""
     Ligne ws, 25, "Diamètre du micropieu B (diamètre final retenu)", "=N(" & CALCUL & "$D$19)", "m"
-    Ligne ws, 26, "Largeur de référence B0", "=N(" & DONNEES & "D" & lp + 22 & ")", "m"
-    Ligne ws, 27, "Épaisseur de la couche molle (terrain neutralisé)", "=N(" & DONNEES & "D" & lm + 2 & ")", "m"
-    Ligne ws, 28, "=IF(D23=""Méthode pénétrométrique"",""Résistance de pointe qc de la couche molle""," & _
+    Ligne ws, 26, "Diamètre de référence B0", "=N(" & DONNEES & "D" & lp + 22 & ")", "m"
+    Ligne ws, 27, ChrW(961) & " = max(B / B0 ; 1)", "=IF(D26<=0,"""",MAX(D25/D26,1))", ""
+    Ligne ws, 28, "Épaisseur de la couche molle (terrain neutralisé)", "=N(" & DONNEES & "D" & lm + 2 & ")", "m"
+    Ligne ws, 29, "=IF(D23=""Méthode pénétrométrique"",""Résistance de pointe qc de la couche molle""," & _
         """Module pressiométrique EM de la couche molle"")", "=N(" & DONNEES & "D" & lm + 1 & ")", "MPa"
-    Ligne ws, 29, "Sol rocheux", "=" & DONNEES & "D" & lm + 3, ""
-    Ligne ws, 30, "Catégorie du sol", "=" & DONNEES & "D" & lm + 4, ""
-    Ligne ws, 31, "Nature du sol", "=" & DONNEES & "D" & lm + 5, ""
-    Ligne ws, 32, "Coefficient rhéologique " & ChrW(945) & " (tableaux I.1.3.1 / I.1.3.2)", _
+    ' pl* de la 1re couche neutralisée (« Données du projet », colonne G)
+    Ligne ws, 30, "Pression limite nette pl* de la couche molle", _
+        "=IFERROR(INDEX(" & DONNEES & "$G$" & LIGNE_COUCHES & ":$G$" & LIGNE_COUCHES + MAX_COUCHES - 1 & _
+        ",MATCH(""Oui""," & DONNEES & "$J$" & LIGNE_COUCHES & ":$J$" & LIGNE_COUCHES + MAX_COUCHES - 1 & _
+        ",0)),0)", "MPa"
+    Ligne ws, 31, "Pression de fluage nette pf* (à défaut d'essai : pl* / 1,5)", "=D30/1.5", "MPa"
+    Ligne ws, 32, "Sol rocheux", "=" & DONNEES & "D" & lm + 3, ""
+    Ligne ws, 33, "Catégorie du sol", "=" & DONNEES & "D" & lm + 4, ""
+    Ligne ws, 34, "Nature du sol", "=" & DONNEES & "D" & lm + 5, ""
+    Ligne ws, 35, "Coefficient rhéologique " & ChrW(945) & " (tableaux I.1.3.1 / I.1.3.2)", _
         "=N(" & DONNEES & "D" & lm + 6 & ")", ""
-    ' beta (méthode pénétrométrique, tableau I.4.1) : sols argileux 12, sols intermédiaires
-    ' (limons) 7,5, sols sableux (sables, graves) 4,5, craies, marnes et roches 4,5
-    Ligne ws, 33, ChrW(946) & " (méthode pénétrométrique, tableau I.4.1)", _
-        "=IF(D23<>""Méthode pénétrométrique"",""-"",IF(OR(D31=""Tourbe"",D31=""Argile""),12," & _
-        "IF(D31=""Limon"",7.5,4.5)))", ""
-    ' Kf (module de réaction à court terme) selon le type d'essai et B / B0
-    Ligne ws, 34, "Module de réaction à court terme Kf", _
-        "=IF(OR(D25<=0,D26<=0,D28<=0),"""",IF(D23=""Méthode pénétrométrique"",D33*D28," & _
-        "IF(D25>=D26,12*D28/(4/3*D26/D25*(2.65*D25/D26)^D32+D32),12*D28/(4/3*2.65^D32+D32))))", "MPa"
-    Ligne ws, 35, "Condition appliquée", _
-        "=IF(D34="""",""-"",IF(D23=""Méthode pénétrométrique"",""Kf = " & ChrW(946) & " qc (I.4.1)""," & _
-        "IF(D25>=D26,""B >= B0 : Kf = 12 EM / [4/3 (B0/B)(2,65 B/B0)^" & ChrW(945) & " + " & ChrW(945) & _
-        "] (I.1.3.1)"",""B < B0 : Kf = 12 EM / [4/3 (2,65)^" & ChrW(945) & " + " & ChrW(945) & "] (I.1.3.2)"")))", ""
-    Ligne ws, 36, "Module de réaction retenu Es (long terme : Kf / 2)", _
-        "=IF(D34="""","""",IF(D24=""Long terme"",D34/2,D34))", "MPa"
-    Ligne ws, 37, "Longueur de transfert l0 = (4 EI / Es)^(1/4)", _
-        "=IF(OR(D36="""",N(D36)=0),"""",(4*D19/(D36*1000))^0.25)", "m"
-    Ligne ws, 38, "Couche molle plus épaisse que la longueur de transfert", _
-        "=IF(D37="""",""-"",IF(D27>=D37,""Oui"",""Non""))", ""
-    ws.Range("D25:D27").NumberFormat = "0.000"
-    ws.Range("D28,D32:D34,D36:D37").NumberFormat = "0.00"
+    ' beta, beta1, beta2 (CPT) : sols argileux (argile, tourbe) 12 / 5 / 3,5 ; sols
+    ' intermédiaires (limon) 7,5 / 10 / 6 ; sols sableux (sable, grave) et craies, marnes,
+    ' rochers 4,5 / 13 / 8
+    Ligne ws, 36, ChrW(946) & " (essai CPT)", "=IF(OR(D34=""Tourbe"",D34=""Argile""),12,IF(D34=""Limon"",7.5,4.5))", ""
+    Ligne ws, 37, ChrW(946) & "1 (essai CPT)", "=IF(OR(D34=""Tourbe"",D34=""Argile""),5,IF(D34=""Limon"",10,13))", ""
+    Ligne ws, 38, ChrW(946) & "2 (essai CPT)", "=IF(OR(D34=""Tourbe"",D34=""Argile""),3.5,IF(D34=""Limon"",6,8))", ""
+    Ligne ws, 39, "Module de réaction Kf", _
+        "=IF(OR(D25<=0,D29<=0,D27=""""),"""",IF(D23=""Méthode pénétrométrique"",D36*D29/2," & _
+        "D29*18*D27/(4*(2.65*D27)^D35+3*D35*D27)))", "MPa"
+    Ligne ws, 40, "Palier de fluage Pf", "=IF(D23=""Méthode pénétrométrique"",D25*D29/D37,D31*D25)*1000", "kN/m"
+    Ligne ws, 41, "Palier ultime Pu", "=IF(D23=""Méthode pénétrométrique"",D25*D29/D38,D30*D25)*1000", "kN/m"
+    Ligne ws, 42, "Module de réaction Es (pente jusqu'au palier de fluage Pf)", _
+        "=IF(D39="""","""",IF(OR(LEFT(D24,1)=""c"",LEFT(D24,1)=""d""),2*D39,D39))", "MPa"
+    Ligne ws, 43, "Pente entre Pf et Pu", _
+        "=IF(D39="""","""",IF(LEFT(D24,1)=""b"",D39/2,IF(LEFT(D24,1)=""d"",D39,0)))", "MPa"
+    Ligne ws, 44, "Courbe de réaction appliquée", _
+        "=IF(LEFT(D24,1)=""a"",""Es = Kf, P limité à Pf""," & _
+        "IF(LEFT(D24,1)=""b"",""Es = Kf jusqu'à Pf, Kf/2 entre Pf et Pu, palier Pu""," & _
+        "IF(LEFT(D24,1)=""c"",""Es = 2 Kf, P limité à Pf""," & _
+        "IF(LEFT(D24,1)=""d"",""Es = 2 Kf jusqu'à Pf, Kf entre Pf et Pu, palier Pu"",""-""))))", ""
+    Ligne ws, 45, "Raideur en flexion EpIp (= EI)", "=D19", "kN.m²"
+    Ligne ws, 46, "Longueur de transfert l0 = (4 EpIp / Es)^(1/4)", _
+        "=IF(OR(D42="""",N(D42)=0),"""",(4*D45/(D42*1000))^0.25)", "m"
+    Ligne ws, 47, "Longueur du micropieu D", "=N(" & CALCUL & "$D$20)", "m"
+    Ligne ws, 48, "Comportement du micropieu", _
+        "=IF(D46="""",""-"",IF(D46>=D47,""Rigide (court) : l0 >= D"",IF(D47>=3*D46," & _
+        """Souple (long) : D >= 3 l0"",""Intermédiaire"")))", ""
+    ws.Range("D25:D28").NumberFormat = "0.000"
+    ws.Range("D29:D31,D35:D39,D42:D43,D45:D47").NumberFormat = "0.00"
+    ws.Range("D40:D41").NumberFormat = "0.0"
 
     ' --- Poussée des terres au repos sur la fondation existante (effort en tête) ---
     etape = "poussée des terres"
-    SousTitre ws, 40, "Poussée des terres sur la fondation existante (effort en tête des micropieux)"
+    SousTitre ws, 50, "Poussée des terres sur la fondation existante (effort en tête des micropieux)"
     If Not wd Is Nothing Then
         ' Lignes du soubassement dans la descente de charges (mur 1) : poteau et semelle
         For r = 5 To 79
@@ -168,22 +197,22 @@ Public Sub CreerVerificationStructurelle()
         Next r
         dn = "'" & wd.Name & "'!"
     End If
-    Ligne ws, 41, "Hauteur du poteau du soubassement hp", IIf(rP > 0, "=N(" & dn & "$F$" & rP & ")", "0"), "m"
-    Ligne ws, 42, "Hauteur de la semelle existante hs", IIf(rS > 0, "=N(" & dn & "$F$" & rS & ")", "0"), "m"
-    Ligne ws, 43, "Hauteur de terre h = hp + hs", "=D41+D42", "m"
-    Ligne ws, 44, "Poids volumique du sol " & ChrW(947) & " (couche 1)", _
+    Ligne ws, 51, "Hauteur du poteau du soubassement hp", IIf(rP > 0, "=N(" & dn & "$F$" & rP & ")", "0"), "m"
+    Ligne ws, 52, "Hauteur de la semelle existante hs", IIf(rS > 0, "=N(" & dn & "$F$" & rS & ")", "0"), "m"
+    Ligne ws, 53, "Hauteur de terre h = hp + hs", "=D51+D52", "m"
+    Ligne ws, 54, "Poids volumique du sol " & ChrW(947) & " (couche 1)", _
         "=N(" & DONNEES & "L" & LIGNE_COUCHES & ")", "kN/m3"
-    Ligne ws, 45, "Cohésion c' (couche 1)", "=N(" & DONNEES & "M" & LIGNE_COUCHES & ")", "kPa"
-    Ligne ws, 46, "Angle de frottement " & ChrW(966) & "' (couche 1)", "=N(" & DONNEES & "N" & LIGNE_COUCHES & ")", "°"
-    Ligne ws, 47, "Coefficient des terres au repos K0 = 1 - sin " & ChrW(966) & "'", _
-        "=1-SIN(RADIANS(D46))", ""
-    Ligne ws, 48, "Contrainte verticale à la base " & ChrW(963) & "v = " & ChrW(947) & " h", "=D44*D43", "kPa"
-    Ligne ws, 49, "Contrainte horizontale au repos " & ChrW(963) & "h = K0 " & ChrW(963) & "v", "=D47*D48", "kPa"
-    Ligne ws, 50, "Effort horizontal H = K0 " & ChrW(947) & " h² / 2", "=D47*D44*D43^2/2", "kN/ml"
-    Ligne ws, 51, "Excentricité e = h / 3 (par rapport à la tête du micropieu)", "=D43/3", "m"
-    Ligne ws, 52, "Feuille de descente de charges", IIf(wd Is Nothing, "introuvable", ""), ""
-    If Not wd Is Nothing Then ws.Range("D52").Value = wd.Name
-    ws.Range("D41:D51").NumberFormat = "0.00"
+    Ligne ws, 55, "Cohésion c' (couche 1)", "=N(" & DONNEES & "M" & LIGNE_COUCHES & ")", "kPa"
+    Ligne ws, 56, "Angle de frottement " & ChrW(966) & "' (couche 1)", "=N(" & DONNEES & "N" & LIGNE_COUCHES & ")", "°"
+    Ligne ws, 57, "Coefficient des terres au repos K0 = 1 - sin " & ChrW(966) & "'", _
+        "=1-SIN(RADIANS(D56))", ""
+    Ligne ws, 58, "Contrainte verticale à la base " & ChrW(963) & "v = " & ChrW(947) & " h", "=D54*D53", "kPa"
+    Ligne ws, 59, "Contrainte horizontale au repos " & ChrW(963) & "h = K0 " & ChrW(963) & "v", "=D57*D58", "kPa"
+    Ligne ws, 60, "Effort horizontal H = K0 " & ChrW(947) & " h² / 2", "=D57*D54*D53^2/2", "kN/ml"
+    Ligne ws, 61, "Excentricité e = h / 3 (par rapport à la tête du micropieu)", "=D53/3", "m"
+    Ligne ws, 62, "Feuille de descente de charges", IIf(wd Is Nothing, "introuvable", ""), ""
+    If Not wd Is Nothing Then ws.Range("D62").Value = wd.Name
+    ws.Range("D51:D61").NumberFormat = "0.00"
 
     ' --- Efforts dans les micropieux ---
     etape = "efforts dans les micropieux"
@@ -257,11 +286,11 @@ Public Sub CreerVerificationStructurelle()
             ws.Cells(r, 7 + k).Formula = "=-" & ws.Cells(r, 3 + k).Address(False, False)
             ' gamma G,sup de la combinaison (tableau des coefficients, colonne D) ; 1 sinon
             If tC > 0 Then
-                ws.Cells(r, 11 + k).Formula = "=N(" & CALCUL & "$D$" & tC + 2 + k & ")*$D$50*B" & r
+                ws.Cells(r, 11 + k).Formula = "=N(" & CALCUL & "$D$" & tC + 2 + k & ")*$D$60*B" & r
             Else
-                ws.Cells(r, 11 + k).Formula = "=" & Choose(k + 1, "1", "1", "1.35", "1") & "*$D$50*B" & r
+                ws.Cells(r, 11 + k).Formula = "=" & Choose(k + 1, "1", "1", "1.35", "1") & "*$D$60*B" & r
             End If
-            ws.Cells(r, 15 + k).Formula = "=" & ws.Cells(r, 11 + k).Address(False, False) & "*$D$51"
+            ws.Cells(r, 15 + k).Formula = "=" & ws.Cells(r, 11 + k).Address(False, False) & "*$D$61"
         Next k
     Next i
     With ws.Range("A" & rv & ":R" & rv + 1 + m)
@@ -280,13 +309,13 @@ Public Sub CreerVerificationStructurelle()
 
 MiseEnForme:
     etape = "mise en forme"
-    With ws.Range("B4:E20,B23:E38,B41:E52")
+    With ws.Range("B4:E20,B23:E48,B51:E62")
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    ws.Range("D4:E52").HorizontalAlignment = xlCenter
-    ws.Range("D4:D20,D23:D38,D41:D52").Interior.Color = JAUNE_CALCUL
+    ws.Range("D4:E62").HorizontalAlignment = xlCenter
+    ws.Range("D4:D20,D23:D48,D51:D62").Interior.Color = JAUNE_CALCUL
     ws.Columns("A").ColumnWidth = 14
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 30
