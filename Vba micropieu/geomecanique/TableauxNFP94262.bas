@@ -206,6 +206,26 @@ Public Sub CreerTableauxNFP94262()
         "Durée d'utilisation requise|5 ans|25 ans|50 ans|75 ans|100 ans", s, _
         "Valeurs à 5 et 25 ans mesurées, autres valeurs extrapolées. Valeurs recommandées, " & _
         "à vérifier avec l'annexe nationale."
+    ' Synthèse des valeurs recommandées : environnements proposés dans « Données du
+    ' projet » (perte d'épaisseur = rayon de corrosion de l'armature)
+    s = "Sols naturels non remaniés (sable, limon, argile, schiste)|0|0.3|0.6|0.9|1.2;" & _
+        "Sols naturels pollués et sites industriels|0.15|0.75|1.5|2.25|3;" & _
+        "Sols naturels agressifs (marécages, tourbe)|0.2|1|1.75|2.5|3.25;" & _
+        "Remblais non compactés et non agressifs|0.18|0.7|1.2|1.7|2.2;" & _
+        "Remblais non compactés et agressifs (cendres, scories)|0.5|2|3.25|4.5|5.75;" & _
+        "Remblais compactés et non agressifs|0.09|0.35|0.6|0.85|1.1;" & _
+        "Remblais compactés et agressifs (cendres, scories)|0.25|1|1.63|2.25|2.88;" & _
+        "Eau douce (rivière, canal) - zone de fort impact|0.15|0.55|0.9|1.15|1.4;" & _
+        "Eau douce très polluée - zone de fort impact|0.3|1.3|2.3|3.3|4.3;" & _
+        "Eau de mer en climat tempéré - zone de fort impact|0.55|1.9|3.75|5.6|7.5;" & _
+        "Eau de mer en climat tempéré - zone d'immersion permanente ou de marnage|0.25|0.9|1.75|2.6|3.5"
+    Placer ws, "Valeurs recommandées de la perte d'épaisseur (mm) due à la corrosion - " & _
+        "rayon de corrosion selon la nature du terrain et la durée d'utilisation " & _
+        "(NF EN 1993-5, tableaux 4.1 et 4.2)", _
+        "Nature du terrain / environnement|5 ans|25 ans|50 ans|75 ans|100 ans", s, _
+        "Remblais compactés : valeurs des remblais non compactés divisées par 2 (note du " & _
+        "tableau 4.1). Valeur retenue dans « Données du projet » (caractéristiques de " & _
+        "l'acier) : durée d'utilisation du projet x environnement de l'armature."
 
     ' Largeurs : 1re colonne de chaque emplacement large (intitulés), colonnes de
     ' valeurs étroites, colonne vide entre deux tableaux

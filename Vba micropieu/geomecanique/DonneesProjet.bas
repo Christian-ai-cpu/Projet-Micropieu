@@ -30,10 +30,9 @@ Option Explicit
 '               résistance de pointe, type de mise en oeuvre, B, nombres,
 '               conditions en tête, essai de contrôle ; intitulé sur B:C, valeur en D)
 '   B89       : HYPOTHÈSES RELATIVES AUX MATÉRIAUX CONSTITUTIFS DES FONDATIONS PROFONDES
-'   B91 à E99 : Caractéristiques du béton (classe d'exposition, classe de résistance
-'               minimale associée (NF EN 206/CN) et conformité de la classe nominale,
-'               classe structurale, classe de résistance, fc28, coefficients gamma c ELU /
-'               accidentel / sismique)
+'   B91 à E99 : Caractéristiques du coulis de ciment (rapport E/C, dosage en ciment,
+'               masse volumique, rayon de corrosion repris des caractéristiques de
+'               l'acier, fc28, coefficients gamma c ELU / accidentel / sismique)
 '   B101 à E120: Caractéristiques de l'acier (type d'armature Tube N80, Barre HA ou Barre
 '               GEWI, désignation, dimensions, section, E et fyk associés, coefficients
 '               gamma s, durée d'utilisation du projet, environnement et perte
@@ -60,13 +59,6 @@ Public Const LIGNE_PIEU As Long = 65          ' type de pieu (caractéristiques 
 Public Const NB_DIAMETRES As Long = 4         ' diamètres B0 à B3 (G67:G70, à droite)
 Private Const ABREVIATIONS As String = "M1|M2|PIGU, MIGU|PIRS, MIRS"   ' tableau A.1, catégories 17 à 20
 Public Const LIGNE_ACIER As Long = 102         ' type d'armature (caractéristiques de l'acier)
-Private Const CLASSES_EXPOSITION As String = "X0,XC1,XC2,XC3,XC4,XD1,XD2,XD3," & _
-    "XS1,XS2,XS3,XF1,XF2,XF3,XF4,XA1,XA2,XA3"
-' Classe de résistance minimale du béton selon la classe d'exposition (NF EN 206/CN,
-' tableau NA.F.1, valeurs à vérifier ; « - » : pas d'exigence), même ordre que
-' CLASSES_EXPOSITION
-Private Const CLASSES_MIN As String = "-,C20/25,C20/25,C25/30,C25/30,C25/30,C30/37,C35/45," & _
-    "C30/37,C30/37,C35/45,C25/30,C25/30,C30/37,C30/37,C30/37,C35/45,C40/50"
 ' Armatures des micropieux : 3 types, caractéristiques mécaniques associées
 ' automatiquement (MajAcier), à confirmer selon le produit retenu :
 '   Tube N80   : fyk = 560 MPa, E = 210 000 MPa ; « Øde x e mm » donne les dimensions
@@ -98,10 +90,15 @@ Private Const ENVIRONNEMENTS As String = "Sols naturels non remaniés (sable / l
     "Remblais non compactés et non agressifs,Remblais non compactés et agressifs (cendres / scories)," & _
     "Eau douce (rivière / canal) - zone de fort impact,Eau douce très polluée - zone de fort impact," & _
     "Eau de mer en climat tempéré - zone de fort impact," & _
-    "Eau de mer en climat tempéré - zone d'immersion permanente ou de marnage"
+    "Eau de mer en climat tempéré - zone d'immersion permanente ou de marnage," & _
+    "Remblais compactés et non agressifs,Remblais compactés et agressifs (cendres / scories)"
+' (remblais compactés : valeurs des remblais non compactés divisées par 2, note du
+' tableau 4.1) ; mêmes valeurs dans « Tableaux NF P94-262 » (tableau de synthèse)
 Private Const PERTES As String = "0,0.3,0.6,0.9,1.2;0.15,0.75,1.5,2.25,3;0.2,1,1.75,2.5,3.25;" & _
     "0.18,0.7,1.2,1.7,2.2;0.5,2,3.25,4.5,5.75;0.15,0.55,0.9,1.15,1.4;0.3,1.3,2.3,3.3,4.3;" & _
-    "0.55,1.9,3.75,5.6,7.5;0.25,0.9,1.75,2.6,3.5"
+    "0.55,1.9,3.75,5.6,7.5;0.25,0.9,1.75,2.6,3.5;0.09,0.35,0.6,0.85,1.1;0.25,1,1.63,2.25,2.88"
+' Coulis de ciment : masse volumique absolue du ciment (t/m3) pour le dosage
+Private Const RHO_CIMENT As Double = 3.1
 ' Platines d'appui (liaison micropieu / structure, assemblage NF EN 1993-1-8) :
 ' plats carrés en acier de construction NF EN 10025, épaisseur t lue dans la
 ' désignation (elle fixe fy et fu, NF EN 1993-1-1 tableau 3.1).
@@ -432,31 +429,35 @@ Public Sub CreerDonneesProjet()
         .Font.Size = 14
         .HorizontalAlignment = xlCenter
     End With
-    SousTitre ws, la + 2, "Caractéristiques du béton"
+    ' Coulis de ciment du scellement : rapport E/C et dosage en ciment (saisis), masse
+    ' volumique du coulis, rayon de corrosion (perte d'épaisseur de l'armature, d'après
+    ' la durée d'utilisation du projet et la nature du terrain du tableau de l'acier),
+    ' résistance du coulis à 28 jours et coefficients gamma c
+    SousTitre ws, la + 2, "Caractéristiques du coulis de ciment"
     ws.Range("B" & la + 3 & ":B" & la + 10).Value = Application.Transpose(Array( _
-        "Classe d'exposition du béton", _
-        "Classe de résistance minimale (NF EN 206/CN, tableau NA.F.1)", "Classe structurale", _
-        "Classe de résistance nominale du béton", "Résistance du béton à 28 jours fc28", _
+        "Rapport eau / ciment E/C du coulis", _
+        "Dosage en ciment du coulis C", _
+        "Masse volumique du coulis = C (1 + E/C)", _
+        "Rayon de corrosion (perte d'épaisseur selon la durée du projet et la nature du " & _
+            "terrain, caractéristiques de l'acier)", _
+        "Résistance du coulis à 28 jours fc28", _
         "Coefficient " & ChrW(947) & "c - combinaison ELU fondamentale", _
         "Coefficient " & ChrW(947) & "c - combinaison accidentelle", _
         "Coefficient " & ChrW(947) & "c - combinaison sismique"))
-    ws.Range("E" & la + 7).Value = "MPa"
-    Liste ws.Range("D" & la + 3), CLASSES_EXPOSITION
-    ' Classe minimale correspondant à la classe d'exposition (CLASSES_MIN)
-    ws.Range("D" & la + 4).Formula = "=IFERROR(INDEX({""" & Replace(CLASSES_MIN, ",", """,""") & _
-        """},MATCH(D" & la + 3 & ",{""" & Replace(CLASSES_EXPOSITION, ",", """,""") & """},0)),"""")"
-    Liste ws.Range("D" & la + 5), "S1,S2,S3,S4,S5,S6"
-    ws.Range("D" & la + 5).Value = "S4"
-    Liste ws.Range("D" & la + 6), "C20/25,C25/30,C30/37,C35/45,C40/50,C45/55,C50/60"
-    ws.Range("D" & la + 6).Value = "C25/30"
-    ' Classe nominale comparée à la classe minimale (résistance fck de la classe)
-    ws.Range("E" & la + 6).Formula = "=IF(OR(D" & la + 4 & "="""",D" & la + 4 & "=""-"",D" & la + 6 & _
-        "=""""),"""",IF(VALUE(MID(D" & la + 6 & ",2,FIND(""/"",D" & la + 6 & ")-2))>=VALUE(MID(D" & la + 4 & _
-        ",2,FIND(""/"",D" & la + 4 & ")-2)),""Conforme"",""Inférieure à la classe minimale""))"
-    ' fc28 = résistance caractéristique sur cylindre de la classe (C25/30 -> 25 MPa)
-    ws.Range("D" & la + 7).Formula = "=VALUE(MID(D" & la + 6 & ",2,FIND(""/"",D" & la + 6 & ")-2))"
+    ws.Range("E" & la + 3 & ":E" & la + 7).Value = Application.Transpose(Array("", "kg/m3", "kN/m3", _
+        "mm", "MPa"))
+    ws.Range("D" & la + 3).Value = 0.5
+    ' Dosage théorique d'un coulis pur : C = 1000 / (1 / rho ciment + E/C) (kg/m3),
+    ' modifiable (saisie)
+    ws.Range("D" & la + 4).Value = Round(1000 / (1 / RHO_CIMENT + 0.5), 0)
+    ws.Range("D" & la + 5).Formula = "=IF(OR(N(D" & la + 3 & ")=0,N(D" & la + 4 & ")=0),""""," & _
+        "D" & la + 4 & "*(1+D" & la + 3 & ")*9.81/1000)"
+    ws.Range("D" & la + 6).Formula = "=D" & LIGNE_ACIER + 13
+    ws.Range("D" & la + 7).Value = 25
     ws.Range("D" & la + 8 & ":D" & la + 10).Value = Application.Transpose(Array(1.5, 1.2, 1.3))
-    ws.Range("D" & la + 7 & ":D" & la + 10).NumberFormat = "0.00"
+    ws.Range("D" & la + 3).NumberFormat = "0.00"
+    ws.Range("D" & la + 4).NumberFormat = "0"
+    ws.Range("D" & la + 5 & ":D" & la + 10).NumberFormat = "0.00"
 
     ' Acier : la liste des désignations dépend du type d'armature, les dimensions et
     ' caractéristiques mécaniques sont remplies (voir MajArmature et MajAcier) ; perte
@@ -537,12 +538,12 @@ Public Sub CreerDonneesProjet()
     ws.Range("D" & lp & ":D" & lp + 7 & ",D" & lp + 12 & ",D" & lp + 16 & ":D" & lp + 22 _
         ).Interior.Color = VERT_SAISIE
     ws.Range("D" & lp + 8 & ":D" & lp + 11 & ",D" & lp + 13 & ":D" & lp + 15).Interior.Color = JAUNE_CALCUL
-    ws.Range("C4:C9,C12:C16,D28:D29," & CELLULE_NB_COUCHES & ",D" & la + 3 & ",D" & la + 5 & ":D" & _
-        la + 6 & ",D" & la + 8 & ":D" & la + 10 & _
+    ws.Range("C4:C9,C12:C16,D28:D29," & CELLULE_NB_COUCHES & ",D" & la + 3 & ":D" & la + 4 & _
+        ",D" & la + 7 & ":D" & la + 10 & _
         ",D" & LIGNE_ACIER & ":D" & LIGNE_ACIER + 1 & ",D" & LIGNE_ACIER + 8 & ":D" & _
         LIGNE_ACIER + 10 & ",D" & LIGNE_ACIER + 12 & ",D" & LIGNE_ACIER + 15 & ",D" & LIGNE_ACIER + 17 & ",D" & LIGNE_ACIER + 20 & ":D" & _
         LIGNE_ACIER + 21).Interior.Color = VERT_SAISIE
-    ws.Range("D" & la + 4 & ",D" & la + 7 & ",D" & LIGNE_ACIER + 2 & ":D" & LIGNE_ACIER + 7 & _
+    ws.Range("D" & la + 5 & ":D" & la + 6 & ",D" & LIGNE_ACIER + 2 & ":D" & LIGNE_ACIER + 7 & _
         ",D" & LIGNE_ACIER + 11 & ":D" & LIGNE_ACIER + 14 & _
         ",D" & LIGNE_ACIER + 16 & ",D" & LIGNE_ACIER + 18 & ":D" & LIGNE_ACIER + 19).Interior.Color = JAUNE_CALCUL
     ws.Columns("A").ColumnWidth = 3
