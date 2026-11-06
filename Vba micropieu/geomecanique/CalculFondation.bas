@@ -1226,7 +1226,7 @@ Private Sub GraphiqueCapacite(ws As Worksheet, k As Long)
     End With
     co.Placement = xlFreeFloating
     With co.Chart
-        .ChartType = xlXYScatterLinesNoMarkers
+        .ChartType = xlXYScatterSmoothNoMarkers
         Do While .SeriesCollection.Count > 0
             .SeriesCollection(1).Delete
         Loop
@@ -1235,11 +1235,11 @@ Private Sub GraphiqueCapacite(ws As Worksheet, k As Long)
                 .Name = noms(j)
                 .XValues = "=" & f & "CP" & k & "_" & j
                 .Values = "=" & f & "CP" & k & "_z"
-                ' Segments de droite entre les points (aucun lissage), sans marqueurs
-                .ChartType = xlXYScatterLinesNoMarkers
-                .Smooth = False
+                ' Courbe lissée, sans marqueurs, épaisseur 3 pt
+                .ChartType = xlXYScatterSmoothNoMarkers
+                .Smooth = True
                 .MarkerStyle = xlMarkerStyleNone
-                .Format.Line.Weight = 1.75
+                .Format.Line.Weight = 3
             End With
         Next j
         .HasTitle = True
