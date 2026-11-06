@@ -341,13 +341,18 @@ Private Sub Construire(activer As Boolean)
         ' Pas saisi conservé (valeur seulement, pas les anciennes formules)
         If IsArray(mPas) Then
             vb = mPas(r - 38, 1)
-            If CStr(vb) <> "" And Left(CStr(vb), 1) <> "=" And IsNumeric(vb) Then ws.Range("A" & r).Value = CDbl(vb)
+            If CStr(vb) <> "" And Left(CStr(vb), 1) <> "=" Then
+                If ValeurPas(vb) > 0 Then ws.Range("A" & r).Value = ValeurPas(vb)
+            End If
         End If
+        ' Pas saisi lu en nombre (ZG) même s'il est écrit en texte (« 0.5 » ou « 0,5 »)
+        ws.Range("ZG" & r).Formula = "=IF(ISNUMBER(A" & r & "),A" & r & ",IFERROR(--SUBSTITUTE(A" & r & _
+            ","","",""."")," & "IFERROR(--SUBSTITUTE(A" & r & ",""."","",""),0)))"
         ' k = arrondi supérieur de hi / pas (1 si le pas est vide)
-        ws.Range("R" & r).Formula = "=IF(B" & r & "="""","""",IF(N(A" & r & ")>0," & _
-            "MAX(1,ROUNDUP(ROUND(N(F" & r & ")/A" & r & ",6),0)),1))"
+        ws.Range("R" & r).Formula = "=IF(B" & r & "="""","""",IF(N(ZG" & r & ")>0," & _
+            "MAX(1,ROUNDUP(ROUND(N(F" & r & ")/ZG" & r & ",6),0)),1))"
         ' Pas effectif : pas saisi (au plus hi), hi si le pas est vide
-        ws.Range("ZF" & r).Formula = "=IF(B" & r & "="""","""",IF(N(A" & r & ")>0,MIN(A" & r & _
+        ws.Range("ZF" & r).Formula = "=IF(B" & r & "="""","""",IF(N(ZG" & r & ")>0,MIN(ZG" & r & _
             ",N(F" & r & ")),N(F" & r & ")))"
         ws.Range("ZA" & r).Formula = "=IF(B" & r & "="""","""",SUM($R$39:R" & r & "))"
         ws.Range("ZB" & r).Formula = "=IF(B" & r & "="""","""",SUM($F$39:F" & r & "))"
@@ -470,7 +475,7 @@ Private Sub Construire(activer As Boolean)
         .Interior.Color = VERT_ENTETE
         .WrapText = True
     End With
-    ws.Columns("ZA:ZF").Hidden = True
+    ws.Columns("ZA:ZG").Hidden = True
 
     ' Tableaux des diamètres B1, B2, B3 de « Données du projet » : copie du
     ' tableau de B0 décalée de k x BLOC_PROFIL colonnes, mêmes calculs avec Phi = Bk
@@ -520,7 +525,7 @@ Private Sub Construire(activer As Boolean)
     ' suite des colonnes A à ZE descend de 9 lignes (jusqu'à la ligne 86 ; le tableau par
     ' pas de calcul, plus bas, ne bouge pas), les formules suivent le déplacement
     etape = "déplacement de l'effet de groupe"
-    ws.Range("A78:ZF86").Cut
+    ws.Range("A78:ZG86").Cut
     ws.Range("A37").Insert Shift:=xlDown
     Application.CutCopyMode = False
 
@@ -535,6 +540,7 @@ Private Sub Construire(activer As Boolean)
     Next kd
     AfficherGroupe ws
     AfficherCouchesCalcul ws
+    InstallerCodeFeuille ws
     If activer Then ws.Activate
 
 Fin:
@@ -1123,11 +1129,62 @@ End Sub
 ' pas de calcul saisi (colonne A du frottement axial) -> tableau de la capacité
 ' portante adapté au nombre total de subdivisions
 Public Sub ChangementCalcul(ws As Worksheet, Target As Range)
-    If Intersect(Target, ws.Range("A" & LIGNE_FROT & ":A" & LIGNE_FROT + MAX_COUCHES - 1)) _
-        Is Nothing Then Exit Sub
+    Dim c As Range, zone As Range
+    Set zone = Intersect(Target, ws.Range("A" & LIGNE_FROT & ":A" & LIGNE_FROT + MAX_COUCHES - 1))
+    If zone Is Nothing Then Exit Sub
     Application.EnableEvents = False
+    On Error Resume Next
+    ' Pas écrit en texte (« 0.5 » ou « 0,5 ») : converti en nombre
+    For Each c In zone.Cells
+        If Not IsEmpty(c.Value) And VarType(c.Value) = vbString Then
+            If ValeurPas(c.Value) > 0 Then c.Value = ValeurPas(c.Value)
+        End If
+    Next c
+    On Error GoTo 0
     ActualiserPas
     Application.EnableEvents = True
+End Sub
+
+' Valeur d'un pas saisi (nombre, ou texte avec point ou virgule décimale) ; 0 sinon
+Private Function ValeurPas(v As Variant) As Double
+    If IsEmpty(v) Then Exit Function
+    If VarType(v) = vbDouble Or VarType(v) = vbInteger Or VarType(v) = vbLong Or _
+        VarType(v) = vbSingle Or VarType(v) = vbCurrency Then
+        ValeurPas = CDbl(v)
+    Else
+        ValeurPas = Val(Replace(Trim$(CStr(v)), ",", "."))
+    End If
+    If ValeurPas < 0 Then ValeurPas = 0
+End Function
+
+' Code de la feuille « Calcul et vérification » (Worksheet_Change -> ChangementCalcul)
+' installé automatiquement si Excel autorise l'accès au projet VBA (Fichier > Options >
+' Centre de gestion de la confidentialité > Paramètres des macros > « Accès approuvé au
+' modèle d'objet du projet VBA ») ; sinon, coller CodeFeuilleCalcul.txt à la main.
+Private Sub InstallerCodeFeuille(ws As Worksheet)
+    Dim cm As Object, texte As String
+    On Error GoTo Fin
+    texte = ws.Parent.VBProject.Name         ' accès au projet (CodeName à jour)
+    texte = ""
+    Set cm = ws.Parent.VBProject.VBComponents(ws.CodeName).CodeModule
+    If cm.CountOfLines > 0 Then texte = cm.Lines(1, cm.CountOfLines)
+    If InStr(1, texte, "ChangementCalcul", vbTextCompare) = 0 Then
+        cm.AddFromString "Private Sub Worksheet_Change(ByVal Target As Range)" & vbCrLf & _
+            "    ChangementCalcul Me, Target" & vbCrLf & "End Sub"
+    End If
+    ws.Range("A" & LIGNE_FROT - 1).ClearComments
+    Exit Sub
+Fin:
+    ' Accès refusé : rappel sur l'en-tête du pas de calcul
+    On Error Resume Next
+    With ws.Range("A" & LIGNE_FROT - 1)
+        .ClearComments
+        .AddComment "Pour que le tableau de la capacité portante et la vérification de la " & _
+            "profondeur s'ajustent dès la saisie d'un pas : coller CodeFeuilleCalcul.txt dans le " & _
+            "code de cette feuille, ou autoriser l'accès au projet VBA puis relancer " & _
+            "CreerCalculVerification."
+        .Comment.Shape.TextFrame.AutoSize = True
+    End With
 End Sub
 
 ' Adresse relative (ex. « F395 ») de la cellule ligne r, colonne c
