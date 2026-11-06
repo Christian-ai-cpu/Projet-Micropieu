@@ -28,8 +28,8 @@ Option Explicit
 '   - tableaux de la norme limités aux micropieux : ligne 1 à 4 des tableaux alpha et
 '     qs max = catégories 17 à 20 (rang = catégorie - 16), une seule ligne pour les
 '     coefficients de modèle F.2.1 / G.2.1 (catégories 10, 15 et 17 à 20).
-'   - pas de calcul saisi en colonne A, à gauche du frottement axial (k = arrondi
-'     supérieur de hi / pas ; vide : k = 20 ; 1 si le terrain est neutralisé) ; lignes
+'   - pas de calcul en saisie libre en colonne A, à gauche du frottement axial (k = arrondi
+'     supérieur de hi / pas ; vide : k = 1) ; lignes
 '     du frottement axial limitées au nombre de couches de « Données du projet » ;
 '     tableau de la capacité portante par pas de calcul (une ligne par pas, total des k)
 '     sous les valeurs de calcul (couche, profondeur, cote, pas, qs,i, Rs,k, Rt,k,
@@ -46,10 +46,10 @@ Option Explicit
 
 Private Const NOM_FEUILLE As String = "Calcul et vérification"
 Private Const DONNEES As String = "'Données du projet'!"
-' Pas de calcul : saisi par l'utilisateur pour chaque couche (colonne A, en vert) ;
-' nombre de subdivisions k = arrondi supérieur de hi / pas (dernier pas de la couche
-' réduit au reste) ; pas vide : k = NB_SUBDIV (pas = hi / 20) ; une couche
-' neutralisée n'est pas subdivisée (pas = épaisseur)
+' Pas de calcul : saisie libre pour chaque couche (colonne A, en vert, sans valeur
+' imposée) ; nombre de subdivisions k calculé d'après le pas et l'épaisseur hi :
+' k = arrondi supérieur de hi / pas (dernier pas de la couche réduit au reste) ;
+' pas vide : k = 1 (pas = hi). NB_SUBDIV ne sert plus qu'aux anciennes feuilles.
 Private Const NB_SUBDIV As Long = 20
 ' Lignes du tableau par couche du frottement axial (après déplacement de l'effet de
 ' groupe) : couche 1 en LIGNE_FROT, pas de calcul saisis en colonne A
@@ -324,8 +324,8 @@ Private Sub Construire(activer As Boolean)
 
     ' --- Pas de calcul (colonne A, à gauche du frottement axial) et capacité portante
     ' en fonction de la profondeur (tableau sous les valeurs de calcul) ---
-    ' Pas saisi (colonne A) ; k = arrondi supérieur de hi / pas (NB_SUBDIV si le pas est
-    ' vide, 1 si le terrain est neutralisé). Colonnes d'aide masquées (ZA à ZC, ZF) :
+    ' Pas saisi librement (colonne A) ; k = arrondi supérieur de hi / pas, pour toutes
+    ' les couches (1 si le pas est vide). Colonnes d'aide masquées (ZA à ZC, ZF) :
     ' cumul de k, profondeur du bas de la couche, cumul de Rs,i, pas effectif.
     ' Chaque ligne du tableau correspond à un pas : couche (ZD) et rang du pas dans la
     ' couche (ZE), masqués ; z = bas de la couche précédente + rang x pas ;
@@ -333,8 +333,8 @@ Private Sub Construire(activer As Boolean)
     ' Rt,k = Rs,k ; micropieux : ple*, kp max et Def sans objet (« - »), Rb,k = 0 ;
     ' valeurs de calcul comme dans le tableau des valeurs de calcul
     etape = "pas de calcul"
-    ws.Range("A38").Value = "Pas de calcul (m) (à saisir ; vide : hi / " & NB_SUBDIV & ")"
-    ws.Range("R38").Value = "Nombre de subdivisions k"
+    ws.Range("A38").Value = "Pas de calcul (m) (saisie libre)"
+    ws.Range("R38").Value = "Nombre de subdivisions k = hi / pas"
     ws.Range("ZA38:ZC38").Value = Array(ChrW(931) & " k", "z bas (m)", ChrW(931) & " Rs,i (kN)")
     ws.Range("ZF38").Value = "Pas effectif (m)"
     For r = 39 To 53
@@ -343,15 +343,19 @@ Private Sub Construire(activer As Boolean)
             vb = mPas(r - 38, 1)
             If CStr(vb) <> "" And Left(CStr(vb), 1) <> "=" And IsNumeric(vb) Then ws.Range("A" & r).Value = CDbl(vb)
         End If
-        ws.Range("R" & r).Formula = "=IF(B" & r & "="""","""",IF(Q" & r & "=""Oui"",1,IF(N(A" & r & _
-            ")>0,MAX(1,ROUNDUP(N(F" & r & ")/A" & r & "-1E-9,0))," & NB_SUBDIV & ")))"
-        ws.Range("ZF" & r).Formula = "=IF(B" & r & "="""","""",IFERROR(IF(OR(Q" & r & "=""Oui"",N(A" & r & _
-            ")<=0),F" & r & "/R" & r & ",A" & r & "),""""))"
+        ' k = arrondi supérieur de hi / pas (1 si le pas est vide)
+        ws.Range("R" & r).Formula = "=IF(B" & r & "="""","""",IF(N(A" & r & ")>0," & _
+            "MAX(1,ROUNDUP(ROUND(N(F" & r & ")/A" & r & ",6),0)),1))"
+        ' Pas effectif : pas saisi (au plus hi), hi si le pas est vide
+        ws.Range("ZF" & r).Formula = "=IF(B" & r & "="""","""",IF(N(A" & r & ")>0,MIN(A" & r & _
+            ",N(F" & r & ")),N(F" & r & ")))"
         ws.Range("ZA" & r).Formula = "=IF(B" & r & "="""","""",SUM($R$39:R" & r & "))"
         ws.Range("ZB" & r).Formula = "=IF(B" & r & "="""","""",SUM($F$39:F" & r & "))"
         ws.Range("ZC" & r).Formula = "=IF(B" & r & "="""","""",SUM($P$39:P" & r & "))"
     Next r
-    ws.Range("A39:A53").NumberFormat = "0.000"
+    ws.Range("A39:A53").NumberFormat = "General"   ' saisie libre
+    ws.Range("A39:A53").Validation.Delete
+    ws.Range("R39:R53").NumberFormat = "0"
     With ws.Range("A38:A53,R38:R53")
         .Borders.LineStyle = xlContinuous
         .HorizontalAlignment = xlCenter
