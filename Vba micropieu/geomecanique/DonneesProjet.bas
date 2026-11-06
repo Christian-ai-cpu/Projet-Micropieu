@@ -570,7 +570,8 @@ End Sub
 '   type d'armature -> liste des classes d'acier ; classe de l'acier -> dimensions
 '   du tube ; incliné / effet de groupe -> angle / m, n, d affichés ;
 '   méthode de calcul -> colonne pl* ou qc masquée et « Calcul et
-'   vérification » recréée
+'   vérification » recréée ; nombre de couches, profondeurs, terrains neutralisés ->
+'   lignes du frottement axial et du tableau de la capacité portante (ActualiserPas)
 Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
     Dim f As Worksheet
     On Error GoTo Fin
@@ -585,6 +586,15 @@ Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
     If Not Intersect(Target, ws.Range("D" & LIGNE_PIEU + 2 & ":D" & LIGNE_PIEU + 3)) Is Nothing Then
         On Error Resume Next
         Application.Run "ActualiserVerificationProfondeur"
+        On Error GoTo Fin
+    End If
+    ' Nombre de couches, profondeurs ou terrains neutralisés : lignes du frottement axial
+    ' et nombre de pas du tableau de la capacité portante de « Calcul et vérification »
+    If Not Intersect(Target, Union(ws.Range(CELLULE_NB_COUCHES), _
+            ws.Range("E" & LIGNE_COUCHES & ":E" & LIGNE_COUCHES + MAX_COUCHES - 1), _
+            ws.Range("M" & LIGNE_COUCHES & ":M" & LIGNE_COUCHES + MAX_COUCHES - 1))) Is Nothing Then
+        On Error Resume Next
+        Application.Run "ActualiserPas"
         On Error GoTo Fin
     End If
     ' Effet de groupe : bloc Ce de « Calcul et vérification » affiché ou masqué

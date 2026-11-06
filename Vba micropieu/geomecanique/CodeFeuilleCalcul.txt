@@ -1,0 +1,10 @@
+' À COLLER DANS LE MODULE DE LA FEUILLE « Calcul et vérification » (pas dans un module
+' standard) : clic droit sur l'onglet de la feuille > Visualiser le code, puis coller.
+' Pas de calcul saisi (colonne A du tableau du frottement axial) : le tableau de la
+' capacité portante par pas de calcul est adapté au nombre total de subdivisions
+' (ChangementCalcul, module CalculFondation). Le code reste en place quand la feuille
+' est recréée par CreerCalculVerification.
+
+Private Sub Worksheet_Change(ByVal Target As Range)
+    ChangementCalcul Me, Target
+End Sub

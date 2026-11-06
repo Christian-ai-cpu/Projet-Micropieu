@@ -28,9 +28,11 @@ Option Explicit
 '   - tableaux de la norme limités aux micropieux : ligne 1 à 4 des tableaux alpha et
 '     qs max = catégories 17 à 20 (rang = catégorie - 16), une seule ligne pour les
 '     coefficients de modèle F.2.1 / G.2.1 (catégories 10, 15 et 17 à 20).
-'   - pas de calcul en colonne A, à gauche du frottement axial (épaisseur / k, k = 20
-'     ou 1 si le terrain est neutralisé), et tableau de la capacité portante par pas de
-'     calcul sous les valeurs de calcul (couche, profondeur, cote, pas, qs,i, Rs,k, Rt,k,
+'   - pas de calcul saisi en colonne A, à gauche du frottement axial (k = arrondi
+'     supérieur de hi / pas ; vide : k = 20 ; 1 si le terrain est neutralisé) ; lignes
+'     du frottement axial limitées au nombre de couches de « Données du projet » ;
+'     tableau de la capacité portante par pas de calcul (une ligne par pas, total des k)
+'     sous les valeurs de calcul (couche, profondeur, cote, pas, qs,i, Rs,k, Rt,k,
 '     ple*, h, kp max, Def, Rb,k puis Rc;cr,d / Rt;cr,d ELS et Rc,d / Rt,d ELU), valeurs
 '     cumulées en profondeur (ligne précédente + qs,i x Pe x pas), et graphique de la
 '     capacité portante (ELS caractéristique, ELS quasi permanent, ELU fondamental) en
@@ -44,15 +46,25 @@ Option Explicit
 
 Private Const NOM_FEUILLE As String = "Calcul et vérification"
 Private Const DONNEES As String = "'Données du projet'!"
-' Pas de calcul : nombre de subdivisions des couches non neutralisées (entier >= 20) ;
-' une couche neutralisée n'est pas subdivisée (pas = épaisseur)
+' Pas de calcul : saisi par l'utilisateur pour chaque couche (colonne A, en vert) ;
+' nombre de subdivisions k = arrondi supérieur de hi / pas (dernier pas de la couche
+' réduit au reste) ; pas vide : k = NB_SUBDIV (pas = hi / 20) ; une couche
+' neutralisée n'est pas subdivisée (pas = épaisseur)
 Private Const NB_SUBDIV As Long = 20
+' Lignes du tableau par couche du frottement axial (après déplacement de l'effet de
+' groupe) : couche 1 en LIGNE_FROT, pas de calcul saisis en colonne A
+Private Const LIGNE_FROT As Long = 48
+' Le tableau de la capacité portante par pas de calcul a autant de lignes que le total
+' des subdivisions k (nombre écrit en ZA, ligne LIGNE_PROFIL - 3) ; la vérification
+' de la profondeur commence au moins NB_MIN_LIGNES lignes plus bas (graphiques)
+Private Const NB_MIN_LIGNES As Long = 40
 Private Const LIGNE_PROFIL As Long = 91        ' 1re ligne du tableau par pas de calcul
 ' Tableaux par pas de calcul des diamètres B0, B1, ... côte à côte : tableau de Bk à
 ' partir de la colonne 2 + k x BLOC_PROFIL (24 colonnes), graphique de B0 à droite du sien
 Private Const BLOC_PROFIL As Long = 40
 Private Const TABLEAUX As String = "Tableaux NF P94-262"
 Private mCellule As String     ' cellule en cours d'écriture (indiquée en cas d'erreur)
+Private mPas As Variant        ' pas de calcul saisis, conservés quand la feuille est recréée
 Private mPhiManuel As Variant  ' Phi manuels saisis, conservés quand la vérification est recréée
 Private mGeo As Variant, mGsn As Variant, mAmax As Variant, mAmin As Variant   ' idem : Geo,
                                ' frottement négatif Gsn, action accidentelle A max et min
@@ -86,9 +98,11 @@ Private Sub Construire(activer As Boolean)
     Dim ws As Worksheet, wt As Worksheet, r As Long, i As Long, lc As Long
     Dim zAlpha As String, zABC As String, zQs As String, nb As String, cat As String
     Dim lg As Long, etape As String, zF21 As String, ligneF21 As String, lt As Long, gamma As String
-    Dim c As String, kd As Long, vb As Variant
+    Dim c As String, kd As Long, vb As Variant, evenements As Boolean, nPas As Long
 
     Application.ScreenUpdating = False
+    evenements = Application.EnableEvents
+    Application.EnableEvents = False         ' pas de ChangementCalcul pendant la création
     On Error GoTo Erreur
     mPenetro = (ActiveWorkbook.Worksheets("Données du projet").Range(CELLULE_METHODE).Value = _
         "Méthode pénétrométrique")
@@ -106,6 +120,12 @@ Private Sub Construire(activer As Boolean)
     ' Plages de valeurs des tableaux utilisés (adresses absolues sur cette feuille)
     ' Frottement : tableaux G (méthode pénétrométrique) et F, sous la forme « plage G|plage F »
     ' (lue par IndexNorme)
+    ' Feuille créée avant le remplissage des catégories 17 et 18 (« - ») : recréée
+    zAlpha = ZoneTableau(wt, "Tableau F.5.2.1", 0, 4, 5)
+    If CStr(wt.Range(zAlpha).Cells(1, 1).Value) = "-" Then
+        Application.Run "CreerTableauxNFP94262"
+        Application.ScreenUpdating = False
+    End If
     zAlpha = ZoneTableau(wt, "Tableau G.5.2.1", 0, 4, 6) & "|" & _
         ZoneTableau(wt, "Tableau F.5.2.1", 0, 4, 5)         ' catégories 17 à 20
     zABC = ZoneTableau(wt, "Tableau G.5.2.2", 0, 4, 6) & "|" & _
@@ -123,6 +143,7 @@ Private Sub Construire(activer As Boolean)
     End If
     mPhiManuel = LirePhiManuel(ws)           ' Phi manuels de la vérification, conservés
     LireActions ws
+    mPas = ws.Range("A" & LIGNE_FROT & ":A" & LIGNE_FROT + MAX_COUCHES - 1).Formula   ' pas saisis
     ws.Cells.Clear
     Do While ws.ChartObjects.Count > 0       ' graphique de la création précédente
         ws.ChartObjects(1).Delete
@@ -303,20 +324,29 @@ Private Sub Construire(activer As Boolean)
 
     ' --- Pas de calcul (colonne A, à gauche du frottement axial) et capacité portante
     ' en fonction de la profondeur (tableau sous les valeurs de calcul) ---
-    ' Pas = épaisseur / k, k = 1 si le terrain est neutralisé, NB_SUBDIV sinon. Colonnes
-    ' d'aide masquées (ZA à ZC) : cumul de k, profondeur du bas de la couche, cumul de Rs,i.
+    ' Pas saisi (colonne A) ; k = arrondi supérieur de hi / pas (NB_SUBDIV si le pas est
+    ' vide, 1 si le terrain est neutralisé). Colonnes d'aide masquées (ZA à ZC, ZF) :
+    ' cumul de k, profondeur du bas de la couche, cumul de Rs,i, pas effectif.
     ' Chaque ligne du tableau correspond à un pas : couche (ZD) et rang du pas dans la
     ' couche (ZE), masqués ; z = bas de la couche précédente + rang x pas ;
     ' Rs,k(z) = Rs,i des couches au-dessus + qs,i x Pe x (z - haut de la couche) ;
     ' Rt,k = Rs,k ; micropieux : ple*, kp max et Def sans objet (« - »), Rb,k = 0 ;
     ' valeurs de calcul comme dans le tableau des valeurs de calcul
     etape = "pas de calcul"
-    ws.Range("A38").Value = "Pas de calcul (m)"
+    ws.Range("A38").Value = "Pas de calcul (m) (à saisir ; vide : hi / " & NB_SUBDIV & ")"
     ws.Range("R38").Value = "Nombre de subdivisions k"
     ws.Range("ZA38:ZC38").Value = Array(ChrW(931) & " k", "z bas (m)", ChrW(931) & " Rs,i (kN)")
+    ws.Range("ZF38").Value = "Pas effectif (m)"
     For r = 39 To 53
-        ws.Range("R" & r).Formula = "=IF(B" & r & "="""","""",IF(Q" & r & "=""Oui"",1," & NB_SUBDIV & "))"
-        ws.Range("A" & r).Formula = "=IF(OR(B" & r & "="""",N(F" & r & ")=0),"""",F" & r & "/R" & r & ")"
+        ' Pas saisi conservé (valeur seulement, pas les anciennes formules)
+        If IsArray(mPas) Then
+            vb = mPas(r - 38, 1)
+            If CStr(vb) <> "" And Left(CStr(vb), 1) <> "=" And IsNumeric(vb) Then ws.Range("A" & r).Value = CDbl(vb)
+        End If
+        ws.Range("R" & r).Formula = "=IF(B" & r & "="""","""",IF(Q" & r & "=""Oui"",1,IF(N(A" & r & _
+            ")>0,MAX(1,ROUNDUP(N(F" & r & ")/A" & r & "-1E-9,0))," & NB_SUBDIV & ")))"
+        ws.Range("ZF" & r).Formula = "=IF(B" & r & "="""","""",IFERROR(IF(OR(Q" & r & "=""Oui"",N(A" & r & _
+            ")<=0),F" & r & "/R" & r & ",A" & r & "),""""))"
         ws.Range("ZA" & r).Formula = "=IF(B" & r & "="""","""",SUM($R$39:R" & r & "))"
         ws.Range("ZB" & r).Formula = "=IF(B" & r & "="""","""",SUM($F$39:F" & r & "))"
         ws.Range("ZC" & r).Formula = "=IF(B" & r & "="""","""",SUM($P$39:P" & r & "))"
@@ -332,7 +362,16 @@ Private Sub Construire(activer As Boolean)
         .Font.Bold = True
         .Interior.Color = VERT_ENTETE
     End With
-    ws.Range("A39:A53,R39:R53").Interior.Color = JAUNE_CALCUL
+    ws.Range("A39:A53").Interior.Color = VERT_SAISIE
+    ws.Range("R39:R53").Interior.Color = JAUNE_CALCUL
+    mPas = Empty
+
+    ' Nombre total de pas (somme des k) : nombre de lignes du tableau de la capacité
+    ' portante, écrit en ZA (ligne LIGNE_PROFIL - 3) pour les autres procédures
+    ws.Calculate
+    nPas = Application.Max(ws.Range("ZA39:ZA53"))
+    If nPas < 1 Then nPas = 1
+    ws.Range("ZA" & LIGNE_PROFIL - 3).Value = nPas
 
     etape = "capacité portante par pas de calcul"
     ' Valeurs cumulées en profondeur, pas par pas : ligne précédente + apport du pas
@@ -342,7 +381,7 @@ Private Sub Construire(activer As Boolean)
     '   As,i = pi x Phi x pas (Phi = B0), 0 si le terrain est neutralisé ;
     '   valeurs de calcul déduites de Rs,k et Rt,k cumulés (mêmes relations que le
     '   tableau des valeurs de calcul)
-    lt = LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1        ' dernière ligne prévue
+    lt = LIGNE_PROFIL + nPas - 1             ' dernière ligne : une ligne par pas
     SousTitre ws, LIGNE_PROFIL - 3, "Capacité portante des micropieux en fonction de la " & _
         "profondeur (par pas de calcul, valeurs cumulées) - diamètre B0"
     r = LIGNE_PROFIL - 2
@@ -372,13 +411,16 @@ Private Sub Construire(activer As Boolean)
     ws.Range("B" & r).Formula = "=IF($ZD" & r & "="""","""",INDEX($B$39:$B$53,$ZD" & r & "))"
     ' Diamètre Phi du micropieu : B0 de « Données du projet » (Bk pour les tableaux copiés)
     ws.Range("E" & r).Formula = "=IF($ZD" & r & "="""",""""," & DONNEES & "$G$" & LIGNE_PIEU + 9 & ")"
-    ws.Range("F" & r).Formula = "=IF($ZD" & r & "="""","""",INDEX($A$39:$A$53,$ZD" & r & "))"
+    ' Pas de la ligne : h(z) - h(z précédent) dans la couche (dernier pas réduit au reste)
+    ws.Range("F" & r).Formula = "=IF($ZD" & r & "="""","""",N" & r & "-IF($ZE" & r & "=1,0,N(N" & r - 1 & ")))"
     ' Coefficients de modèle (tableau F.2.1 ou G.2.1, ligne des micropieux) : gamma R;d1
     ' compression (colonne 1), traction (colonne 2), gamma R;d2 (colonne 3)
     ws.Range("G" & r).Formula = "=IF($ZD" & r & "="""","""",INDEX(" & zF21 & ",1,1))"
     ws.Range("H" & r).Formula = "=IF($ZD" & r & "="""","""",INDEX(" & zF21 & ",1,2))"
     ws.Range("I" & r).Formula = "=IF($ZD" & r & "="""","""",INDEX(" & zF21 & ",1,3))"
-    ws.Range("N" & r).Formula = "=IF($ZD" & r & "="""","""",$ZE" & r & "*F" & r & ")"
+    ' h = profondeur dans la couche = min(rang x pas effectif ; hi)
+    ws.Range("N" & r).Formula = "=IF($ZD" & r & "="""","""",MIN($ZE" & r & "*INDEX($ZF$39:$ZF$53,$ZD" & r & _
+        "),INDEX($F$39:$F$53,$ZD" & r & ")))"
     ws.Range("C" & r).Formula = "=IF($ZD" & r & "="""","""",IF($ZD" & r & "=1,0,INDEX($ZB$39:$ZB$53,$ZD" & _
         r & "-1))+N" & r & ")"
     ws.Range("D" & r).Formula = "=IF(C" & r & "="""","""",IF(ISNUMBER(" & DONNEES & "$D$29)," & _
@@ -424,7 +466,7 @@ Private Sub Construire(activer As Boolean)
         .Interior.Color = VERT_ENTETE
         .WrapText = True
     End With
-    ws.Columns("ZA:ZE").Hidden = True
+    ws.Columns("ZA:ZF").Hidden = True
 
     ' Tableaux des diamètres B1, B2, B3 de « Données du projet » : copie du
     ' tableau de B0 décalée de k x BLOC_PROFIL colonnes, mêmes calculs avec Phi = Bk
@@ -474,7 +516,7 @@ Private Sub Construire(activer As Boolean)
     ' suite des colonnes A à ZE descend de 9 lignes (jusqu'à la ligne 86 ; le tableau par
     ' pas de calcul, plus bas, ne bouge pas), les formules suivent le déplacement
     etape = "déplacement de l'effet de groupe"
-    ws.Range("A78:ZE86").Cut
+    ws.Range("A78:ZF86").Cut
     ws.Range("A37").Insert Shift:=xlDown
     Application.CutCopyMode = False
 
@@ -488,9 +530,11 @@ Private Sub Construire(activer As Boolean)
         If ws.Cells(LIGNE_PROFIL, 3 + kd * BLOC_PROFIL).HasFormula Then GraphiqueCapacite ws, kd
     Next kd
     AfficherGroupe ws
+    AfficherCouchesCalcul ws
     If activer Then ws.Activate
 
 Fin:
+    Application.EnableEvents = evenements
     Application.ScreenUpdating = True
     Exit Sub
 Erreur:
@@ -546,7 +590,7 @@ Public Sub ActualiserVerificationProfondeur()
     Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
     On Error GoTo 0
     If ws Is Nothing Then Exit Sub
-    L = LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV + 2
+    L = LigneVerif(ws)
     gmin = CStr(ws.Range("D" & L + 2).Value)
     mPhiManuel = LirePhiManuel(ws)
     LireActions ws
@@ -565,7 +609,7 @@ End Function
 ' colonne n'existe pas
 Private Function LireSaisie(ws As Worksheet, entete As String) As Variant
     Dim r As Long, i As Long, t() As Variant, c As Long, cm As Long
-    r = LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV + 2 + 10     ' ligne de MP1
+    r = LigneVerif(ws) + 10                  ' ligne de MP1
     For c = 1 To 60
         If CStr(ws.Cells(r - 2, c).Value) = entete Or CStr(ws.Cells(r - 1, c).Value) = entete Then cm = c
     Next c
@@ -609,7 +653,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     Dim incl As Boolean, cRe As Long, kb As String, capk As String, zk As String
     Dim fx As String, kd As Long, cE As Long, tC As Long, tP As Long
 
-    L = LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV + 2          ' titre du tableau
+    L = LigneVerif(ws)                       ' titre du tableau
     For Each f In ActiveWorkbook.Worksheets
         If CStr(f.Range("B80").Value) = "RÉPARTITION DES CHARGES DES MURS SUR LES MICROPIEUX" Then
             Set wd = f
@@ -732,7 +776,8 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         ChrW(934) & " MANUEL", ChrW(934) & " RETENU")
     ws.Cells(r0 + 2, cR).Value = "D"
     ws.Range(ws.Cells(r0 + 1, cL), ws.Cells(r0 + 1, cF)).Value = Array("Profondeur de reconnaissance (m)", _
-        "Profondeur de reconnaissance - D (m)", "5 x " & ChrW(934) & " retenu (m)", "Vérification")
+        IIf(incl, "Profondeur de reconnaissance - D réelle (m)", "Profondeur de reconnaissance - D (m)"), _
+        "5 x " & ChrW(934) & " retenu (m)", "Vérification")
     For k = 0 To 6
         ws.Range(ws.Cells(r0 + 1, cD + k), ws.Cells(r0 + 2, cD + k)).Merge
     Next k
@@ -877,7 +922,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     ws.Range("D" & L + 4).Formula = "=$H$" & tC + 5
     ws.Range("D" & L + 5).Formula = "=$H$" & tC + 3
 
-    z = "$C$" & LIGNE_PROFIL & ":$C$" & LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1
+    z = "$C$" & LIGNE_PROFIL & ":$C$" & LIGNE_PROFIL + NbPas(ws) - 1
     For i = 1 To m
         r = r0 + 2 + i
         ws.Range("A" & r).Value = "MP" & i
@@ -921,7 +966,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
             fx = """Insuffisant"""
             For kd = NB_DIAMETRES - 1 To 0 Step -1
                 cap = ws.Range(ws.Cells(LIGNE_PROFIL, ws.Range(colCap(k) & "1").Column + kd * BLOC_PROFIL), _
-                    ws.Cells(LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1, _
+                    ws.Cells(LIGNE_PROFIL + NbPas(ws) - 1, _
                     ws.Range(colCap(k) & "1").Column + kd * BLOC_PROFIL)).Address
                 fx = "IF(AND(ISNUMBER(" & DONNEES & "$G$" & LIGNE_PIEU + 9 + kd & "),MAX(" & cap & ")>=" & _
                     charge & ")," & DONNEES & "$G$" & LIGNE_PIEU + 9 + kd & "," & fx & ")"
@@ -942,7 +987,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         kb = "(MATCH(" & Ad(ws, r, cD + 6) & "," & phiT & ",0)-1)*" & BLOC_PROFIL
         For k = 0 To 7
             cap = "$" & colCap(k \ 2) & "$" & LIGNE_PROFIL & ":$" & colCap(k \ 2) & "$" & _
-                LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1
+                LIGNE_PROFIL + NbPas(ws) - 1
             capk = "OFFSET(" & cap & ",0," & kb & ")"
             zk = "OFFSET(" & z & ",0," & kb & ")"
             ws.Cells(r, cP + k).Formula = "=IF(NOT(ISNUMBER(" & Ad(ws, r, cD + 6) & ")),""Non atteinte""," & _
@@ -959,8 +1004,10 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         End If
         ' Vérification de la longueur : profondeur de reconnaissance - D >= 5 Phi retenu
         ws.Cells(r, cL).Formula = "=IF(ISNUMBER(" & reco & ")," & reco & ","""")"
-        ws.Cells(r, cL + 1).Formula = "=IF(AND(ISNUMBER(" & Ad(ws, r, cL) & "),ISNUMBER(" & Ad(ws, r, cR) & _
-            "))," & Ad(ws, r, cL) & "-" & Ad(ws, r, cR) & ","""")"
+        ' D = profondeur réelle (D / cos alpha) si le micropieu est incliné
+        ws.Cells(r, cL + 1).Formula = "=IF(AND(ISNUMBER(" & Ad(ws, r, cL) & "),ISNUMBER(" & _
+            Ad(ws, r, IIf(incl, cRe, cR)) & "))," & Ad(ws, r, cL) & "-" & Ad(ws, r, IIf(incl, cRe, cR)) & _
+            ","""")"
         ws.Cells(r, cL + 2).Formula = "=IF(ISNUMBER(" & Ad(ws, r, cD + 6) & "),5*" & Ad(ws, r, cD + 6) & ","""")"
         ws.Cells(r, cF).Formula = "=IF(OR(" & Ad(ws, r, cL + 1) & "=""""," & Ad(ws, r, cL + 2) & _
             "=""""),""-"",IF(" & Ad(ws, r, cL + 1) & ">=" & Ad(ws, r, cL + 2) & _
@@ -1014,6 +1061,71 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     ws.Rows(r0).RowHeight = 30
 End Sub
 
+' Nombre de lignes (pas) du tableau de la capacité portante, écrit en ZA à la création ;
+' ancienne feuille sans ce nombre : MAX_COUCHES x NB_SUBDIV
+Private Function NbPas(ws As Worksheet) As Long
+    Dim v As Variant
+    v = ws.Range("ZA" & LIGNE_PROFIL - 3).Value
+    If Not IsEmpty(v) And IsNumeric(v) Then NbPas = CLng(v)
+    If NbPas < 1 Then NbPas = MAX_COUCHES * NB_SUBDIV
+End Function
+
+' Ligne du titre de la vérification de la profondeur des micropieux : sous le tableau
+' de la capacité portante (et sous ses graphiques)
+Private Function LigneVerif(ws As Worksheet) As Long
+    LigneVerif = LIGNE_PROFIL + Application.Max(NbPas(ws), NB_MIN_LIGNES) + 2
+End Function
+
+' Lignes du tableau du frottement axial limitées au nombre de couches de « Données du
+' projet » (lignes des couches suivantes masquées)
+Public Sub AfficherCouchesCalcul(Optional ws As Worksheet)
+    Dim nb As Variant
+    If ws Is Nothing Then
+        On Error Resume Next
+        Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
+        On Error GoTo 0
+        If ws Is Nothing Then Exit Sub
+    End If
+    nb = ActiveWorkbook.Worksheets("Données du projet").Range(CELLULE_NB_COUCHES).Value
+    If IsEmpty(nb) Or Not IsNumeric(nb) Then nb = MAX_COUCHES
+    If nb < 1 Then nb = 1
+    If nb > MAX_COUCHES Then nb = MAX_COUCHES
+    ws.Rows(LIGNE_FROT).Resize(MAX_COUCHES).Hidden = False
+    If nb < MAX_COUCHES Then ws.Rows(LIGNE_FROT + nb).Resize(MAX_COUCHES - nb).Hidden = True
+End Sub
+
+' Pas de calcul, épaisseurs, terrains neutralisés ou nombre de couches modifiés : la
+' feuille est recréée si le nombre total de pas change (lignes du tableau de la
+' capacité portante), sinon les lignes du frottement axial sont seulement ajustées.
+' Appelée par ChangementCalcul (code de la feuille, CodeFeuilleCalcul.txt) et par
+' ChangementDonnees (module DonneesProjet).
+Public Sub ActualiserPas()
+    Dim ws As Worksheet, n As Long
+    On Error Resume Next
+    Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
+    On Error GoTo 0
+    If ws Is Nothing Then Exit Sub
+    ws.Calculate
+    n = Application.Max(ws.Range("ZA" & LIGNE_FROT & ":ZA" & LIGNE_FROT + MAX_COUCHES - 1))
+    If n < 1 Then n = 1
+    If n <> NbPas(ws) Then
+        Construire False
+    Else
+        AfficherCouchesCalcul ws
+    End If
+End Sub
+
+' Appelée par le code de la feuille « Calcul et vérification » (CodeFeuilleCalcul.txt) :
+' pas de calcul saisi (colonne A du frottement axial) -> tableau de la capacité
+' portante adapté au nombre total de subdivisions
+Public Sub ChangementCalcul(ws As Worksheet, Target As Range)
+    If Intersect(Target, ws.Range("A" & LIGNE_FROT & ":A" & LIGNE_FROT + MAX_COUCHES - 1)) _
+        Is Nothing Then Exit Sub
+    Application.EnableEvents = False
+    ActualiserPas
+    Application.EnableEvents = True
+End Sub
+
 ' Adresse relative (ex. « F395 ») de la cellule ligne r, colonne c
 Private Function Ad(ws As Worksheet, r As Long, c As Long) As String
     Ad = ws.Cells(r, c).Address(False, False)
@@ -1032,7 +1144,7 @@ Private Sub GraphiqueCapacite(ws As Worksheet, k As Long)
     f = "'" & ws.Name & "'!"
     d = k * BLOC_PROFIL
     nb = "MAX(1,COUNT(" & f & ws.Cells(LIGNE_PROFIL, 3 + d).Address & ":" & _
-        ws.Cells(LIGNE_PROFIL + MAX_COUCHES * NB_SUBDIV - 1, 3 + d).Address & "))"
+        ws.Cells(LIGNE_PROFIL + NbPas(ws) - 1, 3 + d).Address & "))"
     cols = Array(3, 18, 20, 22)              ' z (C), ELS cara. (R), ELS QP (T), ELU fond. (V)
     noms = Array("Profondeur z", "ELS caractéristique - Rc;cr,d", "ELS quasi permanent - Rc;cr,d", _
         "ELU fondamental - Rc,d")
@@ -1176,7 +1288,7 @@ Private Function FormuleIndex(zone As String, lig As String, col As String) As S
 End Function
 
 ' alpha x fsol ; « - » si alpha n'est pas donné par la norme (catégories 17 et 18 :
-' prendre la technique la plus proche)
+' valeurs de la catégorie 1, foré simple, dans « Tableaux NF P94-262 »)
 Private Function FormuleProduit(alpha As String, fsol As String) As String
     FormuleProduit = "=IF(OR(" & fsol & "="""",ISBLANK(" & alpha & ")),""""," & _
         "IF(ISNUMBER(" & alpha & ")," & alpha & "*" & fsol & ",""-""))"

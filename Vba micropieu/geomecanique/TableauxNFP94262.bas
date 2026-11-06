@@ -146,11 +146,12 @@ Public Sub CreerTableauxNFP94262()
     NouveauGroupe ws, "3. MÉTHODES DE CALCUL", 1
     NouveauGroupe ws, "Méthode pressiométrique (annexe F)", 2
     ' --- Méthode pressiométrique ---
-    s = "17 - M1|-|-|-|-|-;18 - M2|-|-|-|-|-;" & _
+    ' Catégories 17 et 18 : valeurs de la catégorie 1 (FS, foré simple)
+    s = "17 - M1|1.1|1|1.8|1.5|1.6;18 - M2|1.1|1|1.8|1.5|1.6;" & _
         "19 - PIGU, MIGU|2.7|2.9|2.4|2.4|2.4;20 - PIRS, MIRS|3.4|3.8|3.1|3.1|3.1"
     Placer ws, "Tableau F.5.2.1 - Choix des valeurs de " & ChrW(945) & _
         " pieu-sol - Méthode pressiométrique", "Catégorie|" & SOLS5, s, _
-        "Catégories 17 et 18 : prendre les valeurs des techniques les plus proches. " & _
+        "Catégories 17 et 18 : valeurs de la catégorie 1 (FS, foré simple), technique la plus proche. " & _
         "BE, HBi, MIGU, PIGU, PIRS, MIRS : valeurs pour une injection stricte et soignée, " & _
         "à confirmer par les essais de conformité (section 8.9)."
     s = "Courbe|Q1|Q2|Q3|Q4|Q5;a|0.003|0.01|0.007|0.008|0.01;b|0.04|0.06|0.07|0.08|0.08;" & _
@@ -160,7 +161,7 @@ Public Sub CreerTableauxNFP94262()
         "fsol = (a.pl* + b)(1 - exp(-c.pl*)), pl* en MPa."
     Placer ws, "Tableau F.5.2.3 - Valeurs maximales du frottement axial unitaire " & _
         "limite qs (kPa) - Méthode pressiométrique", "Catégorie|" & SOLS6, QsMax(), _
-        "Catégories 17 et 18 : prendre les valeurs des techniques les plus proches. " & _
+        "Catégories 17 et 18 : valeurs de la catégorie 1 (FS, foré simple), technique la plus proche. " & _
         "BAO, HB, PP vibrofoncés : abattement de 30 % sur qs."
     ' Catégories de sol (en-têtes du tableau qs max), utilisées par « Données du projet »
     ActiveWorkbook.Names.Add Name:="NF_Sols", RefersTo:="='" & ws.Name & "'!" & _
@@ -168,11 +169,12 @@ Public Sub CreerTableauxNFP94262()
 
     NouveauGroupe ws, "Méthode pénétrométrique (annexe G)", 2
     ' --- Méthode pénétrométrique ---
-    s = "17 - M1|-|-|-|-|-|-;18 - M2|-|-|-|-|-|-;" & _
+    ' Catégories 17 et 18 : valeurs de la catégorie 1 (FS, foré simple)
+    s = "17 - M1|0.55|0.65|0.7|0.8|1.4|1.5;18 - M2|0.55|0.65|0.7|0.8|1.4|1.5;" & _
         "19 - PIGU, MIGU|1.35|1.6|2|1.1|2.25|2.25;20 - PIRS, MIRS|1.7|2.05|2.65|1.4|2.9|2.9"
     Placer ws, "Tableau G.5.2.1 - Choix des valeurs de " & ChrW(945) & _
         " pieu-sol - Méthode pénétrométrique", "Catégorie|" & SOLS6, s, _
-        "Catégories 17 et 18 : prendre les valeurs des techniques les plus proches. " & _
+        "Catégories 17 et 18 : valeurs de la catégorie 1 (FS, foré simple), technique la plus proche. " & _
         "Lignes des micropieux (catégories 17 à 20) seulement."
     s = "Courbe|Q1|Q2|Q3|Q2|Q2|Q2;a|0.0018|0.0015|0.0012|0.0015|0.0015|0.0015;" & _
         "b|0.1|0.1|0.1|0.1|0.1|0.1;c|0.4|0.25|0.15|0.25|0.25|0.25"
@@ -271,9 +273,10 @@ Private Sub NommerColonnes(prefixe As String, noms As Variant)
 End Sub
 
 ' Valeurs maximales du frottement axial unitaire limite qs en kPa (tableaux F.5.2.3
-' et G.5.2.3, identiques), lignes des micropieux (catégories 17 à 20)
+' et G.5.2.3, identiques), lignes des micropieux (catégories 17 à 20) ; catégories 17
+' et 18 : valeurs de la catégorie 1 (FS, foré simple)
 Private Function QsMax() As String
-    QsMax = "17 - M1|-|-|-|-|-|-;18 - M2|-|-|-|-|-|-;19 - PIGU, MIGU|200|200|380|320|320|320;" & _
+    QsMax = "17 - M1|90|90|90|200|170|200;18 - M2|90|90|90|200|170|200;19 - PIGU, MIGU|200|200|380|320|320|320;" & _
         "20 - PIRS, MIRS|200|200|440|440|440|500"
 End Function
 

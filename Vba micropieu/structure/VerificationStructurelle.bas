@@ -219,9 +219,10 @@ Public Sub CreerVerificationStructurelle()
     ' Vérification de la profondeur (« Calcul et vérification ») : en-tête « N° MICROPIEU »
     ' en colonne A, combinaisons (Vmax) dans la colonne « COMBINAISONS ... », coefficients
     ' des combinaisons sous le tableau
-    For r = 380 To 450
-        If CStr(wc.Range("A" & r).Value) = "N° MICROPIEU" Then r0 = r: Exit For
-    Next r
+    ' (position variable : sous le tableau de la capacité portante par pas de calcul)
+    On Error Resume Next
+    r0 = Application.Match("N° MICROPIEU", wc.Range("A1:A5000"), 0)
+    On Error GoTo Erreur
     If r0 > 0 Then
         For i = 1 To 60
             If CStr(wc.Cells(r0, i).Value) = "COMBINAISONS DE CHARGES VERTICALES (kN)" Then cC = i
