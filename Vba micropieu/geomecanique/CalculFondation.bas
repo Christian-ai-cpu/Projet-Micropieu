@@ -1235,6 +1235,11 @@ Private Sub GraphiqueCapacite(ws As Worksheet, k As Long)
                 .Name = noms(j)
                 .XValues = "=" & f & "CP" & k & "_" & j
                 .Values = "=" & f & "CP" & k & "_z"
+                ' Segments de droite entre les points (aucun lissage), sans marqueurs
+                .ChartType = xlXYScatterLinesNoMarkers
+                .Smooth = False
+                .MarkerStyle = xlMarkerStyleNone
+                .Format.Line.Weight = 1.75
             End With
         Next j
         .HasTitle = True
