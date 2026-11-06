@@ -173,8 +173,8 @@ Private Sub Construire(activer As Boolean)
         "=IF(N(D19)=0,"""",PI()*D19)", "m"
     ' Épaisseur des couches dont le terrain est neutralisé (frottement négligé)
     Ligne ws, 24, "Frottement négligé (épaisseur des terrains neutralisés)", _
-        "=IF(COUNTIF(OFFSET(" & DONNEES & "$J$" & lc & ",0,0," & nb & "),""Oui"")=0,""Non""," & _
-        "SUMIF(OFFSET(" & DONNEES & "$J$" & lc & ",0,0," & nb & "),""Oui""," & _
+        "=IF(COUNTIF(OFFSET(" & DONNEES & "$M$" & lc & ",0,0," & nb & "),""Oui"")=0,""Non""," & _
+        "SUMIF(OFFSET(" & DONNEES & "$M$" & lc & ",0,0," & nb & "),""Oui""," & _
         "OFFSET(" & DONNEES & "$F$" & lc & ",0,0," & nb & ")))", "m"
     ws.Range("D19:D24").NumberFormat = "0.000"
 
@@ -1229,7 +1229,7 @@ Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat A
         "IFERROR(M" & r & "/(" & gamma & "),""-"")))"
     ws.Range("P" & r).Formula = "=IF(AND(ISNUMBER(O" & r & "),ISNUMBER(N" & r & "))," & _
         "IF(Q" & r & "=""Oui"",0,O" & r & "*N" & r & "),IF(B" & r & "="""","""",""-""))"
-    ws.Range("Q" & r).Formula = cond & DONNEES & "$J$" & ld & ")"
+    ws.Range("Q" & r).Formula = cond & DONNEES & "$M$" & ld & ")"
     ws.Range("E" & r & ":G" & r & ",I" & r).NumberFormat = "0.00"
     ws.Range("J" & r & ":M" & r & ",O" & r & ":P" & r).NumberFormat = "0.0"
     ws.Range("N" & r).NumberFormat = "0.000"

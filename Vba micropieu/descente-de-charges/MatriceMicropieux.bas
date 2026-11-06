@@ -4,8 +4,9 @@ Option Explicit
 ' Module « Matrice des micropieux » : sous les tableaux de descente de charges des murs
 ' (à partir de la ligne LIGNE_MATRICE), répartition des charges des murs sur les
 ' micropieux.
-'   L+1 à L+3 : poids volumique du béton armé, dimensions des massifs (longueur,
-'               largeur, hauteur) et section des longrines (b, h), en m
+'   L+1 à L+3 : tableau Élément / Poids volumique (kN/m3) / Base b (m) / Hauteur h (m)
+'               avec une ligne Massif (carré b x b, hauteur h) et une ligne Longrine
+'               (section b x h)
 '   L+5       : charges linéiques des murs, matrice n x 2 (n = nombre de murs, G1) :
 '               Mur 01, Mur 02, ... avec G et Q (kN/ml) du récapitulatif de chaque mur
 '   plus bas  : matrice m x n des longueurs de murs reprises par chaque micropieu
@@ -14,7 +15,7 @@ Option Explicit
 '               valeurs peuvent être modifiées ; puis, à droite :
 '               CHARGES DES MURS G, Q (kN) = matrice des longueurs x matrice n x 2 ;
 '               STRUCTURE GC : M (massif) ou L (longrine) ;
-'               POIDS MASSIF (kN) = poids volumique x volume du massif (si M, sinon 0) ;
+'               POIDS MASSIF (kN) = poids volumique x b² x h (si M, sinon 0) ;
 '               POIDS LONGRINE (kN) = poids volumique x section x longueur, longueur =
 '               somme des longueurs de murs de la ligne du micropieu / 2 (si L, sinon 0) ;
 '               POIDS TOTAL ÉLÉMENTAIRE DDC : G = G des murs + massif + longrine, Q ;
@@ -39,7 +40,7 @@ Private Const VERT_ENTETE As Long = 14348258   ' RGB(226, 239, 218)
 Public Sub ConstruireMatrice(Optional ws As Worksheet)
     Dim n As Long, m As Long, i As Long, j As Long, L As Long, r0 As Long, rG As Long
     Dim nOld As Long, mOld As Long, r0Old As Long, x0 As Long, r As Long, derniere As Long
-    Dim li() As Variant, mat() As Variant, gc() As Variant, dims As Variant, eau() As Variant
+    Dim li() As Variant, mat() As Variant, gc() As Variant, dims As Variant, dimsN() As Variant, eau() As Variant
     Dim ligne As String, cG As String, cQ As String, c As Range, evenements As Boolean
     Dim nappe As Boolean, f As Worksheet, xf As Long
 
@@ -61,6 +62,13 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     ReDim gc(1 To m)
     ReDim eau(1 To m, 1 To 3)
     dims = ws.Range("C" & L + 1 & ":E" & L + 3).Value
+    If Left(CStr(ws.Range("B" & L + 1).Value), 7) <> "Élément" Then
+        ' Ancienne disposition (gamma ; massif l, b, h ; longrine b, h) : conversion
+        ReDim dimsN(1 To 3, 1 To 3)
+        dimsN(2, 1) = dims(1, 1): dimsN(2, 2) = dims(2, 1): dimsN(2, 3) = dims(2, 3)
+        dimsN(3, 1) = dims(1, 1): dimsN(3, 2) = dims(3, 1): dimsN(3, 3) = dims(3, 2)
+        dims = dimsN
+    End If
     Do While Left(CStr(ws.Range("B" & L + 6 + nOld).Value), 4) = "Mur "
         nOld = nOld + 1
     Loop
@@ -105,14 +113,23 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         .Font.Bold = True
         .Font.Size = 12
     End With
-    ws.Range("B" & L + 1).Value = "Poids volumique du béton armé (kN/m3)"
-    ws.Range("B" & L + 2).Value = "Massif : longueur, largeur, hauteur (m)"
-    ws.Range("B" & L + 3).Value = "Longrine : largeur b, hauteur h (m)"
-    ws.Range("C" & L + 1).Value = IIf(IsEmpty(dims(1, 1)), 25, dims(1, 1))
-    ws.Range("C" & L + 2 & ":E" & L + 2).Value = Array(dims(2, 1), dims(2, 2), dims(2, 3))
-    ws.Range("C" & L + 3 & ":D" & L + 3).Value = Array(dims(3, 1), dims(3, 2))
-    ws.Range("C" & L + 1 & ",C" & L + 2 & ":E" & L + 2 & ",C" & L + 3 & ":D" & L + 3).Interior.Color = _
-        VERT_SAISIE
+    ' Tableau : une ligne par élément (massif carré b x b x h, longrine b x h)
+    ws.Range("B" & L + 1 & ":E" & L + 1).Value = _
+        Array("Élément", "Poids volumique (kN/m3)", "Base b (m)", "Hauteur h (m)")
+    With ws.Range("B" & L + 1 & ":E" & L + 1)
+        .Font.Bold = True
+        .WrapText = True
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .Interior.Color = VERT_ENTETE
+    End With
+    ws.Range("B" & L + 2).Value = "Massif"
+    ws.Range("B" & L + 3).Value = "Longrine"
+    For i = 2 To 3
+        ws.Range("C" & L + i & ":E" & L + i).Value = _
+            Array(IIf(IsEmpty(dims(i, 1)), 25, dims(i, 1)), dims(i, 2), dims(i, 3))
+    Next i
+    ws.Range("C" & L + 2 & ":E" & L + 3).Interior.Color = VERT_SAISIE
     ws.Range("B" & L + 1 & ":E" & L + 3).Borders.LineStyle = xlContinuous
 
     ' --- Matrice n x 2 : G et Q (kN/ml) de chaque mur (récapitulatif du mur k, colonne
@@ -190,9 +207,9 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
             .Value = IIf(IsEmpty(gc(i)), "M", gc(i))
         End With
         ws.Cells(r, x0 + 3).Formula = "=IF(" & ws.Cells(r, x0 + 2).Address(False, False) & "=""M""," & _
-            "$C$" & L + 1 & "*$C$" & L + 2 & "*$D$" & L + 2 & "*$E$" & L + 2 & ",0)"
+            "$C$" & L + 2 & "*$D$" & L + 2 & "^2*$E$" & L + 2 & ",0)"
         ws.Cells(r, x0 + 4).Formula = "=IF(" & ws.Cells(r, x0 + 2).Address(False, False) & "=""L""," & _
-            "$C$" & L + 1 & "*$C$" & L + 3 & "*$D$" & L + 3 & "*SUM(" & ligne & ")/2,0)"
+            "$C$" & L + 3 & "*$D$" & L + 3 & "*$E$" & L + 3 & "*SUM(" & ligne & ")/2,0)"
         ws.Cells(r, x0 + 5).Formula = "=N(" & ws.Cells(r, x0).Address(False, False) & ")+" & _
             ws.Cells(r, x0 + 3).Address(False, False) & "+" & ws.Cells(r, x0 + 4).Address(False, False)
         ws.Cells(r, x0 + 6).Formula = "=N(" & ws.Cells(r, x0 + 1).Address(False, False) & ")"
@@ -239,8 +256,8 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         ws.Range(ws.Cells(r, x0 + 7), ws.Cells(r, x0 + 9)).Interior.Color = JAUNE_CALCUL
     End If
     ws.Range(ws.Cells(r0 + 2, 3), ws.Cells(r, xf)).NumberFormat = "0.00"
-    ws.Range("C" & L + 1 & ":E" & L + 3 & ",C" & L + 6 & ":D" & L + 5 + n).NumberFormat = "0.00"
-    ws.Range("C" & L + 1 & ":E" & L + 3).HorizontalAlignment = xlCenter
+    ws.Range("C" & L + 2 & ":E" & L + 3 & ",C" & L + 6 & ":D" & L + 5 + n).NumberFormat = "0.00"
+    ws.Range("C" & L + 2 & ":E" & L + 3).HorizontalAlignment = xlCenter
     ws.Rows(r0).RowHeight = 45
 
     ' Tableau de vérification de la profondeur des micropieux de « Calcul et

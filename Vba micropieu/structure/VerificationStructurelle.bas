@@ -142,7 +142,7 @@ Public Sub CreerVerificationStructurelle()
     ' pl* de la 1re couche neutralisée (« Données du projet », colonne G)
     Ligne ws, 30, "Pression limite nette pl* de la couche molle", _
         "=IFERROR(INDEX(" & DONNEES & "$G$" & LIGNE_COUCHES & ":$G$" & LIGNE_COUCHES + MAX_COUCHES - 1 & _
-        ",MATCH(""Oui""," & DONNEES & "$J$" & LIGNE_COUCHES & ":$J$" & LIGNE_COUCHES + MAX_COUCHES - 1 & _
+        ",MATCH(""Oui""," & DONNEES & "$M$" & LIGNE_COUCHES & ":$M$" & LIGNE_COUCHES + MAX_COUCHES - 1 & _
         ",0)),0)", "MPa"
     Ligne ws, 31, "Pression de fluage nette pf* (à défaut d'essai : pl* / 1,5)", "=D30/1.5", "MPa"
     Ligne ws, 32, "Sol rocheux", "=" & DONNEES & "D" & lm + 3, ""
@@ -201,9 +201,9 @@ Public Sub CreerVerificationStructurelle()
     Ligne ws, 52, "Hauteur de la semelle existante hs", IIf(rS > 0, "=N(" & dn & "$F$" & rS & ")", "0"), "m"
     Ligne ws, 53, "Hauteur de terre h = hp + hs", "=D51+D52", "m"
     Ligne ws, 54, "Poids volumique du sol " & ChrW(947) & " (couche 1)", _
-        "=N(" & DONNEES & "L" & LIGNE_COUCHES & ")", "kN/m3"
-    Ligne ws, 55, "Cohésion c' (couche 1)", "=N(" & DONNEES & "M" & LIGNE_COUCHES & ")", "kPa"
-    Ligne ws, 56, "Angle de frottement " & ChrW(966) & "' (couche 1)", "=N(" & DONNEES & "N" & LIGNE_COUCHES & ")", "°"
+        "=N(" & DONNEES & "J" & LIGNE_COUCHES & ")", "kN/m3"
+    Ligne ws, 55, "Cohésion c' (couche 1)", "=N(" & DONNEES & "K" & LIGNE_COUCHES & ")", "kPa"
+    Ligne ws, 56, "Angle de frottement " & ChrW(966) & "' (couche 1)", "=N(" & DONNEES & "L" & LIGNE_COUCHES & ")", "°"
     Ligne ws, 57, "Coefficient des terres au repos K0 = 1 - sin " & ChrW(966) & "'", _
         "=1-SIN(RADIANS(D56))", ""
     Ligne ws, 58, "Contrainte verticale à la base " & ChrW(963) & "v = " & ChrW(947) & " h", "=D54*D53", "kPa"

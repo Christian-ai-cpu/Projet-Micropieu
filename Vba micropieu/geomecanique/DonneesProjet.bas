@@ -38,12 +38,13 @@ Option Explicit
 '               GEWI, désignation, dimensions, section, E et fyk associés, coefficients
 '               gamma s, durée d'utilisation du projet, environnement et perte
 '               d'épaisseur due à la corrosion (NF EN 1993-5, tableaux 4.1 et 4.2),
-'               épaisseur ou diamètre résiduel, platine, nuance, fy et fu)
+'               épaisseur ou diamètre résiduel, platine d'appui NF EN 1993-1-8,
+'               épaisseur, nuance, fy et fu selon l'épaisseur, gamma M0 et M2)
 ' Les valeurs se saisissent dans les cases vertes. Le type de fondation (ligne 13)
 ' s'affiche quand la phase (C9) vaut G5 (AfficherTypeFondation) et le tableau des
 ' couches suit le nombre de couches (AfficherCouches) : voir CodeFeuilleDonnees.txt.
-' Les listes de plus de 255 caractères (limite d'Excel, ex. noms des sols de la
-' NF P11-300) sont écrites sur la feuille masquée « Listes » (voir ListeLongue).
+' Les listes de plus de 255 caractères (limite d'Excel, ex. types de pieux ou
+' environnements de l'armature) sont écrites sur la feuille masquée « Listes » (voir ListeLongue).
 
 ' Constantes publiques : utilisées aussi par le module CalculFondation.
 Private Const NOM_FEUILLE As String = "Données du projet"
@@ -101,24 +102,29 @@ Private Const ENVIRONNEMENTS As String = "Sols naturels non remaniés (sable / l
 Private Const PERTES As String = "0,0.3,0.6,0.9,1.2;0.15,0.75,1.5,2.25,3;0.2,1,1.75,2.5,3.25;" & _
     "0.18,0.7,1.2,1.7,2.2;0.5,2,3.25,4.5,5.75;0.15,0.55,0.9,1.15,1.4;0.3,1.3,2.3,3.3,4.3;" & _
     "0.55,1.9,3.75,5.6,7.5;0.25,0.9,1.75,2.6,3.5"
-' Type de platine : catalogue des barres filetées GEWI (S555/700), GEWI Plus
-' (S670/800) et DYWIDAG (Y1050), diamètres à vérifier sur les fiches fabricant.
-Private Const PLATINES As String = "GEWI Ø25 (S555/700),GEWI Ø28 (S555/700)," & _
-    "GEWI Ø32 (S555/700),GEWI Ø40 (S555/700),GEWI Ø50 (S555/700),GEWI Ø63.5 (S555/700)," & _
-    "GEWI Plus Ø18 (S670/800),GEWI Plus Ø22 (S670/800),GEWI Plus Ø25 (S670/800)," & _
-    "GEWI Plus Ø28 (S670/800),GEWI Plus Ø30 (S670/800),GEWI Plus Ø35 (S670/800)," & _
-    "GEWI Plus Ø43 (S670/800),GEWI Plus Ø57.5 (S670/800),GEWI Plus Ø63.5 (S670/800)," & _
-    "GEWI Plus Ø75 (S670/800),DYWIDAG Ø18 (Y1050),DYWIDAG Ø26.5 (Y1050)," & _
-    "DYWIDAG Ø32 (Y1050),DYWIDAG Ø36 (Y1050),DYWIDAG Ø40 (Y1050),DYWIDAG Ø47 (Y1050)," & _
-    "DYWIDAG Ø57 (Y1050),DYWIDAG Ø65 (Y1050),DYWIDAG Ø75 (Y1050)"
+' Platines d'appui (liaison micropieu / structure, assemblage NF EN 1993-1-8) :
+' plats carrés en acier de construction NF EN 10025, épaisseur t lue dans la
+' désignation (elle fixe fy et fu, NF EN 1993-1-1 tableau 3.1).
+Private Const PLATINES As String = "Platine carrée 150 x 150 mm - ép. 15 mm," & _
+    "Platine carrée 150 x 150 mm - ép. 20 mm,Platine carrée 200 x 200 mm - ép. 20 mm," & _
+    "Platine carrée 200 x 200 mm - ép. 25 mm,Platine carrée 250 x 250 mm - ép. 25 mm," & _
+    "Platine carrée 250 x 250 mm - ép. 30 mm,Platine carrée 300 x 300 mm - ép. 30 mm," & _
+    "Platine carrée 300 x 300 mm - ép. 40 mm,Platine carrée 350 x 350 mm - ép. 40 mm," & _
+    "Platine carrée 350 x 350 mm - ép. 50 mm,Platine carrée 400 x 400 mm - ép. 50 mm," & _
+    "Platine carrée 400 x 400 mm - ép. 60 mm,Platine carrée 500 x 500 mm - ép. 80 mm"
 ' Nuances d'acier (NF EN 10025-2, -3 N/NL, -4 M/ML) avec limite élastique fy et
-' limite de rupture fu en MPa pour une épaisseur <= 40 mm (NF EN 1993-1-1, tab. 3.1)
+' limite de rupture fu en MPa (NF EN 1993-1-1, tableau 3.1) : t <= 40 mm puis
+' 40 mm < t <= 80 mm (NUANCES_FY80 / NUANCES_FU80)
 Private Const NUANCES As String = "S235,S275,S355,S450,S275N,S275NL,S355N,S355NL," & _
     "S420N,S420NL,S460N,S460NL,S275M,S275ML,S355M,S355ML,S420M,S420ML,S460M,S460ML"
 Private Const NUANCES_FY As String = "235,275,355,440,275,275,355,355,420,420,460,460," & _
     "275,275,355,355,420,420,460,460"
 Private Const NUANCES_FU As String = "360,430,510,550,390,390,490,490,520,520,540,540," & _
     "370,370,470,470,520,520,540,540"
+Private Const NUANCES_FY80 As String = "215,255,335,410,255,255,335,335,390,390,430,430," & _
+    "255,255,335,335,390,390,430,430"
+Private Const NUANCES_FU80 As String = "360,410,470,550,370,370,470,470,520,520,540,540," & _
+    "360,360,450,450,500,500,530,530"
 ' Types de sollicitation transversale (choix de la courbe de réaction du sol)
 Public Const TYPES_SOLLICITATION As String = "a - Sollicitations permanentes en tête dominantes," & _
     "b - Poussées latérales du sol dominantes,c - Sollicitations de courte durée en tête dominantes," & _
@@ -252,12 +258,12 @@ Public Sub CreerDonneesProjet()
         """Couche molle (terrain neutralisé) : résistance de pointe qc""," & _
         """Couche molle (terrain neutralisé) : module pressiométrique EM"")"
     ws.Range("E" & r & ":E" & r + 6).Value = Application.Transpose(Array("m", "MPa", "m", "", "", "", ""))
-    ws.Range("D" & r).Formula = "=SUMIF($J$" & LIGNE_COUCHES & ":$J$" & LIGNE_COUCHES + MAX_COUCHES - 1 & _
+    ws.Range("D" & r).Formula = "=SUMIF($M$" & LIGNE_COUCHES & ":$M$" & LIGNE_COUCHES + MAX_COUCHES - 1 & _
         ",""Oui"",$F$" & LIGNE_COUCHES & ":$F$" & LIGNE_COUCHES + MAX_COUCHES - 1 & ")"
     ' EM (ou qc) de la 1re couche neutralisée
     ws.Range("D" & r + 1).Formula = "=IFERROR(INDEX(IF(" & CELLULE_METHODE & "=""Méthode pénétrométrique""," & _
         "$I$" & LIGNE_COUCHES & ":$I$" & LIGNE_COUCHES + MAX_COUCHES - 1 & ",$H$" & LIGNE_COUCHES & ":$H$" & _
-        LIGNE_COUCHES + MAX_COUCHES - 1 & "),MATCH(""Oui"",$J$" & LIGNE_COUCHES & ":$J$" & _
+        LIGNE_COUCHES + MAX_COUCHES - 1 & "),MATCH(""Oui"",$M$" & LIGNE_COUCHES & ":$M$" & _
         LIGNE_COUCHES + MAX_COUCHES - 1 & ",0)),"""")"
     ws.Range("D" & r + 2).Formula = "=D" & r
     Liste ws.Range("D" & r + 3), "Non,Oui"
@@ -291,19 +297,19 @@ Public Sub CreerDonneesProjet()
         .Validation.ErrorMessage = "Entrer un nombre de couches entre 1 et " & MAX_COUCHES & "."
         .HorizontalAlignment = xlCenter
     End With
-    ws.Range("B" & LIGNE_COUCHES - 1 & ":K" & LIGNE_COUCHES - 1).Value = Array("N° de couche", _
-        "Nom de couche (NF P11-300)", "Catégorie de sol (NF P94-262)", "Prof. bas", _
+    ' Ordre : identification, géométrie, essais (pl*, EM, qc), paramètres de sol
+    ' (gamma, c', phi'), puis en dernières colonnes terrain neutralisé et ancrage
+    ws.Range("B" & LIGNE_COUCHES - 1 & ":N" & LIGNE_COUCHES - 1).Value = Array("N° de couche", _
+        "Nom de couche", "Catégorie de sol (NF P94-262)", "Prof. bas", _
         "Épaisseur (m)", "Pression limite pl* (MPa)", "Module pressiométrique EM (MPa)", _
-        "Résistance de pointe qc (MPa)", "Terrain neutralisé", "Prise comme couche d'ancrage")
-    ws.Range("L" & LIGNE_COUCHES - 1 & ":N" & LIGNE_COUCHES - 1).Value = Array( _
-        "Poids volumique " & ChrW(947) & " (kN/m3)", "Cohésion c' (kPa)", "Angle de frottement " & _
-        ChrW(966) & "' (°)")
+        "Résistance de pointe qc (MPa)", "Poids volumique " & ChrW(947) & " (kN/m3)", _
+        "Cohésion c' (kPa)", "Angle de frottement " & ChrW(966) & "' (°)", _
+        "Terrain neutralisé", "Prise comme couche d'ancrage")
     ' Unité de la profondeur : celle du niveau du terrain naturel (m + référentiel)
     ws.Range("E" & LIGNE_COUCHES - 1).Formula = "=""Prof. bas (""&$E$29&"")"""
     For r = LIGNE_COUCHES To LIGNE_COUCHES + MAX_COUCHES - 1
         ws.Range("B" & r).Value = r - LIGNE_COUCHES + 1
-        ListeLongue ws.Range("C" & r), SolsNFP11300(), "Sols NF P11-300"
-        ws.Range("C" & r).ClearContents      ' nom de couche à choisir
+        ws.Range("C" & r).Validation.Delete  ' nom de couche : saisie libre
         Liste ws.Range("D" & r), CATEGORIES_SOL
         ws.Range("D" & r).ClearContents      ' catégorie à choisir
         ' Épaisseur = différence entre la base de la couche et celle de la couche
@@ -313,13 +319,15 @@ Public Sub CreerDonneesProjet()
         Else
             ws.Range("F" & r).Formula = "=IF(E" & r & "="""","""",ABS(E" & r & "-E" & r - 1 & "))"
         End If
-        Liste ws.Range("J" & r), "Non,Oui"
-        Liste ws.Range("K" & r), "Non,Oui"
+        ws.Range("J" & r & ":L" & r).Validation.Delete
+        Liste ws.Range("M" & r), "Non,Oui"
+        Liste ws.Range("N" & r), "Non,Oui"
     Next r
     lc = LIGNE_COUCHES + MAX_COUCHES - 1
     ' Formats des valeurs d'entrée : profondeur, épaisseur, pl*, EM et qc à 2 décimales
     ws.Range("E" & LIGNE_COUCHES & ":I" & lc).NumberFormat = "0.00"
-    ws.Range("L" & LIGNE_COUCHES & ":N" & lc).NumberFormat = "0.0"
+    ws.Range("J" & LIGNE_COUCHES & ":L" & lc).NumberFormat = "0.0"
+    ws.Range("M" & LIGNE_COUCHES & ":N" & lc).NumberFormat = "General"
     ws.Range("B" & LIGNE_COUCHES & ":B" & lc & ",E" & LIGNE_COUCHES & ":N" & lc).HorizontalAlignment = xlCenter
 
     ' --- Caractéristiques de la fondation (sous le tableau précédent) ---
@@ -454,7 +462,7 @@ Public Sub CreerDonneesProjet()
     ' caractéristiques mécaniques sont remplies (voir MajArmature et MajAcier) ; perte
     ' d'épaisseur due à la corrosion selon l'environnement et la durée d'utilisation
     SousTitre ws, LIGNE_ACIER - 1, "Caractéristiques de l'acier"
-    ws.Range("B" & LIGNE_ACIER & ":B" & LIGNE_ACIER + 18).Value = Application.Transpose(Array( _
+    ws.Range("B" & LIGNE_ACIER & ":B" & LIGNE_ACIER + 21).Value = Application.Transpose(Array( _
         "Type d'armature", "Désignation de l'armature", "Diamètre extérieur (tube) ou nominal (barre)", _
         "Épaisseur e", "Diamètre intérieur", "Section d'acier As", "Module de Young E", _
         "Limite d'élasticité fyk", _
@@ -465,10 +473,16 @@ Public Sub CreerDonneesProjet()
         "Environnement de l'armature (NF EN 1993-5, tableaux 4.1 et 4.2)", _
         "Perte d'épaisseur due à la corrosion", _
         "Épaisseur résiduelle du tube (e - perte) ou diamètre résiduel de la barre (d - 2 x perte)", _
-        "Type de platine (liaison fondation / structure)", "Nuance de l'acier de la platine", _
-        "Limite élastique de l'acier fy", "Limite de rupture de l'acier fu"))
-    ws.Range("E" & LIGNE_ACIER + 2 & ":E" & LIGNE_ACIER + 18).Value = Application.Transpose(Array( _
-        "mm", "mm", "mm", "mm²", "MPa", "MPa", "", "", "", "ans", "", "mm", "mm", "", "", "MPa", "MPa"))
+        "Platine d'appui (liaison fondation / structure, NF EN 1993-1-8)", _
+        "Épaisseur t de la platine", _
+        "Nuance de l'acier de la platine (NF EN 10025-2, -3, -4)", _
+        "Limite d'élasticité fy (NF EN 1993-1-1, tableau 3.1, selon t)", _
+        "Résistance ultime à la traction fu (NF EN 1993-1-1, tableau 3.1, selon t)", _
+        "Coefficient partiel " & ChrW(947) & "M0 (NF EN 1993-1-1, 6.1)", _
+        "Coefficient partiel " & ChrW(947) & "M2 (NF EN 1993-1-8, tableau 2.1)"))
+    ws.Range("E" & LIGNE_ACIER + 2 & ":E" & LIGNE_ACIER + 21).Value = Application.Transpose(Array( _
+        "mm", "mm", "mm", "mm²", "MPa", "MPa", "", "", "", "ans", "", "mm", "mm", "", "mm", "", _
+        "MPa", "MPa", "", ""))
     Liste ws.Range("D" & LIGNE_ACIER), TYPES_ARMATURE
     ws.Range("D" & LIGNE_ACIER + 2 & ":D" & LIGNE_ACIER + 4).NumberFormat = "0.0"
     ws.Range("D" & LIGNE_ACIER + 5 & ":D" & LIGNE_ACIER + 7).NumberFormat = "0"
@@ -485,14 +499,23 @@ Public Sub CreerDonneesProjet()
         LIGNE_ACIER + 2 & "=""""),"""",IF(D" & LIGNE_ACIER & "=""Tube N80"",D" & LIGNE_ACIER + 3 & _
         "-D" & LIGNE_ACIER + 13 & ",D" & LIGNE_ACIER + 2 & "-2*D" & LIGNE_ACIER + 13 & "))"
     ws.Range("D" & LIGNE_ACIER + 13 & ":D" & LIGNE_ACIER + 14).NumberFormat = "0.00"
-    ListeLongue ws.Range("D" & LIGNE_ACIER + 15), PLATINES, "Platines"
-    Liste ws.Range("D" & LIGNE_ACIER + 16), NUANCES
-    ws.Range("D" & LIGNE_ACIER + 16).Value = "S355"
-    ' fy et fu de la nuance choisie (tables NUANCES_FY et NUANCES_FU)
-    ws.Range("D" & LIGNE_ACIER + 17).Formula = FormuleNuance(NUANCES_FY, LIGNE_ACIER + 16)
-    ws.Range("D" & LIGNE_ACIER + 18).Formula = FormuleNuance(NUANCES_FU, LIGNE_ACIER + 16)
-    ws.Range("D" & la + 3 & ":E" & LIGNE_ACIER + 18).HorizontalAlignment = xlCenter
-    For r = la + 3 To LIGNE_ACIER + 18
+    ListeLongue ws.Range("D" & LIGNE_ACIER + 15), PLATINES, "Platines NF EN 1993-1-8"
+    ws.Range("D" & LIGNE_ACIER + 15).Value = Split(PLATINES, ",")(2)
+    ' Épaisseur t lue dans la désignation (« ... - ép. 20 mm »)
+    ws.Range("D" & LIGNE_ACIER + 16).Formula = "=IFERROR(--SUBSTITUTE(TRIM(MID(D" & LIGNE_ACIER + 15 & _
+        ",FIND(""ép."",D" & LIGNE_ACIER + 15 & ")+3,10)),"" mm"",""""),"""")"
+    Liste ws.Range("D" & LIGNE_ACIER + 17), NUANCES
+    ws.Range("D" & LIGNE_ACIER + 17).Value = "S355"
+    ' fy et fu de la nuance choisie selon l'épaisseur (t <= 40 mm ou 40 < t <= 80 mm)
+    ws.Range("D" & LIGNE_ACIER + 18).Formula = FormuleNuanceEp(NUANCES_FY, NUANCES_FY80, _
+        LIGNE_ACIER + 17, LIGNE_ACIER + 16)
+    ws.Range("D" & LIGNE_ACIER + 19).Formula = FormuleNuanceEp(NUANCES_FU, NUANCES_FU80, _
+        LIGNE_ACIER + 17, LIGNE_ACIER + 16)
+    ws.Range("D" & LIGNE_ACIER + 20 & ":D" & LIGNE_ACIER + 21).Value = Application.Transpose(Array(1, 1.25))
+    ws.Range("D" & LIGNE_ACIER + 16).NumberFormat = "0"
+    ws.Range("D" & LIGNE_ACIER + 20 & ":D" & LIGNE_ACIER + 21).NumberFormat = "0.00"
+    ws.Range("D" & la + 3 & ":E" & LIGNE_ACIER + 21).HorizontalAlignment = xlCenter
+    For r = la + 3 To LIGNE_ACIER + 21
         If r <> LIGNE_ACIER - 1 And r <> LIGNE_ACIER - 2 Then ws.Range("B" & r & ":C" & r).Merge
     Next r
 
@@ -500,7 +523,7 @@ Public Sub CreerDonneesProjet()
     With ws.Range("B4:C9,B12:C16,B19:I26,B28:E29,B" & LIGNE_COUCHES - 2 & ":C" & LIGNE_COUCHES - 2 & _
             ",B" & LIGNE_COUCHES - 1 & ":N" & lc & _
             ",B" & lm + 1 & ":E" & LIGNE_COUCHE_MOLLE + 6 & ",B" & lp & ":D" & lp + 22 & _
-            ",B" & la + 3 & ":E" & la + 10 & ",B" & LIGNE_ACIER & ":E" & LIGNE_ACIER + 18)
+            ",B" & la + 3 & ":E" & la + 10 & ",B" & LIGNE_ACIER & ":E" & LIGNE_ACIER + 21)
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
@@ -517,16 +540,17 @@ Public Sub CreerDonneesProjet()
     ws.Range("C4:C9,C12:C16,D28:D29," & CELLULE_NB_COUCHES & ",D" & la + 3 & ",D" & la + 5 & ":D" & _
         la + 6 & ",D" & la + 8 & ":D" & la + 10 & _
         ",D" & LIGNE_ACIER & ":D" & LIGNE_ACIER + 1 & ",D" & LIGNE_ACIER + 8 & ":D" & _
-        LIGNE_ACIER + 10 & ",D" & LIGNE_ACIER + 12 & ",D" & LIGNE_ACIER + 15 & ":D" & LIGNE_ACIER + 16).Interior.Color = VERT_SAISIE
+        LIGNE_ACIER + 10 & ",D" & LIGNE_ACIER + 12 & ",D" & LIGNE_ACIER + 15 & ",D" & LIGNE_ACIER + 17 & ",D" & LIGNE_ACIER + 20 & ":D" & _
+        LIGNE_ACIER + 21).Interior.Color = VERT_SAISIE
     ws.Range("D" & la + 4 & ",D" & la + 7 & ",D" & LIGNE_ACIER + 2 & ":D" & LIGNE_ACIER + 7 & _
         ",D" & LIGNE_ACIER + 11 & ":D" & LIGNE_ACIER + 14 & _
-        ",D" & LIGNE_ACIER + 17 & ":D" & LIGNE_ACIER + 18).Interior.Color = JAUNE_CALCUL
+        ",D" & LIGNE_ACIER + 16 & ",D" & LIGNE_ACIER + 18 & ":D" & LIGNE_ACIER + 19).Interior.Color = JAUNE_CALCUL
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 40
     ws.Columns("D").ColumnWidth = 28         ' valeurs de la fondation, catégorie de sol
     ws.Columns("E:N").ColumnWidth = 14
-    ws.Rows("19:" & LIGNE_ACIER + 18).AutoFit
+    ws.Rows("19:" & LIGNE_ACIER + 21).AutoFit
 
     AfficherTypeFondation ws
     AfficherCouches ws
@@ -636,6 +660,16 @@ Private Function FormuleNuance(valeurs As String, ligne As Long) As String
         Replace(NUANCES, ",", """,""") & """},0))"
 End Function
 
+' fy ou fu de la nuance (ligne) selon l'épaisseur t (ligneT) : NF EN 1993-1-1,
+' tableau 3.1 (t <= 40 mm : v40 ; 40 < t <= 80 mm : v80 ; au-delà : hors tableau)
+Private Function FormuleNuanceEp(v40 As String, v80 As String, ligne As Long, _
+        ligneT As Long) As String
+    Dim t As String
+    t = "D" & ligneT
+    FormuleNuanceEp = "=IF(" & t & "="""",""""," & "IF(" & t & ">80,""t > 80 mm"",IF(" & t & "<=40," & _
+        Mid(FormuleNuance(v40, ligne), 2) & "," & Mid(FormuleNuance(v80, ligne), 2) & ")))"
+End Function
+
 ' Type d'armature choisi (D92) : la liste « Désignation de l'armature » propose les
 ' tubes N80 (TUBES), les barres HA (BARRES) ou les barres GEWI, GEWI Plus et DYWIDAG
 ' (GEWI) ; épaisseur et diamètre intérieur ne sont affichés que pour un tube.
@@ -724,35 +758,6 @@ End Function
 Public Sub AfficherTypeFondation(ws As Worksheet)
     ws.Rows(LIGNE_FONDATION).Hidden = (ws.Range(CELLULE_PHASE).Value <> "G5")
 End Sub
-
-' Noms des sols et roches des classes A, B, C, D et R de la NF P11-300 (GTR).
-' Désignations abrégées, à compléter si besoin.
-Private Function SolsNFP11300() As String
-    Dim s As String
-    s = "A1 - Limons peu plastiques / loess / sables fins peu pollués"
-    s = s & ",A2 - Sables fins argileux / limons / argiles et marnes peu plastiques"
-    s = s & ",A3 - Argiles et argiles marneuses / limons très plastiques"
-    s = s & ",A4 - Argiles et argiles marneuses très plastiques"
-    s = s & ",B1 - Sables silteux"
-    s = s & ",B2 - Sables argileux (peu argileux)"
-    s = s & ",B3 - Graves silteuses"
-    s = s & ",B4 - Graves argileuses (peu argileuses)"
-    s = s & ",B5 - Sables et graves très silteux"
-    s = s & ",B6 - Sables et graves argileux à très argileux"
-    s = s & ",C1 - Sols à fines et gros éléments (argiles à silex / éboulis / moraines)"
-    s = s & ",C2 - Sols à gros éléments dominants avec fines"
-    s = s & ",D1 - Sables alluvionnaires propres / sables de dune"
-    s = s & ",D2 - Graves alluvionnaires propres / sables"
-    s = s & ",D3 - Graves alluvionnaires grossières propres / galets"
-    s = s & ",R1 - Craies"
-    s = s & ",R2 - Calcaires"
-    s = s & ",R3 - Roches argileuses (marnes / argilites / pélites)"
-    s = s & ",R4 - Roches siliceuses (grès / poudingues / brèches)"
-    s = s & ",R5 - Roches salines (sel gemme / gypse)"
-    s = s & ",R6 - Roches magmatiques et métamorphiques (granites / basaltes / schistes)"
-    s = s & ",Terrain neutralisé"
-    SolsNFP11300 = s
-End Function
 
 ' Sous-titre en gras, souligné, en colonne B
 Private Sub SousTitre(ws As Worksheet, ligne As Long, texte As String)
