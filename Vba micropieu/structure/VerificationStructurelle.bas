@@ -16,7 +16,8 @@ Option Explicit
 '         / 2), Es selon le type de sollicitation (a, b : Kf ; c, d : 2 Kf),
 '         l0 = (4 EI / Es)^(1/4), D réelle, comportement rigide (l0 >= D) ou souple
 '         (D >= 3 l0)
-'   dessous : efforts dans chaque micropieu et chaque combinaison (ELS caractéristique,
+'   dessous : déplacement en tête (voir plus bas), puis efforts dans chaque micropieu et
+'         chaque combinaison (ELS caractéristique,
 '         ELS quasi permanent, ELU fondamental, ELU accidentel) : compression Nc = Vmax
 '         de la vérification de la profondeur, traction Nt = - Nc, effort tranchant en
 '         tête V = gamma G,sup x H x L (L : longueur de mur reprise par le micropieu,
@@ -24,9 +25,11 @@ Option Explicit
 '         terres au repos sur la fondation existante : h = hauteur du poteau du
 '         soubassement + hauteur de la semelle, K0 = 1 - sin phi' (couche 1),
 '         H = K0 gamma h² / 2 (kN/ml), e = h / 3 (rappel au-dessus du tableau)
-'   dessous : déplacement en tête y0 de chaque micropieu et chaque combinaison (poutre
-'         de longueur D sur appuis élastiques, solution de Hetényi : tête libre
-'         y0 = a H + b M, tête encastrée y0 = (a - b²/c) H et moment d'encastrement)
+'   déplacement en tête y0 de chaque micropieu et chaque combinaison, entre le tableau
+'         de l0 et celui des efforts (poutre de longueur D sur appuis élastiques, solution
+'         de Hetényi : tête libre y0 = a H + b M, tête encastrée y0 = (a - b²/c) H et
+'         moment d'encastrement) ; H = V + T0, T0 = Nc x sin(angle) si le micropieu est
+'         incliné (effort horizontal provenant de la descente de charges)
 ' Le nombre de micropieux et les adresses des autres feuilles sont lus à la création :
 ' relancer CreerVerificationStructurelle après un changement de ces feuilles.
 
@@ -51,6 +54,7 @@ Public Sub CreerVerificationStructurelle()
     Dim emq As String, alp As String, nat As String, bet As String
     Dim hT As String, k0 As String, hH As String, eE As String
     Dim rY As Long, condTete As Variant, ry0 As String, rl0 As String, xs As String
+    Dim cIn As Long, cAn As Long
 
     Application.ScreenUpdating = False
     On Error GoTo Erreur
@@ -309,9 +313,151 @@ Public Sub CreerVerificationStructurelle()
     End With
 
 
-    ' --- Efforts dans les micropieux (sous le tableau de la longueur de transfert) ---
+    ' --- Déplacement en tête de chaque micropieu, pour chaque combinaison ---
+    ' (entre le tableau de la longueur de transfert et celui des efforts)
+    ' Poutre de longueur D sur appuis élastiques (module Es, longueur de transfert l0,
+    ' lambda = 1 / l0, x = D / l0), extrémité inférieure libre. Effort transversal en
+    ' tête H = V (poussée des terres, tableau des efforts) + T0 ; micropieu incliné
+    ' (« Calcul et vérification », colonnes Incliné et Angle) : T0 = Nc x sin(angle),
+    ' composante perpendiculaire à l'axe du micropieu de l'effort vertical de la descente
+    ' de charges (Nc de la combinaison), 0 sinon ; moment M du tableau des efforts.
+    ' Souplesses en tête (solution analytique de Hetényi, poutre de longueur finie ;
+    ' module Es en kPa) :
+    '   y = a H + b M, rotation = b H + c M, avec
+    '   a = 2 lambda / Es x (sh ch - s c) / (sh² - s²)
+    '   b = 2 lambda² / Es x (sh² + s²) / (sh² - s²)
+    '   c = 4 lambda³ / Es x (sh ch + s c) / (sh² - s²)
+    '   (sh, ch = sinh x, cosh x ; s, c = sin x, cos x). Limites : micropieu souple
+    '   (x grand) y = 2 H / (Es l0) + 2 M / (Es l0²) ; rigide (x petit)
+    '   y = 4 H / (Es D) + 6 M / (Es D²).
+    ' Tête libre : y0 = a H + b M ; tête encastrée (rotation nulle) : y0 = (a - b² / c) H,
+    ' moment d'encastrement M0 = b / c x H (souple : H l0 / 2 ; rigide : H D / 2).
+    ' Comportement linéaire (partie élastique de la courbe de réaction, p <= Pf).
+    etape = "déplacements en tête"
+    rY = rL + 2 + m + 3
+    rv = rY + 3 + m + 5                       ' en-tête du tableau des efforts (plus bas)
+    For i = 1 To 80                           ' inclinaison et angle de chaque micropieu
+        If CStr(wc.Cells(r0 + 1, i).Value) = "Incliné" Then cIn = i
+        If CStr(wc.Cells(r0 + 1, i).Value) = "Angle (°)" Then cAn = i
+    Next i
+    With ws.Range("A" & rY)
+        .Value = TITRE_DEPL
+        .Font.Bold = True
+        .Font.Size = 14
+        .Font.Color = VERT_FONCE
+    End With
+    ws.Range("B" & rY + 1).Value = "Calcul linéaire (Es, l0 du tableau de la longueur de transfert), " & _
+        "solution de la poutre de longueur D sur appuis élastiques (Hetényi) ; H = V + T0, M du " & _
+        "tableau des efforts ; y en mm"
+    r = rY + 2
+    ws.Range("A" & r & ":H" & r).Value = Array("N° MICROPIEU", "Condition en tête", "Incliné", _
+        "Angle (°)", "x = D / l0", "a (m/kN)", "b (1/kN)", "c (1/(kN.m))")
+    ws.Range("I" & r).Value = "EFFORT HORIZONTAL T0 = Nc x sin " & ChrW(945) & " (kN)"
+    ws.Range("M" & r).Value = "EFFORT TRANSVERSAL EN TÊTE H = V + T0 (kN)"
+    ws.Range("Q" & r).Value = "DÉPLACEMENT EN TÊTE y0 (mm)"
+    ws.Range("U" & r).Value = "MOMENT D'ENCASTREMENT EN TÊTE M0 (kN.m)"
+    For k = 0 To 7
+        ws.Range(ws.Cells(r, 1 + k), ws.Cells(r + 1, 1 + k)).Merge
+    Next k
+    For j = 0 To 3
+        ws.Range(ws.Cells(r, 9 + 4 * j), ws.Cells(r, 12 + 4 * j)).Merge
+        ws.Range(ws.Cells(r + 1, 9 + 4 * j), ws.Cells(r + 1, 12 + 4 * j)).Value = _
+            Array("ELS CARA", "ELS QP", "ELU FOND", "ELU ACC")
+    Next j
+    Commentaire ws.Range("B" & r), "Libre en tête : rotation libre, y0 = a H + b M ; encastré en " & _
+        "tête : rotation bloquée par la semelle, y0 = (a - b²/c) H (valeur par défaut : « Données du " & _
+        "projet », conditions en tête)"
+    Commentaire ws.Range("C" & r), "Inclinaison et angle du micropieu : vérification de la " & _
+        "profondeur (« Calcul et vérification »)"
+    Commentaire ws.Range("E" & r), "x = D / l0 : micropieu souple si x >= 3, rigide si x <= 1"
+    Commentaire ws.Range("F" & r), "Souplesses en tête (Hetényi, poutre de longueur finie, extrémité " & _
+        "libre) : a = 2" & ChrW(955) & "/Es (sh ch - s c)/(sh² - s²), b = 2" & ChrW(955) & "²/Es (sh² + " & _
+        "s²)/(sh² - s²), c = 4" & ChrW(955) & "³/Es (sh ch + s c)/(sh² - s²), " & ChrW(955) & " = 1/l0, " & _
+        "sh = sinh x, s = sin x"
+    Commentaire ws.Range("I" & r), "T0 : effort horizontal dû à l'inclinaison du micropieu, " & _
+        "composante perpendiculaire à son axe de l'effort vertical de la descente de charges " & _
+        "(Nc de la combinaison, tableau des efforts) : T0 = Nc x sin " & ChrW(945) & " ; 0 si le " & _
+        "micropieu n'est pas incliné"
+    Commentaire ws.Range("M" & r), "H = V + T0 : effort tranchant de la poussée des terres (tableau " & _
+        "des efforts) augmenté de T0 (même sens, hypothèse défavorable)"
+    Commentaire ws.Range("Q" & r), "y0 : déplacement horizontal en tête, comportement linéaire (à " & _
+        "l'ELU, valeur approchée si la réaction dépasse le palier de fluage Pf)"
+    Commentaire ws.Range("U" & r), "M0 = b/c x H : moment repris par l'encastrement en tête (tête " & _
+        "encastrée seulement)"
+    For i = 1 To m
+        r = rY + 3 + i
+        x = CStr(r)
+        rl0 = CStr(rL + 2 + i)                ' ligne du micropieu dans le tableau de l0
+        ry0 = CStr(rv + 1 + i)                ' ligne du micropieu dans le tableau des efforts
+        ws.Range("A" & r).Value = "MP" & i
+        With ws.Range("B" & r)
+            .Validation.Delete
+            .Validation.Add xlValidateList, xlValidAlertStop, , "Libre en tête,Encastré en tête"
+            .Value = IIf(CStr(ActiveWorkbook.Worksheets("Données du projet").Range("D" & lp + 18).Value) = _
+                "Encastré en tête", "Encastré en tête", "Libre en tête")
+            If IsArray(condTete) Then
+                If i <= UBound(condTete) Then
+                    If CStr(condTete(i)) = "Libre en tête" Or CStr(condTete(i)) = "Encastré en tête" Then _
+                        .Value = condTete(i)
+                End If
+            End If
+        End With
+        If cIn > 0 Then
+            ws.Range("C" & r).Formula = "=IF(" & CALCUL & wc.Cells(r0 + 2 + i, cIn).Address & "=""Oui"",""Oui"",""Non"")"
+        Else
+            ws.Range("C" & r).Value = "Non"
+        End If
+        If cAn > 0 Then
+            ws.Range("D" & r).Formula = "=IF(C" & x & "=""Oui"",N(" & CALCUL & wc.Cells(r0 + 2 + i, cAn).Address & "),0)"
+        Else
+            ws.Range("D" & r).Value = 0
+        End If
+        ws.Range("E" & r).Formula = "=IF(OR(N(W" & rl0 & ")<=0,N(X" & rl0 & ")<=0),"""",X" & rl0 & "/W" & rl0 & ")"
+        xs = "E" & x
+        ' (sh ch - s c), (sh² + s²), (sh ch + s c) divisés par (sh² - s²) ; Es en kPa
+        ws.Range("F" & r).Formula = "=IF(" & xs & "="""","""",2/W" & rl0 & "/(V" & rl0 & "*1000)*" & _
+            "(SINH(" & xs & ")*COSH(" & xs & ")-SIN(" & xs & ")*COS(" & xs & "))/(SINH(" & xs & ")^2-SIN(" & xs & ")^2))"
+        ws.Range("G" & r).Formula = "=IF(" & xs & "="""","""",2/W" & rl0 & "^2/(V" & rl0 & "*1000)*" & _
+            "(SINH(" & xs & ")^2+SIN(" & xs & ")^2)/(SINH(" & xs & ")^2-SIN(" & xs & ")^2))"
+        ws.Range("H" & r).Formula = "=IF(" & xs & "="""","""",4/W" & rl0 & "^3/(V" & rl0 & "*1000)*" & _
+            "(SINH(" & xs & ")*COSH(" & xs & ")+SIN(" & xs & ")*COS(" & xs & "))/(SINH(" & xs & ")^2-SIN(" & xs & ")^2))"
+        For k = 0 To 3
+            ' T0 = Nc x sin(angle) (Nc : colonne 3 + k du tableau des efforts), H = V + T0
+            ' (V : colonne 11 + k), M (colonne 15 + k)
+            ws.Cells(r, 9 + k).Formula = "=IF(C" & x & "=""Oui"",ABS(N(" & _
+                ws.Cells(CLng(ry0), 3 + k).Address(False, False) & "))*SIN(RADIANS(D" & x & ")),0)"
+            ws.Cells(r, 13 + k).Formula = "=N(" & ws.Cells(CLng(ry0), 11 + k).Address(False, False) & ")+" & _
+                ws.Cells(r, 9 + k).Address(False, False)
+            ws.Cells(r, 17 + k).Formula = "=IF(F" & x & "="""","""",1000*IF(B" & x & "=""Encastré en tête""," & _
+                "(F" & x & "-G" & x & "^2/H" & x & ")*" & ws.Cells(r, 13 + k).Address(False, False) & "," & _
+                "F" & x & "*" & ws.Cells(r, 13 + k).Address(False, False) & "+G" & x & "*N(" & _
+                ws.Cells(CLng(ry0), 15 + k).Address(False, False) & ")))"
+            ws.Cells(r, 21 + k).Formula = "=IF(OR(F" & x & "="""",B" & x & "<>""Encastré en tête""),""-""," & _
+                "G" & x & "/H" & x & "*" & ws.Cells(r, 13 + k).Address(False, False) & ")"
+        Next k
+    Next i
+    With ws.Range("A" & rY + 2 & ":X" & rY + 3 + m)
+        .Borders.LineStyle = xlContinuous
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+    End With
+    With ws.Range("A" & rY + 2 & ":X" & rY + 3)
+        .Font.Bold = True
+        .Interior.Color = VERT_ENTETE
+        .WrapText = True
+    End With
+    ws.Range("A" & rY + 4 & ":A" & rY + 3 + m).Font.Bold = True
+    ws.Range("C" & rY + 4 & ":X" & rY + 3 + m).Interior.Color = JAUNE_CALCUL
+    ws.Range("B" & rY + 4 & ":B" & rY + 3 + m).Interior.Color = VERT_SAISIE
+    ws.Range("D" & rY + 4 & ":D" & rY + 3 + m).NumberFormat = "0.0"
+    ws.Range("E" & rY + 4 & ":E" & rY + 3 + m).NumberFormat = "0.00"
+    ws.Range("F" & rY + 4 & ":H" & rY + 3 + m).NumberFormat = "0.000E+00"
+    ws.Range("I" & rY + 4 & ":P" & rY + 3 + m & ",U" & rY + 4 & ":X" & rY + 3 + m).NumberFormat = "0.0"
+    ws.Range("Q" & rY + 4 & ":T" & rY + 3 + m).NumberFormat = "0.00"
+    ws.Range("Q" & rY + 4 & ":T" & rY + 3 + m).Font.Bold = True
+
+    ' --- Efforts dans les micropieux (sous le tableau des déplacements) ---
     etape = "efforts dans les micropieux"
-    rv = rL + 2 + m + 5                       ' en-tête du tableau des efforts
     With ws.Range("A" & rv - 2)
         .Value = "EFFORTS DANS LES MICROPIEUX"
         .Font.Bold = True
@@ -376,112 +522,6 @@ Public Sub CreerVerificationStructurelle()
     ws.Range("A" & rv + 2 & ":A" & rv + 1 + m).Font.Bold = True
     ws.Range("B" & rv + 2 & ":R" & rv + 1 + m).Interior.Color = JAUNE_CALCUL
     ws.Range("B" & rv + 2 & ":R" & rv + 1 + m).NumberFormat = "0.0"
-
-    ' --- Déplacement en tête de chaque micropieu, pour chaque combinaison ---
-    ' Poutre de longueur D sur appuis élastiques (module Es, longueur de transfert l0,
-    ' lambda = 1 / l0, x = D / l0), extrémité inférieure libre, efforts en tête H = V et
-    ' M (tableau des efforts). Souplesses en tête (solution analytique de Hetényi, poutre
-    ' de longueur finie ; module Es en kPa) :
-    '   y = a H + b M, rotation = b H + c M, avec
-    '   a = 2 lambda / Es x (sh ch - s c) / (sh² - s²)
-    '   b = 2 lambda² / Es x (sh² + s²) / (sh² - s²)
-    '   c = 4 lambda³ / Es x (sh ch + s c) / (sh² - s²)
-    '   (sh, ch = sinh x, cosh x ; s, c = sin x, cos x). Limites : micropieu souple
-    '   (x grand) y = 2 H / (Es l0) + 2 M / (Es l0²) ; rigide (x petit)
-    '   y = 4 H / (Es D) + 6 M / (Es D²).
-    ' Tête libre : y0 = a H + b M ; tête encastrée (rotation nulle) : y0 = (a - b² / c) H,
-    ' moment d'encastrement M0 = b / c x H (souple : H l0 / 2 ; rigide : H D / 2).
-    ' Comportement linéaire (partie élastique de la courbe de réaction, p <= Pf).
-    etape = "déplacements en tête"
-    rY = rv + 1 + m + 3
-    With ws.Range("A" & rY)
-        .Value = TITRE_DEPL
-        .Font.Bold = True
-        .Font.Size = 14
-        .Font.Color = VERT_FONCE
-    End With
-    ws.Range("B" & rY + 1).Value = "Calcul linéaire (Es, l0 du tableau de la longueur de transfert), " & _
-        "solution de la poutre de longueur D sur appuis élastiques (Hetényi) ; H = V et M du tableau " & _
-        "des efforts ; y en mm"
-    r = rY + 2
-    ws.Range("A" & r & ":F" & r).Value = Array("N° MICROPIEU", "Condition en tête", "x = D / l0", _
-        "a (m/kN)", "b (1/kN)", "c (1/(kN.m))")
-    ws.Range("G" & r).Value = "DÉPLACEMENT EN TÊTE y0 (mm)"
-    ws.Range("K" & r).Value = "MOMENT D'ENCASTREMENT EN TÊTE M0 (kN.m)"
-    For k = 0 To 5
-        ws.Range(ws.Cells(r, 1 + k), ws.Cells(r + 1, 1 + k)).Merge
-    Next k
-    ws.Range("G" & r & ":J" & r).Merge
-    ws.Range("K" & r & ":N" & r).Merge
-    ws.Range("G" & r + 1 & ":J" & r + 1).Value = Array("ELS CARA", "ELS QP", "ELU FOND", "ELU ACC")
-    ws.Range("K" & r + 1 & ":N" & r + 1).Value = Array("ELS CARA", "ELS QP", "ELU FOND", "ELU ACC")
-    Commentaire ws.Range("B" & r), "Libre en tête : rotation libre, y0 = a H + b M ; encastré en " & _
-        "tête : rotation bloquée par la semelle, y0 = (a - b²/c) H (valeur par défaut : « Données du " & _
-        "projet », conditions en tête)"
-    Commentaire ws.Range("C" & r), "x = D / l0 : micropieu souple si x >= 3, rigide si x <= 1"
-    Commentaire ws.Range("D" & r), "Souplesses en tête (Hetényi, poutre de longueur finie, extrémité " & _
-        "libre) : a = 2" & ChrW(955) & "/Es (sh ch - s c)/(sh² - s²), b = 2" & ChrW(955) & "²/Es (sh² + " & _
-        "s²)/(sh² - s²), c = 4" & ChrW(955) & "³/Es (sh ch + s c)/(sh² - s²), " & ChrW(955) & " = 1/l0, " & _
-        "sh = sinh x, s = sin x"
-    Commentaire ws.Range("G" & r), "y0 : déplacement horizontal en tête, comportement linéaire (à " & _
-        "l'ELU, valeur approchée si la réaction dépasse le palier de fluage Pf)"
-    Commentaire ws.Range("K" & r), "M0 = b/c x H : moment repris par l'encastrement en tête (tête " & _
-        "encastrée seulement)"
-    For i = 1 To m
-        r = rY + 3 + i
-        x = CStr(r)
-        rl0 = CStr(rL + 2 + i)                ' ligne du micropieu dans le tableau de l0
-        ry0 = CStr(rv + 1 + i)                ' ligne du micropieu dans le tableau des efforts
-        ws.Range("A" & r).Value = "MP" & i
-        With ws.Range("B" & r)
-            .Validation.Delete
-            .Validation.Add xlValidateList, xlValidAlertStop, , "Libre en tête,Encastré en tête"
-            .Value = IIf(CStr(ActiveWorkbook.Worksheets("Données du projet").Range("D" & lp + 18).Value) = _
-                "Encastré en tête", "Encastré en tête", "Libre en tête")
-            If IsArray(condTete) Then
-                If i <= UBound(condTete) Then
-                    If CStr(condTete(i)) = "Libre en tête" Or CStr(condTete(i)) = "Encastré en tête" Then _
-                        .Value = condTete(i)
-                End If
-            End If
-        End With
-        ws.Range("C" & r).Formula = "=IF(OR(N(W" & rl0 & ")<=0,N(X" & rl0 & ")<=0),"""",X" & rl0 & "/W" & rl0 & ")"
-        xs = "C" & x
-        ' (sh ch - s c), (sh² + s²), (sh ch + s c) divisés par (sh² - s²) ; Es en kPa
-        ws.Range("D" & r).Formula = "=IF(" & xs & "="""","""",2/W" & rl0 & "/(V" & rl0 & "*1000)*" & _
-            "(SINH(" & xs & ")*COSH(" & xs & ")-SIN(" & xs & ")*COS(" & xs & "))/(SINH(" & xs & ")^2-SIN(" & xs & ")^2))"
-        ws.Range("E" & r).Formula = "=IF(" & xs & "="""","""",2/W" & rl0 & "^2/(V" & rl0 & "*1000)*" & _
-            "(SINH(" & xs & ")^2+SIN(" & xs & ")^2)/(SINH(" & xs & ")^2-SIN(" & xs & ")^2))"
-        ws.Range("F" & r).Formula = "=IF(" & xs & "="""","""",4/W" & rl0 & "^3/(V" & rl0 & "*1000)*" & _
-            "(SINH(" & xs & ")*COSH(" & xs & ")+SIN(" & xs & ")*COS(" & xs & "))/(SINH(" & xs & ")^2-SIN(" & xs & ")^2))"
-        For k = 0 To 3
-            ' H = V (colonne 11 + k), M (colonne 15 + k) du tableau des efforts
-            ws.Cells(r, 7 + k).Formula = "=IF(D" & x & "="""","""",1000*IF(B" & x & "=""Encastré en tête""," & _
-                "(D" & x & "-E" & x & "^2/F" & x & ")*" & ws.Cells(CLng(ry0), 11 + k).Address(False, False) & "," & _
-                "D" & x & "*" & ws.Cells(CLng(ry0), 11 + k).Address(False, False) & "+E" & x & "*" & _
-                ws.Cells(CLng(ry0), 15 + k).Address(False, False) & "))"
-            ws.Cells(r, 11 + k).Formula = "=IF(OR(D" & x & "="""",B" & x & "<>""Encastré en tête""),""-""," & _
-                "E" & x & "/F" & x & "*" & ws.Cells(CLng(ry0), 11 + k).Address(False, False) & ")"
-        Next k
-    Next i
-    With ws.Range("A" & rY + 2 & ":N" & rY + 3 + m)
-        .Borders.LineStyle = xlContinuous
-        .HorizontalAlignment = xlCenter
-        .VerticalAlignment = xlCenter
-    End With
-    With ws.Range("A" & rY + 2 & ":N" & rY + 3)
-        .Font.Bold = True
-        .Interior.Color = VERT_ENTETE
-        .WrapText = True
-    End With
-    ws.Range("A" & rY + 4 & ":A" & rY + 3 + m).Font.Bold = True
-    ws.Range("C" & rY + 4 & ":N" & rY + 3 + m).Interior.Color = JAUNE_CALCUL
-    ws.Range("B" & rY + 4 & ":B" & rY + 3 + m).Interior.Color = VERT_SAISIE
-    ws.Range("C" & rY + 4 & ":C" & rY + 3 + m).NumberFormat = "0.00"
-    ws.Range("D" & rY + 4 & ":F" & rY + 3 + m).NumberFormat = "0.000E+00"
-    ws.Range("G" & rY + 4 & ":J" & rY + 3 + m).NumberFormat = "0.00"
-    ws.Range("K" & rY + 4 & ":N" & rY + 3 + m).NumberFormat = "0.0"
-    ws.Range("G" & rY + 4 & ":J" & rY + 3 + m).Font.Bold = True
 
 MiseEnForme:
     etape = "mise en forme"
