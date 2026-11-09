@@ -30,16 +30,12 @@ Option Explicit
 '         de Hetényi : tête libre y0 = a H + b M, tête encastrée y0 = (a - b²/c) H et
 '         moment d'encastrement) ; H = V + T0, T0 = Nc x sin(angle) si le micropieu est
 '         incliné (effort horizontal provenant de la descente de charges)
-'   déplacement y(z) de chaque micropieu et chaque combinaison en fonction de la
-'         profondeur, par pas de calcul dz (saisi), sous le tableau des déplacements :
-'         fonctions de Krylov (paramètres initiaux y0, theta0, Mh, H en tête)
 ' Le nombre de micropieux et les adresses des autres feuilles sont lus à la création :
 ' relancer CreerVerificationStructurelle après un changement de ces feuilles.
 
 Private Const NOM_FEUILLE As String = "Vérification structurelle"
 Private Const DONNEES As String = "'Données du projet'!"
 Private Const TITRE_DEPL As String = "DÉPLACEMENT EN TÊTE DES MICROPIEUX"
-Private Const TITRE_PROFIL As String = "DÉPLACEMENT DES MICROPIEUX EN FONCTION DE LA PROFONDEUR"
 Private Const CALCUL As String = "'Calcul et vérification'!"
 
 ' Thème : saisies en vert, valeurs calculées en jaune, en-têtes en vert clair
@@ -58,8 +54,7 @@ Public Sub CreerVerificationStructurelle()
     Dim emq As String, alp As String, nat As String, bet As String
     Dim hT As String, k0 As String, hH As String, eE As String
     Dim rY As Long, condTete As Variant, ry0 As String, rl0 As String, xs As String
-    Dim cIn As Long, cAn As Long, rZ As Long, nZ As Long, pasZ As Variant, dMax As Double
-    Dim xi As String, cy As Long
+    Dim cIn As Long, cAn As Long
 
     Application.ScreenUpdating = False
     On Error GoTo Erreur
@@ -82,7 +77,6 @@ Public Sub CreerVerificationStructurelle()
     End If
     autre = LireAutreDiametre(ws)             ' autres diamètres saisis (tableau de l0)
     condTete = LireColonne(ws, TITRE_DEPL, "B") ' conditions en tête saisies (déplacements)
-    pasZ = LirePasProfil(ws)                  ' pas de calcul du profil de déplacement
     ws.Cells.Clear
     a = LIGNE_ACIER                           ' caractéristiques de l'acier (Données)
     lp = LIGNE_PIEU                           ' caractéristiques de la fondation (Données)
@@ -341,15 +335,7 @@ Public Sub CreerVerificationStructurelle()
     ' Comportement linéaire (partie élastique de la courbe de réaction, p <= Pf).
     etape = "déplacements en tête"
     rY = rL + 2 + m + 3
-    ' Profil du déplacement en fonction de la profondeur (sous ce tableau) : une ligne
-    ' par pas de calcul dz jusqu'à la plus grande profondeur D des micropieux
-    rZ = rY + 3 + m + 3                       ' titre du tableau du profil
-    ws.Calculate
-    dMax = Application.Max(ws.Range("X" & rL + 3 & ":X" & rL + 2 + m))
-    nZ = Application.RoundUp(dMax / pasZ - 0.000000001, 0) + 1
-    If nZ < 2 Then nZ = 2
-    If nZ > 2000 Then nZ = 2000
-    rv = rZ + 4 + nZ + 4                      ' en-tête du tableau des efforts (plus bas)
+    rv = rY + 3 + m + 5                       ' en-tête du tableau des efforts (plus bas)
     For i = 1 To 80                           ' inclinaison et angle de chaque micropieu
         If CStr(wc.Cells(r0 + 1, i).Value) = "Incliné" Then cIn = i
         If CStr(wc.Cells(r0 + 1, i).Value) = "Angle (°)" Then cAn = i
@@ -370,15 +356,10 @@ Public Sub CreerVerificationStructurelle()
     ws.Range("M" & r).Value = "EFFORT TRANSVERSAL EN TÊTE H = V + T0 (kN)"
     ws.Range("Q" & r).Value = "DÉPLACEMENT EN TÊTE y0 (mm)"
     ws.Range("U" & r).Value = "MOMENT D'ENCASTREMENT EN TÊTE M0 (kN.m)"
-    ws.Range("Y" & r).Value = "ROTATION EN TÊTE " & ChrW(952) & "0 (rad)"
-    ws.Range("AC" & r).Value = "MOMENT EN TÊTE DU MICROPIEU Mh (kN.m)"
-    Commentaire ws.Range("Y" & r), ChrW(952) & "0 = -(b H + c Mh) en tête libre, 0 en tête encastrée"
-    Commentaire ws.Range("AC" & r), "Mh = M (tableau des efforts) en tête libre ; Mh = -M0 = -b/c x H en " & _
-        "tête encastrée"
     For k = 0 To 7
         ws.Range(ws.Cells(r, 1 + k), ws.Cells(r + 1, 1 + k)).Merge
     Next k
-    For j = 0 To 5
+    For j = 0 To 3
         ws.Range(ws.Cells(r, 9 + 4 * j), ws.Cells(r, 12 + 4 * j)).Merge
         ws.Range(ws.Cells(r + 1, 9 + 4 * j), ws.Cells(r + 1, 12 + 4 * j)).Value = _
             Array("ELS CARA", "ELS QP", "ELU FOND", "ELU ACC")
@@ -451,31 +432,22 @@ Public Sub CreerVerificationStructurelle()
                 "(F" & x & "-G" & x & "^2/H" & x & ")*" & ws.Cells(r, 13 + k).Address(False, False) & "," & _
                 "F" & x & "*" & ws.Cells(r, 13 + k).Address(False, False) & "+G" & x & "*N(" & _
                 ws.Cells(CLng(ry0), 15 + k).Address(False, False) & ")))"
-            ' Mh (moment en tête du micropieu) et rotation en tête theta0
-            ws.Cells(r, 29 + k).Formula = "=IF(F" & x & "="""","""",IF(B" & x & "=""Encastré en tête"",-G" & x & _
-                "/H" & x & "*" & ws.Cells(r, 13 + k).Address(False, False) & ",N(" & _
-                ws.Cells(CLng(ry0), 15 + k).Address(False, False) & ")))"
-            ws.Cells(r, 25 + k).Formula = "=IF(F" & x & "="""","""",IF(B" & x & "=""Encastré en tête"",0,-(G" & x & _
-                "*" & ws.Cells(r, 13 + k).Address(False, False) & "+H" & x & "*" & _
-                ws.Cells(r, 29 + k).Address(False, False) & ")))"
             ws.Cells(r, 21 + k).Formula = "=IF(OR(F" & x & "="""",B" & x & "<>""Encastré en tête""),""-""," & _
                 "G" & x & "/H" & x & "*" & ws.Cells(r, 13 + k).Address(False, False) & ")"
         Next k
     Next i
-    With ws.Range("A" & rY + 2 & ":AF" & rY + 3 + m)
+    With ws.Range("A" & rY + 2 & ":X" & rY + 3 + m)
         .Borders.LineStyle = xlContinuous
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
     End With
-    With ws.Range("A" & rY + 2 & ":AF" & rY + 3)
+    With ws.Range("A" & rY + 2 & ":X" & rY + 3)
         .Font.Bold = True
         .Interior.Color = VERT_ENTETE
         .WrapText = True
     End With
     ws.Range("A" & rY + 4 & ":A" & rY + 3 + m).Font.Bold = True
-    ws.Range("C" & rY + 4 & ":AF" & rY + 3 + m).Interior.Color = JAUNE_CALCUL
-    ws.Range("Y" & rY + 4 & ":AB" & rY + 3 + m).NumberFormat = "0.000E+00"
-    ws.Range("AC" & rY + 4 & ":AF" & rY + 3 + m).NumberFormat = "0.0"
+    ws.Range("C" & rY + 4 & ":X" & rY + 3 + m).Interior.Color = JAUNE_CALCUL
     ws.Range("B" & rY + 4 & ":B" & rY + 3 + m).Interior.Color = VERT_SAISIE
     ws.Range("D" & rY + 4 & ":D" & rY + 3 + m).NumberFormat = "0.0"
     ws.Range("E" & rY + 4 & ":E" & rY + 3 + m).NumberFormat = "0.00"
@@ -483,80 +455,6 @@ Public Sub CreerVerificationStructurelle()
     ws.Range("I" & rY + 4 & ":P" & rY + 3 + m & ",U" & rY + 4 & ":X" & rY + 3 + m).NumberFormat = "0.0"
     ws.Range("Q" & rY + 4 & ":T" & rY + 3 + m).NumberFormat = "0.00"
     ws.Range("Q" & rY + 4 & ":T" & rY + 3 + m).Font.Bold = True
-
-    ' --- Déplacement en fonction de la profondeur (pas de calcul dz) ---
-    ' Méthode des paramètres initiaux (fonctions de Krylov de la poutre sur appuis
-    ' élastiques EI y'''' + Es y = 0, lambda = 1 / l0, xi = lambda z) :
-    '   y(z) = y0 A(xi) + theta0 l0 B(xi) + Mh l0² / EI C(xi) + H l0³ / EI D(xi)
-    '   A = ch cos, B = (ch sin + sh cos) / 2, C = sh sin / 2, D = (ch sin - sh cos) / 4
-    ' avec y0, theta0, Mh et H en tête (tableau des déplacements) ; vide sous la
-    ' profondeur D du micropieu. Pas dz à saisir ; recréer la feuille après un
-    ' changement du pas (nombre de lignes).
-    etape = "déplacement en fonction de la profondeur"
-    With ws.Range("A" & rZ)
-        .Value = TITRE_PROFIL
-        .Font.Bold = True
-        .Font.Size = 14
-        .Font.Color = VERT_FONCE
-    End With
-    ws.Range("A" & rZ + 1).Value = "Pas de calcul dz (m)"
-    With ws.Range("B" & rZ + 1)
-        .Value = pasZ
-        .Interior.Color = VERT_SAISIE
-        .NumberFormat = "0.00"
-        .HorizontalAlignment = xlCenter
-        .Borders.LineStyle = xlContinuous
-    End With
-    ws.Range("C" & rZ + 1).Value = "y(z) en mm (fonctions de Krylov, paramètres en tête du tableau " & _
-        "des déplacements) ; relancer CreerVerificationStructurelle après un changement du pas"
-    Commentaire ws.Range("A" & rZ + 1), "Pas de calcul dz : profondeurs z = 0, dz, 2 dz, ... jusqu'à la " & _
-        "plus grande profondeur D des micropieux (nombre de lignes fixé à la création de la feuille)"
-    r = rZ + 2
-    ws.Range("A" & r).Value = "Profondeur z (m)"
-    ws.Range("A" & r & ":A" & r + 1).Merge
-    For i = 1 To m
-        cy = 2 + 4 * (i - 1)
-        ws.Cells(r, cy).Value = "MP" & i & " - y (mm)"
-        ws.Range(ws.Cells(r, cy), ws.Cells(r, cy + 3)).Merge
-        ws.Range(ws.Cells(r + 1, cy), ws.Cells(r + 1, cy + 3)).Value = _
-            Array("ELS CARA", "ELS QP", "ELU FOND", "ELU ACC")
-    Next i
-    For j = 0 To nZ - 1
-        r = rZ + 4 + j
-        ws.Range("A" & r).Formula = "=" & j & "*$B$" & rZ + 1
-        For i = 1 To m
-            cy = 2 + 4 * (i - 1)
-            rl0 = CStr(rL + 2 + i)
-            x = CStr(rY + 3 + i)              ' ligne du micropieu dans le tableau des déplacements
-            xi = "($A" & r & "/$W$" & rl0 & ")"
-            For k = 0 To 3
-                ws.Cells(r, cy + k).Formula = "=IF(OR(" & ws.Cells(CLng(x), 17 + k).Address & "=""""," & _
-                    "N($W$" & rl0 & ")<=0,N($Q$" & rl0 & ")<=0,$A" & r & ">$X$" & rl0 & "+1E-9),""""," & _
-                    ws.Cells(CLng(x), 17 + k).Address & "*COSH(" & xi & ")*COS(" & xi & ")+1000*(" & _
-                    ws.Cells(CLng(x), 25 + k).Address & "*$W$" & rl0 & "*(COSH(" & xi & ")*SIN(" & xi & _
-                    ")+SINH(" & xi & ")*COS(" & xi & "))/2+" & _
-                    ws.Cells(CLng(x), 29 + k).Address & "*$W$" & rl0 & "^2/$Q$" & rl0 & "*SINH(" & xi & _
-                    ")*SIN(" & xi & ")/2+" & _
-                    ws.Cells(CLng(x), 13 + k).Address & "*$W$" & rl0 & "^3/$Q$" & rl0 & "*(COSH(" & xi & _
-                    ")*SIN(" & xi & ")-SINH(" & xi & ")*COS(" & xi & "))/4))"
-            Next k
-        Next i
-    Next j
-    cy = 1 + 4 * m                            ' dernière colonne du tableau
-    With ws.Range(ws.Cells(rZ + 2, 1), ws.Cells(rZ + 3 + nZ, cy))
-        .Borders.LineStyle = xlContinuous
-        .HorizontalAlignment = xlCenter
-        .VerticalAlignment = xlCenter
-    End With
-    With ws.Range(ws.Cells(rZ + 2, 1), ws.Cells(rZ + 3, cy))
-        .Font.Bold = True
-        .Interior.Color = VERT_ENTETE
-        .WrapText = True
-    End With
-    ws.Range(ws.Cells(rZ + 4, 1), ws.Cells(rZ + 3 + nZ, 1)).NumberFormat = "0.00"
-    ws.Range(ws.Cells(rZ + 4, 1), ws.Cells(rZ + 3 + nZ, 1)).Font.Bold = True
-    ws.Range(ws.Cells(rZ + 4, 2), ws.Cells(rZ + 3 + nZ, cy)).NumberFormat = "0.00"
-    ws.Range(ws.Cells(rZ + 4, 2), ws.Cells(rZ + 3 + nZ, cy)).Interior.Color = JAUNE_CALCUL
 
     ' --- Efforts dans les micropieux (sous le tableau des déplacements) ---
     etape = "efforts dans les micropieux"
@@ -694,19 +592,6 @@ Private Function LireColonne(ws As Worksheet, titre As String, col As String) As
         t(i) = ws.Range(col & r + i - 1).Value
     Next i
     LireColonne = t
-End Function
-
-' Pas de calcul dz du profil de déplacement (cellule B sous le titre), conservé quand la
-' feuille est recréée ; 0,25 m par défaut
-Private Function LirePasProfil(ws As Worksheet) As Variant
-    Dim v As Variant
-    LirePasProfil = 0.25
-    v = Application.Match(TITRE_PROFIL, ws.Range("A1:A5000"), 0)
-    If IsError(v) Then Exit Function
-    v = ws.Range("B" & CLng(v) + 1).Value
-    If Not IsEmpty(v) And IsNumeric(v) Then
-        If v > 0 Then LirePasProfil = CDbl(v)
-    End If
 End Function
 
 ' Sous-titre en gras, souligné
