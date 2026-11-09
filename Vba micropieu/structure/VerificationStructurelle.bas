@@ -25,10 +25,10 @@ Option Explicit
 '         H = K0 gamma h² / 2 (kN/ml), excentricité e = h / 3 au-dessus de la fibre
 '         inférieure de la semelle (tête des micropieux)
 '   sous les efforts : longueur de transfert l0 de chaque micropieu : diamètre du pieu
-'         foré (Phi retenu ou autre valeur saisie), section du pieu foré, rayon de
-'         corrosion (« Données du projet »), section de l'armature brute, corrodée et
-'         après corrosion, As / A (%), inertie, EI, rho, Kf, Es, l0, D réelle,
-'         comportement rigide / souple
+'         foré (Phi retenu ou autre valeur saisie), section du pieu foré, enrobage,
+'         rayon de corrosion (« Données du projet »), section de l'armature brute,
+'         corrodée et après corrosion, inertie, EI, EM et alpha (ou qc et beta) et Kf
+'         selon la méthode de calcul, rho, Es, l0, D réelle, comportement rigide / souple
 '   A64 : efforts dans chaque micropieu et chaque combinaison (ELS caractéristique, ELS
 '         quasi permanent, ELU fondamental, ELU accidentel) : compression Nc = Vmax de la
 '         vérification de la profondeur, traction Nt = - Nc, effort tranchant en tête
@@ -317,12 +317,16 @@ Public Sub CreerVerificationStructurelle()
 
     ' --- Longueur de transfert l0 de chaque micropieu ---
     ' Diamètre du pieu foré B = Phi retenu (vérification de la profondeur) ou autre valeur
-    ' saisie ; section du pieu foré A = pi B² / 4 ; rayon de corrosion rc (« Données du
-    ' projet », caractéristiques du coulis : durée du projet x nature du terrain) ;
-    ' armature : diamètre après corrosion d - 2 rc (tube : face extérieure, barre : tout
-    ' le pourtour), section corrodée = section brute - section après corrosion, taux
-    ' d'armature As / A ; inertie et EI après corrosion ; rho = max(B / B0 ; 1), Kf, Es
-    ' selon le type de sollicitation ; l0 = (4 EI / Es)^(1/4) ; D = profondeur réelle.
+    ' saisie ; section du pieu foré A = pi B² / 4 ; enrobage de l'armature par le coulis
+    ' c = (B - d) / 2 ; rayon de corrosion rc (« Données du projet », caractéristiques du
+    ' coulis : durée du projet x nature du terrain) ; armature : diamètre après corrosion
+    ' d - 2 rc (tube : face extérieure, barre : tout le pourtour), section corrodée =
+    ' section brute - section après corrosion ; inertie et EI après corrosion ; module de
+    ' réaction Kf selon la méthode de calcul de « Données du projet » :
+    '   pressiométrique : EM et coefficient rhéologique alpha, rho = max(B / B0 ; 1),
+    '                     Kf = EM x 18 rho / [4 (2,65 rho)^alpha + 3 alpha rho] ;
+    '   pénétrométrique : qc et beta, Kf = beta qc / 2 ;
+    ' Es selon le type de sollicitation ; l0 = (4 EI / Es)^(1/4) ; D = profondeur réelle.
     etape = "longueur de transfert"
     For i = 1 To 80
         If CStr(wc.Cells(r0 + 1, i).Value) = ChrW(934) & " RETENU" Then cPhi = i
@@ -338,28 +342,40 @@ Public Sub CreerVerificationStructurelle()
     End With
     entete = Array("N° MICROPIEU", ChrW(934) & " retenu (m)", "Autre diamètre (m)", _
         "Diamètre du pieu foré B (m)", "Section du pieu foré A = " & ChrW(960) & ".B²/4 (m²)", _
-        "Rayon de corrosion rc (mm)", "Diamètre de l'armature d (mm)", _
+        "Enrobage c = (B - d) / 2 (mm)", "Rayon de corrosion rc (mm)", "Diamètre de l'armature d (mm)", _
         "Diamètre après corrosion d - 2 rc (mm)", "Section brute de l'armature (mm²)", _
-        "Section corrodée (mm²)", "Section après corrosion As (mm²)", "As / A pieu foré (%)", _
-        "Inertie après corrosion I (mm4)", "EI (kN.m²)", ChrW(961) & " = max(B/B0 ; 1)", _
-        "Kf (MPa)", "Es (MPa)", "l0 = (4 EI / Es)^(1/4) (m)", "Profondeur D (m)", "Comportement", _
-        "Résistance de calcul Npl,Rd = As.fyk / " & ChrW(947) & "s (kN)", "Nc,Ed ELU fondamental (kN)", _
-        "Nc,Ed / Npl,Rd", "Vérification")
+        "Section corrodée (mm²)", "Section après corrosion As (mm²)", _
+        "Inertie après corrosion I (mm4)", "EI (kN.m²)", _
+        "=IF($D$23=""Méthode pénétrométrique"",""Résistance de pointe qc (MPa)""," & _
+            """Module pressiométrique EM (MPa)"")", _
+        "=IF($D$23=""Méthode pénétrométrique"",""" & ChrW(946) & " (CPT)""," & _
+            """Coefficient rhéologique " & ChrW(945) & """)", _
+        ChrW(961) & " = max(B/B0 ; 1)", "=""Module de réaction Kf (MPa) - ""&LOWER($D$23)", _
+        "Es (MPa)", "l0 = (4 EI / Es)^(1/4) (m)", "Profondeur D (m)", "Comportement")
     For j = 0 To UBound(entete)
-        ws.Cells(rL + 2, 1 + j).Value = entete(j)
+        If Left(entete(j), 1) = "=" Then
+            ws.Cells(rL + 2, 1 + j).Formula = entete(j)
+        Else
+            ws.Cells(rL + 2, 1 + j).Value = entete(j)
+        End If
     Next j
     Commentaire ws.Range("C" & rL + 2), "Autre diamètre : à saisir pour remplacer " & ChrW(934) & _
         " retenu (vide : " & ChrW(934) & " retenu de la vérification de la profondeur)"
-    Commentaire ws.Range("F" & rL + 2), "Rayon de corrosion : perte d'épaisseur de « Données du " & _
+    Commentaire ws.Range("F" & rL + 2), "Enrobage : épaisseur de coulis entre l'armature et la " & _
+        "paroi du forage, c = (B - d) / 2"
+    Commentaire ws.Range("G" & rL + 2), "Rayon de corrosion : perte d'épaisseur de « Données du " & _
         "projet » (caractéristiques du coulis), selon la durée d'utilisation du projet et la nature " & _
         "du terrain (NF EN 1993-5, tableaux 4.1 / 4.2)"
-    Commentaire ws.Range("J" & rL + 2), "Section corrodée = section brute - section après corrosion " & _
+    Commentaire ws.Range("K" & rL + 2), "Section corrodée = section brute - section après corrosion " & _
         "(tube : face extérieure seulement, barre : tout le pourtour)"
-    Commentaire ws.Range("U" & rL + 2), "Valeur de calcul de la résistance du micropieu : section " & _
-        "d'acier après corrosion x fyk / " & ChrW(947) & "s (ELU fondamental, « Données du projet »)"
-    Commentaire ws.Range("V" & rL + 2), "Effort de compression de calcul ELU fondamental (tableau " & _
-        "des efforts ci-dessus)"
-    Commentaire ws.Range("S" & rL + 2), "D : profondeur réelle du micropieu (D / cos " & ChrW(945) & _
+    Commentaire ws.Range("O" & rL + 2), "EM (méthode pressiométrique) ou qc (méthode " & _
+        "pénétrométrique) de la couche molle, selon la méthode de calcul de « Données du projet »"
+    Commentaire ws.Range("P" & rL + 2), "Méthode pressiométrique : coefficient rhéologique " & ChrW(945) & _
+        " (tableaux I.1.3.1 / I.1.3.2) ; méthode pénétrométrique : " & ChrW(946) & " (CPT)"
+    Commentaire ws.Range("R" & rL + 2), "Pressiométrique : Kf = EM x 18 " & ChrW(961) & " / [4 (2,65 " & _
+        ChrW(961) & ")^" & ChrW(945) & " + 3 " & ChrW(945) & " " & ChrW(961) & "] ; pénétrométrique : " & _
+        "Kf = " & ChrW(946) & " qc / 2"
+    Commentaire ws.Range("U" & rL + 2), "D : profondeur réelle du micropieu (D / cos " & ChrW(945) & _
         " s'il est incliné), vérification de la profondeur"
     For i = 1 To m
         r = rL + 2 + i
@@ -378,62 +394,52 @@ Public Sub CreerVerificationStructurelle()
         End If
         ws.Range("D" & r).Formula = "=IF(N(C" & x & ")>0,C" & x & ",B" & x & ")"
         ws.Range("E" & r).Formula = "=PI()*D" & x & "^2/4"
-        ws.Range("F" & r).Formula = "=N(" & DONNEES & "D" & lp + 30 & ")"
-        ws.Range("G" & r).Formula = "=$D$6"
-        ws.Range("H" & r).Formula = "=MAX(0,G" & x & "-2*F" & x & ")"
-        ws.Range("I" & r).Formula = "=IF(" & tube & ",PI()/4*(G" & x & "^2-$D$8^2),PI()/4*G" & x & "^2)"
-        ws.Range("K" & r).Formula = "=MAX(0,IF(" & tube & ",PI()/4*(H" & x & "^2-$D$8^2),PI()/4*H" & x & "^2))"
-        ws.Range("J" & r).Formula = "=I" & x & "-K" & x
-        ws.Range("L" & r).Formula = "=IF(E" & x & ">0,K" & x & "/(E" & x & "*1E6)*100,"""")"
-        ws.Range("M" & r).Formula = "=MAX(0,IF(" & tube & ",PI()/64*(H" & x & "^4-$D$8^4),PI()/64*H" & x & "^4))"
+        ws.Range("F" & r).Formula = "=MAX(0,(1000*D" & x & "-H" & x & ")/2)"
+        ws.Range("G" & r).Formula = "=N(" & DONNEES & "D" & lp + 30 & ")"
+        ws.Range("H" & r).Formula = "=$D$6"
+        ws.Range("I" & r).Formula = "=MAX(0,H" & x & "-2*G" & x & ")"
+        ws.Range("J" & r).Formula = "=IF(" & tube & ",PI()/4*(H" & x & "^2-$D$8^2),PI()/4*H" & x & "^2)"
+        ws.Range("L" & r).Formula = "=MAX(0,IF(" & tube & ",PI()/4*(I" & x & "^2-$D$8^2),PI()/4*I" & x & "^2))"
+        ws.Range("K" & r).Formula = "=J" & x & "-L" & x
+        ws.Range("M" & r).Formula = "=MAX(0,IF(" & tube & ",PI()/64*(I" & x & "^4-$D$8^4),PI()/64*I" & x & "^4))"
         ws.Range("N" & r).Formula = "=$D$9*M" & x & "*1E-9"
-        ws.Range("O" & r).Formula = "=IF(N($D$26)<=0,"""",MAX(D" & x & "/$D$26,1))"
-        ws.Range("P" & r).Formula = "=IF(OR(N($D$29)<=0,O" & x & "=""""),"""",IF($D$23=""Méthode pénétrométrique""," & _
-            "$D$36*$D$29/2,$D$29*18*O" & x & "/(4*(2.65*O" & x & ")^$D$35+3*$D$35*O" & x & ")))"
-        ws.Range("Q" & r).Formula = "=IF(P" & x & "="""","""",IF(OR(LEFT($D$24,1)=""c"",LEFT($D$24,1)=""d"")," & _
-            "2,1)*P" & x & ")"
-        ws.Range("R" & r).Formula = "=IF(OR(Q" & x & "="""",N(Q" & x & ")=0),"""",(4*N" & x & "/(Q" & x & _
+        ' EM ou qc et alpha ou beta selon la méthode de calcul (« Données du projet »)
+        ws.Range("O" & r).Formula = "=$D$29"
+        ws.Range("P" & r).Formula = "=IF($D$23=""Méthode pénétrométrique"",$D$36,$D$35)"
+        ws.Range("Q" & r).Formula = "=IF(N($D$26)<=0,"""",MAX(D" & x & "/$D$26,1))"
+        ws.Range("R" & r).Formula = "=IF(OR(N(O" & x & ")<=0,Q" & x & "=""""),"""",IF($D$23=""Méthode pénétrométrique""," & _
+            "P" & x & "*O" & x & "/2,O" & x & "*18*Q" & x & "/(4*(2.65*Q" & x & ")^P" & x & "+3*P" & x & "*Q" & x & ")))"
+        ws.Range("S" & r).Formula = "=IF(R" & x & "="""","""",IF(OR(LEFT($D$24,1)=""c"",LEFT($D$24,1)=""d"")," & _
+            "2,1)*R" & x & ")"
+        ws.Range("T" & r).Formula = "=IF(OR(S" & x & "="""",N(S" & x & ")=0),"""",(4*N" & x & "/(S" & x & _
             "*1000))^0.25)"
         If cDr > 0 Then
-            ws.Range("S" & r).Formula = "=N(" & CALCUL & wc.Cells(r0 + 2 + i, cDr).Address & ")"
+            ws.Range("U" & r).Formula = "=N(" & CALCUL & wc.Cells(r0 + 2 + i, cDr).Address & ")"
         Else
-            ws.Range("S" & r).Formula = "=N(" & CALCUL & "$D$20)"
+            ws.Range("U" & r).Formula = "=N(" & CALCUL & "$D$20)"
         End If
-        ws.Range("T" & r).Formula = "=IF(R" & x & "="""",""-"",IF(R" & x & ">=S" & x & _
-            ",""Rigide (l0 >= D)"",IF(S" & x & ">=3*R" & x & ",""Souple (D >= 3 l0)"",""Intermédiaire"")))"
-        ' Valeur de calcul de la résistance de l'armature après corrosion et vérification
-        ws.Range("U" & r).Formula = "=K" & x & "*$D$10/N(" & DONNEES & "D" & a + 8 & ")/1000"
-        ws.Range("V" & r).Formula = "=E" & rv + 1 + i
-        ws.Range("W" & r).Formula = "=IF(N(U" & x & ")>0,V" & x & "/U" & x & ","""")"
-        ws.Range("X" & r).Formula = "=IF(W" & x & "="""",""-"",IF(W" & x & "<=1,""Vérifiée"",""Non vérifiée""))"
+        ws.Range("V" & r).Formula = "=IF(T" & x & "="""",""-"",IF(T" & x & ">=U" & x & _
+            ",""Rigide (l0 >= D)"",IF(U" & x & ">=3*T" & x & ",""Souple (D >= 3 l0)"",""Intermédiaire"")))"
     Next i
-    With ws.Range("A" & rL + 2 & ":X" & rL + 2 + m)
+    With ws.Range("A" & rL + 2 & ":V" & rL + 2 + m)
         .Borders.LineStyle = xlContinuous
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
     End With
-    With ws.Range("A" & rL + 2 & ":X" & rL + 2)
+    With ws.Range("A" & rL + 2 & ":V" & rL + 2)
         .Font.Bold = True
         .Interior.Color = VERT_ENTETE
         .WrapText = True
     End With
     ws.Range("A" & rL + 3 & ":A" & rL + 2 + m).Font.Bold = True
-    ws.Range("B" & rL + 3 & ":X" & rL + 2 + m).Interior.Color = JAUNE_CALCUL
-    ws.Range("U" & rL + 3 & ":V" & rL + 2 + m).NumberFormat = "0.0"
-    ws.Range("W" & rL + 3 & ":W" & rL + 2 + m).NumberFormat = "0.00"
-    ws.Range("X" & rL + 3 & ":X" & rL + 2 + m).Font.Bold = True
-    With ws.Range("X" & rL + 3 & ":X" & rL + 2 + m).FormatConditions
-        .Delete
-        .Add(xlCellValue, xlEqual, "=""Non vérifiée""").Font.Color = RGB(192, 0, 0)
-    End With
+    ws.Range("B" & rL + 3 & ":V" & rL + 2 + m).Interior.Color = JAUNE_CALCUL
     ws.Range("C" & rL + 3 & ":C" & rL + 2 + m).Interior.Color = VERT_SAISIE
     ws.Range("B" & rL + 3 & ":E" & rL + 2 + m).NumberFormat = "0.000"
-    ws.Range("F" & rL + 3 & ":H" & rL + 2 + m).NumberFormat = "0.00"
-    ws.Range("I" & rL + 3 & ":K" & rL + 2 + m).NumberFormat = "0.0"
-    ws.Range("L" & rL + 3 & ":L" & rL + 2 + m).NumberFormat = "0.00"
+    ws.Range("F" & rL + 3 & ":I" & rL + 2 + m).NumberFormat = "0.00"
+    ws.Range("J" & rL + 3 & ":L" & rL + 2 + m).NumberFormat = "0.0"
     ws.Range("M" & rL + 3 & ":M" & rL + 2 + m).NumberFormat = "0.000E+00"
-    ws.Range("N" & rL + 3 & ":S" & rL + 2 + m).NumberFormat = "0.00"
-    ws.Range("R" & rL + 3 & ":R" & rL + 2 + m & ",T" & rL + 3 & ":T" & rL + 2 + m).Font.Bold = True
+    ws.Range("N" & rL + 3 & ":U" & rL + 2 + m).NumberFormat = "0.00"
+    ws.Range("T" & rL + 3 & ":T" & rL + 2 + m & ",V" & rL + 3 & ":V" & rL + 2 + m).Font.Bold = True
 
 MiseEnForme:
     etape = "mise en forme"
@@ -448,7 +454,7 @@ MiseEnForme:
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 30
     ws.Columns("D").ColumnWidth = 30
-    ws.Columns("E:X").ColumnWidth = 12
+    ws.Columns("E:V").ColumnWidth = 12
     ws.Activate
 Fin:
     Application.ScreenUpdating = True
