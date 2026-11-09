@@ -446,10 +446,10 @@ Public Sub CreerDonneesProjet()
         "Coefficient " & ChrW(947) & "c - combinaison sismique"))
     ws.Range("E" & la + 3 & ":E" & la + 7).Value = Application.Transpose(Array("", "kg/m3", "kN/m3", _
         "mm", "MPa"))
-    ws.Range("D" & la + 3).Value = 0.5
+    ws.Range("D" & la + 3).Value = 0.45      ' E/C < 0,5 (protection de l'armature par le coulis)
     ' Dosage théorique d'un coulis pur : C = 1000 / (1 / rho ciment + E/C) (kg/m3),
     ' modifiable (saisie)
-    ws.Range("D" & la + 4).Value = Round(1000 / (1 / RHO_CIMENT + 0.5), 0)
+    ws.Range("D" & la + 4).Value = Round(1000 / (1 / RHO_CIMENT + 0.45), 0)
     ws.Range("D" & la + 5).Formula = "=IF(OR(N(D" & la + 3 & ")=0,N(D" & la + 4 & ")=0),""""," & _
         "D" & la + 4 & "*(1+D" & la + 3 & ")*9.81/1000)"
     ws.Range("D" & la + 6).Formula = "=D" & LIGNE_ACIER + 13
