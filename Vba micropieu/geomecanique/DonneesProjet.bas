@@ -583,10 +583,11 @@ Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
     If Not Intersect(Target, ws.Range("D" & LIGNE_ACIER + 1)) Is Nothing Then MajAcier ws
     If Not Intersect(Target, Union(ws.Range("D" & LIGNE_PIEU + 2), ws.Range("D" & LIGNE_PIEU + 4))) _
         Is Nothing Then AfficherOptionsPieu ws
-    ' Incliné ou angle : profondeur réelle de la vérification de la profondeur des micropieux
+    ' Incliné ou angle : appliqués à tous les micropieux de la vérification de la
+    ' profondeur (colonnes « Incliné » et « Angle (°) », modifiables ensuite une à une)
     If Not Intersect(Target, ws.Range("D" & LIGNE_PIEU + 2 & ":D" & LIGNE_PIEU + 3)) Is Nothing Then
         On Error Resume Next
-        Application.Run "ActualiserVerificationProfondeur"
+        Application.Run "AppliquerInclinaisonDonnees"
         On Error GoTo Fin
     End If
     ' Nombre de couches, profondeurs ou terrains neutralisés : lignes du frottement axial

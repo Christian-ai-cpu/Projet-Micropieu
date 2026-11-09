@@ -2,7 +2,9 @@
 ' standard) : clic droit sur l'onglet de la feuille > Visualiser le code, puis coller.
 ' Pas de calcul saisi (colonne A du tableau du frottement axial) : le tableau de la
 ' capacité portante par pas de calcul est adapté au nombre total de subdivisions
-' (ChangementCalcul, module CalculFondation), la vérification de la profondeur suit.
+' (ChangementCalcul, module CalculFondation), la vérification de la profondeur suit ;
+' inclinaison d'un micropieu (colonne « Incliné ») : colonnes de l'angle et de la
+' profondeur réelle affichées ou masquées.
 ' Ce code est installé automatiquement par CreerCalculVerification si l'accès au projet
 ' VBA est autorisé (Fichier > Options > Centre de gestion de la confidentialité >
 ' Paramètres des macros > « Accès approuvé au modèle d'objet du projet VBA ») ; sinon,

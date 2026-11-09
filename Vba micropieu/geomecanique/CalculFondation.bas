@@ -66,6 +66,7 @@ Private Const TABLEAUX As String = "Tableaux NF P94-262"
 Private mCellule As String     ' cellule en cours d'écriture (indiquée en cas d'erreur)
 Private mPas As Variant        ' pas de calcul saisis, conservés quand la feuille est recréée
 Private mPhiManuel As Variant  ' Phi manuels saisis, conservés quand la vérification est recréée
+Private mIncl As Variant, mAngle As Variant   ' inclinaison (Oui / Non) et angle saisis par micropieu
 Private mGeo As Variant, mGsn As Variant, mAmax As Variant, mAmin As Variant   ' idem : Geo,
                                ' frottement négatif Gsn, action accidentelle A max et min
 ' Méthode de calcul lue dans « Données du projet » à la création de la feuille : les
@@ -642,6 +643,8 @@ Private Sub LireActions(ws As Worksheet)
     mGsn = LireSaisie(ws, "Gsn")
     mAmax = LireSaisie(ws, "A max")
     mAmin = LireSaisie(ws, "A min")
+    mIncl = LireSaisie(ws, "Incliné")
+    mAngle = LireSaisie(ws, "Angle (°)")
 End Sub
 
 ' Valeurs saisies de la ligne i (1 = MP1) d'une colonne lue par LireSaisie ; 0 sinon
@@ -661,6 +664,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     Dim eau As Boolean, cC As Long, cD As Long, cP As Long, cR As Long, cL As Long, cF As Long
     Dim reco As String, eMax As String, eMin As String, eAcc As String, phiT As String
     Dim incl As Boolean, cRe As Long, kb As String, capk As String, zk As String
+    Dim cI As Long, cA As Long, angle0 As Variant
     Dim fx As String, kd As Long, cE As Long, tC As Long, tP As Long
 
     L = LigneVerif(ws)                       ' titre du tableau
@@ -735,13 +739,20 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     cC = cE + IIf(eau, 3, 0)
     cD = cC + 8
     cP = cD + 7
-    cR = cP + 8
-    ' Micropieu incliné (« Données du projet ») : colonne de la profondeur réelle après la
-    ' profondeur retenue, longueur réelle = D / cos(angle sur la verticale)
-    incl = (CStr(ActiveWorkbook.Worksheets("Données du projet").Range("D" & LIGNE_PIEU + 2).Value) = "Oui")
-    cRe = cR + 1
-    cL = cR + IIf(incl, 2, 1)
+    ' Inclinaison de chaque micropieu (cI, liste Oui / Non) avant la profondeur retenue
+    ' (cR) ; après celle-ci, angle sur la verticale (cA, à saisir) et profondeur réelle
+    ' D / cos(angle) (cRe), colonnes affichées seulement si un micropieu est incliné
+    ' (AfficherInclinaison). Valeurs par défaut : « Incliné » et angle de « Données du
+    ' projet ».
+    cI = cP + 8
+    cR = cI + 1
+    cA = cR + 1
+    cRe = cR + 2
+    cL = cR + 3
     cF = cL + 3                               ' dernière colonne
+    incl = (CStr(ActiveWorkbook.Worksheets("Données du projet").Range("D" & LIGNE_PIEU + 2).Value) = "Oui")
+    angle0 = ActiveWorkbook.Worksheets("Données du projet").Range("D" & LIGNE_PIEU + 3).Value
+    ws.Range(ws.Columns(cP), ws.Columns(cF + 3)).Hidden = False
     r0 = L + 7
     ws.Cells(r0, 1).Value = "N° MICROPIEU"
     ws.Cells(r0, 2).Value = "DESCENTE DE CHARGES ET ACTIONS (kN)"
@@ -757,11 +768,15 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     ws.Range(ws.Cells(r0, cD), ws.Cells(r0, cP - 1)).Merge
     ws.Range(ws.Cells(r0, cP), ws.Cells(r0, cR - 1)).Merge
     ws.Range(ws.Cells(r0, cR), ws.Cells(r0 + 1, cR)).Merge
-    If incl Then
-        ws.Cells(r0, cRe).Value = "PROFONDEUR RÉELLE (m)"
-        ws.Range(ws.Cells(r0, cRe), ws.Cells(r0 + 1, cRe)).Merge
-        ws.Cells(r0 + 2, cRe).Value = "D / cos " & ChrW(945)
-    End If
+    ws.Cells(r0, cI).Value = "INCLINAISON"
+    ws.Cells(r0 + 1, cI).Value = "Incliné"
+    ws.Range(ws.Cells(r0 + 1, cI), ws.Cells(r0 + 2, cI)).Merge
+    ws.Cells(r0, cA).Value = "INCLINAISON"
+    ws.Cells(r0 + 1, cA).Value = "Angle (°)"
+    ws.Range(ws.Cells(r0 + 1, cA), ws.Cells(r0 + 2, cA)).Merge
+    ws.Cells(r0, cRe).Value = "PROFONDEUR RÉELLE (m)"
+    ws.Range(ws.Cells(r0, cRe), ws.Cells(r0 + 1, cRe)).Merge
+    ws.Cells(r0 + 2, cRe).Value = "D / cos " & ChrW(945)
     ws.Range(ws.Cells(r0, cL), ws.Cells(r0, cF)).Merge
     ws.Range("B" & r0 + 1).Value = "Gstr"
     ws.Range("D" & r0 + 1).Value = "Q"
@@ -786,7 +801,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         ChrW(934) & " MANUEL", ChrW(934) & " RETENU")
     ws.Cells(r0 + 2, cR).Value = "D"
     ws.Range(ws.Cells(r0 + 1, cL), ws.Cells(r0 + 1, cF)).Value = Array("Profondeur de reconnaissance (m)", _
-        IIf(incl, "Profondeur de reconnaissance - D réelle (m)", "Profondeur de reconnaissance - D (m)"), _
+        "Profondeur de reconnaissance - D réelle (m)", _
         "5 x " & ChrW(934) & " retenu (m)", "Vérification")
     For k = 0 To 6
         ws.Range(ws.Cells(r0 + 1, cD + k), ws.Cells(r0 + 2, cD + k)).Merge
@@ -852,8 +867,12 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     Commentaire ws.Cells(r0 + 1, cD + 6), ChrW(934) & " RETENU : max(" & ChrW(934) & " pieu ; " & _
         ChrW(934) & " manuel)"
     Commentaire ws.Cells(r0 + 2, cR), "D : profondeur retenue, la plus grande des profondeurs requises"
-    If incl Then Commentaire ws.Cells(r0 + 2, cRe), "Profondeur réelle : longueur du micropieu " & _
-        "incliné = D / cos " & ChrW(945) & " (" & ChrW(945) & " : angle sur la verticale)"
+    Commentaire ws.Cells(r0 + 1, cI), "Incliné : Oui si le micropieu est incliné (liste) ; les " & _
+        "colonnes de l'angle et de la profondeur réelle s'affichent alors"
+    Commentaire ws.Cells(r0 + 1, cA), "Angle d'inclinaison du micropieu sur la verticale (à saisir)"
+    Commentaire ws.Cells(r0 + 2, cRe), "Profondeur réelle : longueur du micropieu " & _
+        "incliné = D / cos " & ChrW(945) & " (" & ChrW(945) & " : angle sur la verticale) ; D si " & _
+        "le micropieu n'est pas incliné"
     Commentaire ws.Cells(r0 + 1, cL), "Profondeur de reconnaissance (« Données du projet »)"
     Commentaire ws.Cells(r0 + 1, cL + 2), "5 " & ChrW(934) & " : longueur reconnue sous la base " & _
         "(NF P94-262, annexe M, M.1)"
@@ -1008,15 +1027,31 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         Next k
         ws.Cells(r, cR).Formula = "=IF(COUNTIF(" & Ad(ws, r, cP) & ":" & Ad(ws, r, cP + 7) & _
             ",""Non atteinte"")>0,""Non atteinte"",MAX(" & Ad(ws, r, cP) & ":" & Ad(ws, r, cP + 7) & "))"
-        If incl Then                         ' longueur réelle du micropieu incliné
-            ws.Cells(r, cRe).Formula = "=IF(ISNUMBER(" & Ad(ws, r, cR) & ")," & Ad(ws, r, cR) & _
-                "/COS(RADIANS(N(" & DONNEES & "$D$" & LIGNE_PIEU + 3 & "))),"""")"
+        ' Inclinaison (Oui / Non) et angle : saisies conservées, sinon « Données du projet »
+        With ws.Cells(r, cI)
+            .Validation.Delete
+            .Validation.Add xlValidateList, xlValidAlertStop, , "Non,Oui"
+            .Value = IIf(incl, "Oui", "Non")
+            If IsArray(mIncl) Then
+                If i <= UBound(mIncl) Then
+                    If CStr(mIncl(i)) = "Oui" Or CStr(mIncl(i)) = "Non" Then .Value = mIncl(i)
+                End If
+            End If
+        End With
+        ws.Cells(r, cA).Value = IIf(IsNumeric(angle0) And Not IsEmpty(angle0), angle0, 0)
+        If IsArray(mAngle) Then
+            If i <= UBound(mAngle) Then
+                If IsNumeric(mAngle(i)) And Not IsEmpty(mAngle(i)) Then ws.Cells(r, cA).Value = mAngle(i)
+            End If
         End If
+        ' Profondeur réelle : D / cos(angle) si incliné, D sinon
+        ws.Cells(r, cRe).Formula = "=IF(ISNUMBER(" & Ad(ws, r, cR) & "),IF(" & Ad(ws, r, cI) & "=""Oui""," & _
+            Ad(ws, r, cR) & "/COS(RADIANS(N(" & Ad(ws, r, cA) & ")))," & Ad(ws, r, cR) & "),"""")"
         ' Vérification de la longueur : profondeur de reconnaissance - D >= 5 Phi retenu
         ws.Cells(r, cL).Formula = "=IF(ISNUMBER(" & reco & ")," & reco & ","""")"
         ' D = profondeur réelle (D / cos alpha) si le micropieu est incliné
         ws.Cells(r, cL + 1).Formula = "=IF(AND(ISNUMBER(" & Ad(ws, r, cL) & "),ISNUMBER(" & _
-            Ad(ws, r, IIf(incl, cRe, cR)) & "))," & Ad(ws, r, cL) & "-" & Ad(ws, r, IIf(incl, cRe, cR)) & _
+            Ad(ws, r, cRe) & "))," & Ad(ws, r, cL) & "-" & Ad(ws, r, cRe) & _
             ","""")"
         ws.Cells(r, cL + 2).Formula = "=IF(ISNUMBER(" & Ad(ws, r, cD + 6) & "),5*" & Ad(ws, r, cD + 6) & ","""")"
         ws.Cells(r, cF).Formula = "=IF(OR(" & Ad(ws, r, cL + 1) & "=""""," & Ad(ws, r, cL + 2) & _
@@ -1024,7 +1059,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
             ",""Vérifiée"",""Non vérifiée""))"
     Next i
     mPhiManuel = Empty
-    mGeo = Empty: mGsn = Empty: mAmax = Empty: mAmin = Empty
+    mGeo = Empty: mGsn = Empty: mAmax = Empty: mAmin = Empty: mIncl = Empty: mAngle = Empty
     rt = r0 + 2 + Application.Max(m, 1)
 
     ' Diamètre du micropieu B (D19) = diamètre final retenu : le plus grand Phi retenu
@@ -1060,6 +1095,10 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         ws.Range(ws.Cells(r0 + 3, cP), ws.Cells(rt, cL + 2)).NumberFormat = "0.00"
         ws.Range(ws.Cells(r0 + 3, cD + 6), ws.Cells(rt, cD + 6)).Font.Bold = True
         ws.Range(ws.Cells(r0 + 3, cR), ws.Cells(rt, cL - 1)).Font.Bold = True
+        ws.Range(ws.Cells(r0 + 3, cI), ws.Cells(rt, cI)).Interior.Color = VERT_SAISIE  ' inclinaison
+        ws.Range(ws.Cells(r0 + 3, cA), ws.Cells(rt, cA)).Interior.Color = VERT_SAISIE  ' angle
+        ws.Range(ws.Cells(r0 + 3, cA), ws.Cells(rt, cA)).NumberFormat = "0.0"
+        ws.Range(ws.Cells(r0 + 3, cI), ws.Cells(rt, cI)).Font.Bold = False
         ws.Range(ws.Cells(r0 + 3, cF), ws.Cells(rt, cF)).Font.Bold = True
         ' Vérification en rouge si non vérifiée
         With ws.Range(ws.Cells(r0 + 3, cF), ws.Cells(rt, cF)).FormatConditions
@@ -1069,7 +1108,67 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     End If
     ws.Range(ws.Columns(cD), ws.Columns(cF)).ColumnWidth = 12
     ws.Rows(r0).RowHeight = 30
+    AfficherInclinaison ws
 End Sub
+
+' Colonnes de l'angle et de la profondeur réelle de la vérification de la profondeur
+' affichées seulement si au moins un micropieu est incliné (colonne « Incliné » = Oui).
+' Appelée à la création et quand une inclinaison change (ChangementCalcul).
+Public Sub AfficherInclinaison(Optional ws As Worksheet)
+    Dim r0 As Long, c As Long, cI As Long, r As Long, n As Long
+    If ws Is Nothing Then
+        On Error Resume Next
+        Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
+        On Error GoTo 0
+        If ws Is Nothing Then Exit Sub
+    End If
+    cI = ColonneInclinaison(ws, r0)
+    If cI = 0 Then Exit Sub
+    r = r0 + 3
+    Do While Left(CStr(ws.Range("A" & r).Value), 2) = "MP"
+        If CStr(ws.Cells(r, cI).Value) = "Oui" Then n = n + 1
+        r = r + 1
+    Loop
+    ' angle (cI + 2) et profondeur réelle (cI + 3), de part et d'autre de D (cI + 1)
+    ws.Range(ws.Columns(cI + 2), ws.Columns(cI + 3)).Hidden = (n = 0)
+End Sub
+
+' « Incliné » et angle de « Données du projet » recopiés sur tous les micropieux de la
+' vérification de la profondeur (appelée par ChangementDonnees, module DonneesProjet)
+Public Sub AppliquerInclinaisonDonnees()
+    Dim ws As Worksheet, wp As Worksheet, cI As Long, r0 As Long, r As Long
+    On Error Resume Next
+    Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
+    On Error GoTo 0
+    If ws Is Nothing Then Exit Sub
+    Set wp = ActiveWorkbook.Worksheets("Données du projet")
+    cI = ColonneInclinaison(ws, r0)
+    If cI = 0 Then Exit Sub
+    r = r0 + 3
+    Do While Left(CStr(ws.Range("A" & r).Value), 2) = "MP"
+        ws.Cells(r, cI).Value = IIf(CStr(wp.Range("D" & LIGNE_PIEU + 2).Value) = "Oui", "Oui", "Non")
+        ws.Cells(r, cI + 2).Value = N0(wp.Range("D" & LIGNE_PIEU + 3).Value)
+        r = r + 1
+    Loop
+    AfficherInclinaison ws
+End Sub
+
+' Valeur numérique (0 si vide ou texte)
+Private Function N0(v As Variant) As Double
+    If Not IsEmpty(v) And IsNumeric(v) Then N0 = CDbl(v)
+End Function
+
+' Colonne « Incliné » de la vérification de la profondeur (0 si absente) ; r0 : ligne
+' de l'en-tête « N° MICROPIEU »
+Private Function ColonneInclinaison(ws As Worksheet, r0 As Long) As Long
+    Dim c As Long, v As Variant
+    v = Application.Match("N° MICROPIEU", ws.Range("A1:A5000"), 0)
+    If IsError(v) Then Exit Function
+    r0 = CLng(v)
+    For c = 2 To 80
+        If CStr(ws.Cells(r0 + 1, c).Value) = "Incliné" Then ColonneInclinaison = c: Exit Function
+    Next c
+End Function
 
 ' Nombre de lignes (pas) du tableau de la capacité portante, écrit en ZA à la création ;
 ' ancienne feuille sans ce nombre : MAX_COUCHES x NB_SUBDIV
@@ -1129,7 +1228,17 @@ End Sub
 ' pas de calcul saisi (colonne A du frottement axial) -> tableau de la capacité
 ' portante adapté au nombre total de subdivisions
 Public Sub ChangementCalcul(ws As Worksheet, Target As Range)
-    Dim c As Range, zone As Range
+    Dim c As Range, zone As Range, cI As Long, r0 As Long
+    ' Inclinaison d'un micropieu (vérification de la profondeur) : colonnes angle et
+    ' profondeur réelle affichées ou masquées
+    cI = ColonneInclinaison(ws, r0)
+    If cI > 0 Then
+        If Not Intersect(Target, ws.Range(ws.Cells(r0 + 3, cI), ws.Cells(r0 + 300, cI))) Is Nothing Then
+            Application.EnableEvents = False
+            AfficherInclinaison ws
+            Application.EnableEvents = True
+        End If
+    End If
     Set zone = Intersect(Target, ws.Range("A" & LIGNE_FROT & ":A" & LIGNE_FROT + MAX_COUCHES - 1))
     If zone Is Nothing Then Exit Sub
     Application.EnableEvents = False

@@ -24,6 +24,11 @@ Option Explicit
 '         semelle, K0 = 1 - sin phi', sigma v = gamma h, sigma h = K0 sigma v,
 '         H = K0 gamma h² / 2 (kN/ml), excentricité e = h / 3 au-dessus de la fibre
 '         inférieure de la semelle (tête des micropieux)
+'   sous les efforts : longueur de transfert l0 de chaque micropieu : diamètre du pieu
+'         foré (Phi retenu ou autre valeur saisie), section du pieu foré, rayon de
+'         corrosion (« Données du projet »), section de l'armature brute, corrodée et
+'         après corrosion, As / A (%), inertie, EI, rho, Kf, Es, l0, D réelle,
+'         comportement rigide / souple
 '   A64 : efforts dans chaque micropieu et chaque combinaison (ELS caractéristique, ELS
 '         quasi permanent, ELU fondamental, ELU accidentel) : compression Nc = Vmax de la
 '         vérification de la profondeur, traction Nt = - Nc, effort tranchant en tête
@@ -48,6 +53,7 @@ Public Sub CreerVerificationStructurelle()
     Dim a As Long, lp As Long, lm As Long, r As Long, i As Long, k As Long, m As Long, n As Long
     Dim r0 As Long, rv As Long, cC As Long, tC As Long, rd As Long, rP As Long, rS As Long
     Dim tube As String, dn As String, entete As Variant
+    Dim rL As Long, cPhi As Long, cDr As Long, autre As Variant, x As String, j As Long
 
     Application.ScreenUpdating = False
     On Error GoTo Erreur
@@ -68,6 +74,7 @@ Public Sub CreerVerificationStructurelle()
         Set ws = ActiveWorkbook.Worksheets.Add(After:=ActiveWorkbook.Worksheets(ActiveWorkbook.Worksheets.Count))
         ws.Name = NOM_FEUILLE
     End If
+    autre = LireAutreDiametre(ws)             ' autres diamètres saisis (tableau de l0)
     ws.Cells.Clear
     a = LIGNE_ACIER                           ' caractéristiques de l'acier (Données)
     lp = LIGNE_PIEU                           ' caractéristiques de la fondation (Données)
@@ -308,6 +315,126 @@ Public Sub CreerVerificationStructurelle()
     ws.Range("B" & rv + 2 & ":R" & rv + 1 + m).Interior.Color = JAUNE_CALCUL
     ws.Range("B" & rv + 2 & ":R" & rv + 1 + m).NumberFormat = "0.0"
 
+    ' --- Longueur de transfert l0 de chaque micropieu ---
+    ' Diamètre du pieu foré B = Phi retenu (vérification de la profondeur) ou autre valeur
+    ' saisie ; section du pieu foré A = pi B² / 4 ; rayon de corrosion rc (« Données du
+    ' projet », caractéristiques du coulis : durée du projet x nature du terrain) ;
+    ' armature : diamètre après corrosion d - 2 rc (tube : face extérieure, barre : tout
+    ' le pourtour), section corrodée = section brute - section après corrosion, taux
+    ' d'armature As / A ; inertie et EI après corrosion ; rho = max(B / B0 ; 1), Kf, Es
+    ' selon le type de sollicitation ; l0 = (4 EI / Es)^(1/4) ; D = profondeur réelle.
+    etape = "longueur de transfert"
+    For i = 1 To 80
+        If CStr(wc.Cells(r0 + 1, i).Value) = ChrW(934) & " RETENU" Then cPhi = i
+        If CStr(wc.Cells(r0, i).Value) = "PROFONDEUR RÉELLE (m)" Then cDr = i
+        If cDr = 0 And CStr(wc.Cells(r0, i).Value) = "PROFONDEUR RETENUE (m)" Then cDr = i
+    Next i
+    rL = rv + 2 + m + 2
+    With ws.Range("A" & rL)
+        .Value = "LONGUEUR DE TRANSFERT l0 DES MICROPIEUX (APRÈS CORROSION)"
+        .Font.Bold = True
+        .Font.Size = 14
+        .Font.Color = VERT_FONCE
+    End With
+    entete = Array("N° MICROPIEU", ChrW(934) & " retenu (m)", "Autre diamètre (m)", _
+        "Diamètre du pieu foré B (m)", "Section du pieu foré A = " & ChrW(960) & ".B²/4 (m²)", _
+        "Rayon de corrosion rc (mm)", "Diamètre de l'armature d (mm)", _
+        "Diamètre après corrosion d - 2 rc (mm)", "Section brute de l'armature (mm²)", _
+        "Section corrodée (mm²)", "Section après corrosion As (mm²)", "As / A pieu foré (%)", _
+        "Inertie après corrosion I (mm4)", "EI (kN.m²)", ChrW(961) & " = max(B/B0 ; 1)", _
+        "Kf (MPa)", "Es (MPa)", "l0 = (4 EI / Es)^(1/4) (m)", "Profondeur D (m)", "Comportement", _
+        "Résistance de calcul Npl,Rd = As.fyk / " & ChrW(947) & "s (kN)", "Nc,Ed ELU fondamental (kN)", _
+        "Nc,Ed / Npl,Rd", "Vérification")
+    For j = 0 To UBound(entete)
+        ws.Cells(rL + 2, 1 + j).Value = entete(j)
+    Next j
+    Commentaire ws.Range("C" & rL + 2), "Autre diamètre : à saisir pour remplacer " & ChrW(934) & _
+        " retenu (vide : " & ChrW(934) & " retenu de la vérification de la profondeur)"
+    Commentaire ws.Range("F" & rL + 2), "Rayon de corrosion : perte d'épaisseur de « Données du " & _
+        "projet » (caractéristiques du coulis), selon la durée d'utilisation du projet et la nature " & _
+        "du terrain (NF EN 1993-5, tableaux 4.1 / 4.2)"
+    Commentaire ws.Range("J" & rL + 2), "Section corrodée = section brute - section après corrosion " & _
+        "(tube : face extérieure seulement, barre : tout le pourtour)"
+    Commentaire ws.Range("U" & rL + 2), "Valeur de calcul de la résistance du micropieu : section " & _
+        "d'acier après corrosion x fyk / " & ChrW(947) & "s (ELU fondamental, « Données du projet »)"
+    Commentaire ws.Range("V" & rL + 2), "Effort de compression de calcul ELU fondamental (tableau " & _
+        "des efforts ci-dessus)"
+    Commentaire ws.Range("S" & rL + 2), "D : profondeur réelle du micropieu (D / cos " & ChrW(945) & _
+        " s'il est incliné), vérification de la profondeur"
+    For i = 1 To m
+        r = rL + 2 + i
+        x = CStr(r)
+        ws.Range("A" & r).Value = "MP" & i
+        If cPhi > 0 Then
+            ws.Range("B" & r).Formula = "=IF(ISNUMBER(" & CALCUL & wc.Cells(r0 + 2 + i, cPhi).Address & ")," & _
+                CALCUL & wc.Cells(r0 + 2 + i, cPhi).Address & ",N(" & CALCUL & "$D$19))"
+        Else
+            ws.Range("B" & r).Formula = "=N(" & CALCUL & "$D$19)"
+        End If
+        If IsArray(autre) Then
+            If i <= UBound(autre) Then
+                If IsNumeric(autre(i)) And Not IsEmpty(autre(i)) Then ws.Range("C" & r).Value = autre(i)
+            End If
+        End If
+        ws.Range("D" & r).Formula = "=IF(N(C" & x & ")>0,C" & x & ",B" & x & ")"
+        ws.Range("E" & r).Formula = "=PI()*D" & x & "^2/4"
+        ws.Range("F" & r).Formula = "=N(" & DONNEES & "D" & lp + 30 & ")"
+        ws.Range("G" & r).Formula = "=$D$6"
+        ws.Range("H" & r).Formula = "=MAX(0,G" & x & "-2*F" & x & ")"
+        ws.Range("I" & r).Formula = "=IF(" & tube & ",PI()/4*(G" & x & "^2-$D$8^2),PI()/4*G" & x & "^2)"
+        ws.Range("K" & r).Formula = "=MAX(0,IF(" & tube & ",PI()/4*(H" & x & "^2-$D$8^2),PI()/4*H" & x & "^2))"
+        ws.Range("J" & r).Formula = "=I" & x & "-K" & x
+        ws.Range("L" & r).Formula = "=IF(E" & x & ">0,K" & x & "/(E" & x & "*1E6)*100,"""")"
+        ws.Range("M" & r).Formula = "=MAX(0,IF(" & tube & ",PI()/64*(H" & x & "^4-$D$8^4),PI()/64*H" & x & "^4))"
+        ws.Range("N" & r).Formula = "=$D$9*M" & x & "*1E-9"
+        ws.Range("O" & r).Formula = "=IF(N($D$26)<=0,"""",MAX(D" & x & "/$D$26,1))"
+        ws.Range("P" & r).Formula = "=IF(OR(N($D$29)<=0,O" & x & "=""""),"""",IF($D$23=""Méthode pénétrométrique""," & _
+            "$D$36*$D$29/2,$D$29*18*O" & x & "/(4*(2.65*O" & x & ")^$D$35+3*$D$35*O" & x & ")))"
+        ws.Range("Q" & r).Formula = "=IF(P" & x & "="""","""",IF(OR(LEFT($D$24,1)=""c"",LEFT($D$24,1)=""d"")," & _
+            "2,1)*P" & x & ")"
+        ws.Range("R" & r).Formula = "=IF(OR(Q" & x & "="""",N(Q" & x & ")=0),"""",(4*N" & x & "/(Q" & x & _
+            "*1000))^0.25)"
+        If cDr > 0 Then
+            ws.Range("S" & r).Formula = "=N(" & CALCUL & wc.Cells(r0 + 2 + i, cDr).Address & ")"
+        Else
+            ws.Range("S" & r).Formula = "=N(" & CALCUL & "$D$20)"
+        End If
+        ws.Range("T" & r).Formula = "=IF(R" & x & "="""",""-"",IF(R" & x & ">=S" & x & _
+            ",""Rigide (l0 >= D)"",IF(S" & x & ">=3*R" & x & ",""Souple (D >= 3 l0)"",""Intermédiaire"")))"
+        ' Valeur de calcul de la résistance de l'armature après corrosion et vérification
+        ws.Range("U" & r).Formula = "=K" & x & "*$D$10/N(" & DONNEES & "D" & a + 8 & ")/1000"
+        ws.Range("V" & r).Formula = "=E" & rv + 1 + i
+        ws.Range("W" & r).Formula = "=IF(N(U" & x & ")>0,V" & x & "/U" & x & ","""")"
+        ws.Range("X" & r).Formula = "=IF(W" & x & "="""",""-"",IF(W" & x & "<=1,""Vérifiée"",""Non vérifiée""))"
+    Next i
+    With ws.Range("A" & rL + 2 & ":X" & rL + 2 + m)
+        .Borders.LineStyle = xlContinuous
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+    End With
+    With ws.Range("A" & rL + 2 & ":X" & rL + 2)
+        .Font.Bold = True
+        .Interior.Color = VERT_ENTETE
+        .WrapText = True
+    End With
+    ws.Range("A" & rL + 3 & ":A" & rL + 2 + m).Font.Bold = True
+    ws.Range("B" & rL + 3 & ":X" & rL + 2 + m).Interior.Color = JAUNE_CALCUL
+    ws.Range("U" & rL + 3 & ":V" & rL + 2 + m).NumberFormat = "0.0"
+    ws.Range("W" & rL + 3 & ":W" & rL + 2 + m).NumberFormat = "0.00"
+    ws.Range("X" & rL + 3 & ":X" & rL + 2 + m).Font.Bold = True
+    With ws.Range("X" & rL + 3 & ":X" & rL + 2 + m).FormatConditions
+        .Delete
+        .Add(xlCellValue, xlEqual, "=""Non vérifiée""").Font.Color = RGB(192, 0, 0)
+    End With
+    ws.Range("C" & rL + 3 & ":C" & rL + 2 + m).Interior.Color = VERT_SAISIE
+    ws.Range("B" & rL + 3 & ":E" & rL + 2 + m).NumberFormat = "0.000"
+    ws.Range("F" & rL + 3 & ":H" & rL + 2 + m).NumberFormat = "0.00"
+    ws.Range("I" & rL + 3 & ":K" & rL + 2 + m).NumberFormat = "0.0"
+    ws.Range("L" & rL + 3 & ":L" & rL + 2 + m).NumberFormat = "0.00"
+    ws.Range("M" & rL + 3 & ":M" & rL + 2 + m).NumberFormat = "0.000E+00"
+    ws.Range("N" & rL + 3 & ":S" & rL + 2 + m).NumberFormat = "0.00"
+    ws.Range("R" & rL + 3 & ":R" & rL + 2 + m & ",T" & rL + 3 & ":T" & rL + 2 + m).Font.Bold = True
+
 MiseEnForme:
     etape = "mise en forme"
     With ws.Range("B4:E20,B23:E48,B51:E62")
@@ -321,7 +448,7 @@ MiseEnForme:
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 30
     ws.Columns("D").ColumnWidth = 30
-    ws.Columns("E:R").ColumnWidth = 12
+    ws.Columns("E:X").ColumnWidth = 12
     ws.Activate
 Fin:
     Application.ScreenUpdating = True
@@ -348,6 +475,24 @@ Private Sub Ligne(ws As Worksheet, r As Long, intitule As String, formule As Str
     End If
     ws.Range("E" & r).Value = unite
 End Sub
+
+' « Autre diamètre » saisis dans le tableau de la longueur de transfert (colonne C,
+' lignes MP1...), conservés quand la feuille est recréée ; vide si absent
+Private Function LireAutreDiametre(ws As Worksheet) As Variant
+    Dim v As Variant, r As Long, i As Long, t() As Variant
+    v = Application.Match("LONGUEUR DE TRANSFERT l0 DES MICROPIEUX (APRÈS CORROSION)", ws.Range("A1:A5000"), 0)
+    If IsError(v) Then Exit Function
+    r = CLng(v) + 3
+    Do While Left(CStr(ws.Range("A" & r + i).Value), 2) = "MP"
+        i = i + 1
+    Loop
+    If i = 0 Then Exit Function
+    ReDim t(1 To i)
+    For i = 1 To UBound(t)
+        t(i) = ws.Range("C" & r + i - 1).Value
+    Next i
+    LireAutreDiametre = t
+End Function
 
 ' Sous-titre en gras, souligné
 Private Sub SousTitre(ws As Worksheet, r As Long, texte As String)
