@@ -30,20 +30,19 @@ Option Explicit
 '         de Hetényi : tête libre y0 = a H + b M, tête encastrée y0 = (a - b²/c) H et
 '         moment d'encastrement) ; H = V + T0, T0 = Nc x sin(angle) si le micropieu est
 '         incliné (effort horizontal provenant de la descente de charges)
-'   déplacement Y0, effort tranchant T0 et moment M0 en tête en fonction de la
-'         profondeur z (x = z / l0), un tableau par micropieu (z = profondeurs du
-'         tableau de la capacité portante par pas de calcul de « Calcul et
-'         vérification », avec leur pas de calcul, jusqu'à la profondeur du micropieu)
-'         et graphiques Y0, T0, M0 en fonction de z
+'   Y, T et M le long de chaque micropieu, de la tête à la profondeur réelle D (pieu long
+'         à pointe encastrée : ondes issues de la tête et de la pointe, constantes A, B,
+'         C, E par combinaison), profondeurs = pas de calcul de « Calcul et
+'         vérification » ; graphiques Y, T, M à la fin de la feuille
 ' Le nombre de micropieux et les adresses des autres feuilles sont lus à la création :
 ' relancer CreerVerificationStructurelle après un changement de ces feuilles.
 
 Private Const NOM_FEUILLE As String = "Vérification structurelle"
 Private Const DONNEES As String = "'Données du projet'!"
 Private Const TITRE_DEPL As String = "DÉPLACEMENT EN TÊTE DES MICROPIEUX"
-' Tableaux Y0, T0, M0 en fonction de z : LARG_PROFIL colonnes par micropieu (18 + 1 vide),
-' graphiques sur HAUT_GRAPHE lignes sous les tableaux
-Private Const LARG_PROFIL As Long = 19
+' Profils Y, T, M le long du micropieu : LARG_PROFIL colonnes par micropieu (15 + 1
+' vide) ; graphiques à la fin de la feuille, HAUT_GRAPHE lignes par micropieu
+Private Const LARG_PROFIL As Long = 16
 Private Const HAUT_GRAPHE As Long = 26
 Private Const CALCUL As String = "'Calcul et vérification'!"
 
@@ -65,7 +64,7 @@ Public Sub CreerVerificationStructurelle()
     Dim rY As Long, condTete As Variant, ry0 As String, rl0 As String, xs As String
     Dim cIn As Long, cAn As Long, rT As Long, nZ As Long, hZ As Variant, cb As Long, rd0 As String
     Dim kA As String, kB As String, kC As String, kD As String, y0s As String, hs As String
-    Dim ths As String, mhs As String, cond0 As String
+    Dim ths As String, mhs As String, cond0 As String, rP As Long, rG As Long, pr As String, zk As String
 
     Application.ScreenUpdating = False
     On Error GoTo Erreur
@@ -349,11 +348,11 @@ Public Sub CreerVerificationStructurelle()
     ' Comportement linéaire (partie élastique de la courbe de réaction, p <= Pf).
     etape = "déplacements en tête"
     rY = rL + 2 + m + 3
-    ' Tableaux Y0, T0, M0 en fonction de la profondeur z (sous ce tableau) :
+    ' Profils Y, T, M le long du micropieu (sous ce tableau) :
     ' profondeurs du tableau de la capacité portante par pas de calcul de « Calcul et
     ' vérification » (colonne C, sous l'en-tête « Profondeur z (m) »), nombre de pas
     ' écrit en ZA deux lignes au-dessus de l'en-tête
-    rT = rY + 3 + m + 3                       ' titre des tableaux Y0, T0, M0 en fonction de z
+    rT = rY + 3 + m + 3                       ' titre des constantes de Y, T, M le long du micropieu
     hZ = Application.Match("Profondeur z (m)", wc.Range("C1:C200"), 0)
     nZ = 0
     If Not IsError(hZ) Then
@@ -366,7 +365,8 @@ Public Sub CreerVerificationStructurelle()
         End If
     End If
     If nZ < 1 Then nZ = 1
-    rv = rT + 4 + nZ + HAUT_GRAPHE + 5        ' en-tête du tableau des efforts (sous les graphiques)
+    rP = rT + 3 + m + 3                       ' en-tête des profils le long du micropieu
+    rv = rP + 4 + nZ + 5                      ' en-tête du tableau des efforts
     For i = 1 To 80                           ' inclinaison et angle de chaque micropieu
         If CStr(wc.Cells(r0 + 1, i).Value) = "Incliné" Then cIn = i
         If CStr(wc.Cells(r0 + 1, i).Value) = "Angle (°)" Then cAn = i
@@ -501,96 +501,172 @@ Public Sub CreerVerificationStructurelle()
     ws.Range("Q" & rY + 4 & ":T" & rY + 3 + m).NumberFormat = "0.00"
     ws.Range("Q" & rY + 4 & ":T" & rY + 3 + m).Font.Bold = True
 
-    ' --- Y0, T0 et M0 en tête en fonction de la profondeur z (x = z / l0) ---
-    ' Un tableau par micropieu (côte à côte) : z = chaque profondeur du tableau de la
-    ' capacité portante par pas de calcul (« Calcul et vérification »), jusqu'à la
-    ' profondeur du micropieu ; x = z / l0 ; souplesses a, b, c (Hetényi) ; pour chaque
-    ' combinaison (condition en tête, H = V + T0 et M du tableau des déplacements) :
-    '   Y0 = a H + b M (tête libre) ou (a - b² / c) H (tête encastrée), en mm ;
-    '   T0 = effort tranchant en tête = H ;
-    '   M0 = moment en tête = M (tête libre) ou - b / c x H (moment d'encastrement).
-    ' Graphiques Y0, T0 et M0 en fonction de z sous chaque tableau (créés à la fin,
-    ' après les largeurs de colonnes).
-    etape = "Y0, T0 et M0 en fonction de la profondeur"
+    ' --- Y, T et M le long du micropieu (z de 0 à la profondeur réelle D) ---
+    ' Équation EI y'''' + Es y = 0, lambda = 1 / l0. Solution du pieu long à pointe
+    ' encastrée : onde issue de la tête et onde issue de la pointe (u = D - z) :
+    '   y(z) = e^(-lambda z) [A cos lambda z + B sin lambda z]
+    '        + e^(-lambda u) [C cos lambda u + E sin lambda u]
+    ' Tête (H = V + T0 et M du tableau des déplacements, Es en kPa) :
+    '   tête libre    : A = 2 lambda H / Es + 2 lambda² M / Es, B = -2 lambda² M / Es ;
+    '   tête encastrée : A = B = lambda H / Es ;
+    ' pointe encastrée (y(D) = 0, y'(D) = 0) :
+    '   C = -e^(-lambda D) [A cos lambda D + B sin lambda D]
+    '   E = e^(-lambda D) [(B - 2A) cos lambda D - (A + 2B) sin lambda D] ;
+    ' moment M(z) = EI y'' et effort tranchant T(z) = EI y''' :
+    '   M = 2 EI lambda² { e^(-lambda z) [A sin - B cos](lambda z) + e^(-lambda u) [C sin - E cos](lambda u) }
+    '   T = 2 EI lambda³ { e^(-lambda z) [(A + B) cos + (B - A) sin](lambda z)
+    '                    - e^(-lambda u) [(C + E) cos + (E - C) sin](lambda u) }
+    ' Valable pour un micropieu long (D >= 3 l0) ; D = profondeur réelle (« Calcul et
+    ' vérification »). Profondeurs : 0, pas de calcul du tableau de la capacité portante
+    ' (« Calcul et vérification ») jusqu'à D, puis D. Graphiques à la fin de la feuille.
+    etape = "Y, T et M le long du micropieu"
     With ws.Range("A" & rT)
-        .Value = "DÉPLACEMENT Y0, EFFORT TRANCHANT T0 ET MOMENT M0 EN TÊTE EN FONCTION DE LA " & _
-            "PROFONDEUR z (x = z / l0)"
+        .Value = "DÉPLACEMENT Y, EFFORT TRANCHANT T ET MOMENT M LE LONG DU MICROPIEU (PIEU LONG, " & _
+            "POINTE ENCASTRÉE)"
         .Font.Bold = True
         .Font.Size = 14
         .Font.Color = VERT_FONCE
     End With
-    ws.Range("A" & rT + 1).Value = "z : profondeurs du tableau de la capacité portante par pas de " & _
-        "calcul (« Calcul et vérification ») jusqu'à la profondeur du micropieu ; Y0 en mm, T0 en kN, " & _
-        "M0 en kN.m (mêmes formules que le tableau des déplacements en tête)"
+    ws.Range("A" & rT + 1).Value = "Constantes de la solution y(z) = e^(-" & ChrW(955) & "z)[A cos " & _
+        ChrW(955) & "z + B sin " & ChrW(955) & "z] + e^(-" & ChrW(955) & "u)[C cos " & ChrW(955) & "u + E sin " & _
+        ChrW(955) & "u], u = D - z (A, B, C, E en m)"
+    ' Tableau des constantes : A micropieu, B lambda, C D réelle, D x = D / l0, E validité,
+    ' puis A, B, C, E de chaque combinaison (colonnes 6 à 21)
+    r = rT + 2
+    ws.Range("A" & r & ":E" & r).Value = Array("N° MICROPIEU", ChrW(955) & " = 1 / l0 (1/m)", _
+        "Profondeur réelle D (m)", "x = D / l0", "Validité (pieu long D >= 3 l0)")
+    For k = 0 To 4
+        ws.Range(ws.Cells(r, 1 + k), ws.Cells(r + 1, 1 + k)).Merge
+    Next k
+    For k = 0 To 3
+        ws.Cells(r, 6 + 4 * k).Value = Choose(k + 1, "ELS CARA", "ELS QP", "ELU FOND", "ELU ACC")
+        ws.Range(ws.Cells(r, 6 + 4 * k), ws.Cells(r, 9 + 4 * k)).Merge
+        ws.Range(ws.Cells(r + 1, 6 + 4 * k), ws.Cells(r + 1, 9 + 4 * k)).Value = Array("A", "B", "C", "E")
+    Next k
+    Commentaire ws.Range("E" & r), "Solution du pieu long : écart inférieur à e^(-2D/l0) (0,25 % pour " & _
+        "D = 3 l0) ; pour un micropieu plus court, valeurs approchées (voir le tableau des déplacements " & _
+        "en tête, solution de longueur finie)"
+    For i = 1 To m
+        r = rT + 3 + i
+        x = CStr(rY + 3 + i)                  ' ligne du micropieu dans le tableau des déplacements
+        rl0 = CStr(rL + 2 + i)                ' ligne du micropieu dans le tableau de l0
+        rd0 = CStr(rv + 1 + i)                ' ligne du micropieu dans le tableau des efforts
+        ws.Range("A" & r).Value = "MP" & i
+        ws.Range("B" & r).Formula = "=IF(N(W" & rl0 & ")<=0,"""",1/W" & rl0 & ")"
+        ws.Range("C" & r).Formula = "=N(X" & rl0 & ")"
+        ws.Range("D" & r).Formula = "=IF(B" & r & "="""","""",B" & r & "*C" & r & ")"
+        ws.Range("E" & r).Formula = "=IF(D" & r & "="""",""-"",IF(D" & r & ">=3,""Pieu long"",""D < 3 l0 : approché""))"
+        For k = 0 To 3
+            hs = ws.Cells(CLng(x), 13 + k).Address(False, False)               ' H = V + T0
+            mhs = "N(" & ws.Cells(CLng(rd0), 15 + k).Address(False, False) & ")"  ' M
+            cond0 = "=IF(OR($B" & r & "="""",N(V" & rl0 & ")<=0),"""","
+            kA = ws.Cells(r, 6 + 4 * k).Address(False, False)
+            kB = ws.Cells(r, 7 + 4 * k).Address(False, False)
+            ' A, B : conditions en tête (libre ou encastrée, tableau des déplacements)
+            ws.Cells(r, 6 + 4 * k).Formula = cond0 & "IF($B$" & x & "=""Encastré en tête"",$B" & r & "*" & hs & _
+                "/(V" & rl0 & "*1000),2*$B" & r & "*" & hs & "/(V" & rl0 & "*1000)+2*$B" & r & "^2*" & mhs & _
+                "/(V" & rl0 & "*1000)))"
+            ws.Cells(r, 7 + 4 * k).Formula = cond0 & "IF($B$" & x & "=""Encastré en tête""," & kA & _
+                ",-2*$B" & r & "^2*" & mhs & "/(V" & rl0 & "*1000)))"
+            ' C, E : pointe encastrée
+            ws.Cells(r, 8 + 4 * k).Formula = "=IF(" & kA & "="""","""",-EXP(-$D" & r & ")*(" & kA & "*COS($D" & r & _
+                ")+" & kB & "*SIN($D" & r & ")))"
+            ws.Cells(r, 9 + 4 * k).Formula = "=IF(" & kA & "="""","""",EXP(-$D" & r & ")*((" & kB & "-2*" & kA & _
+                ")*COS($D" & r & ")-(" & kA & "+2*" & kB & ")*SIN($D" & r & ")))"
+        Next k
+    Next i
+    With ws.Range("A" & rT + 2 & ":U" & rT + 3 + m)
+        .Borders.LineStyle = xlContinuous
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+    End With
+    With ws.Range("A" & rT + 2 & ":U" & rT + 3)
+        .Font.Bold = True
+        .Interior.Color = VERT_ENTETE
+        .WrapText = True
+    End With
+    ws.Range("A" & rT + 4 & ":A" & rT + 3 + m).Font.Bold = True
+    ws.Range("B" & rT + 4 & ":U" & rT + 3 + m).Interior.Color = JAUNE_CALCUL
+    ws.Range("B" & rT + 4 & ":D" & rT + 3 + m).NumberFormat = "0.000"
+    ws.Range("F" & rT + 4 & ":U" & rT + 3 + m).NumberFormat = "0.000E+00"
+    With ws.Range("E" & rT + 4 & ":E" & rT + 3 + m).FormatConditions
+        .Delete
+        .Add(xlCellValue, xlEqual, "=""D < 3 l0 : approché""").Font.Color = RGB(192, 0, 0)
+    End With
+
+    ' Profils : un tableau par micropieu (côte à côte), z, lambda z, lambda u, puis Y (mm),
+    ' T (kN), M (kN.m) de chaque combinaison
+    ws.Range("A" & rP - 1).Value = "Profils le long du micropieu : z = 0, pas de calcul du tableau de la " & _
+        "capacité portante (« Calcul et vérification ») jusqu'à la profondeur réelle D, puis D ; " & _
+        "Y en mm, T en kN, M en kN.m"
     For i = 1 To m
         cb = 1 + LARG_PROFIL * (i - 1)        ' 1re colonne du tableau du micropieu
-        rl0 = CStr(rL + 2 + i)                ' ligne du micropieu dans le tableau de l0
-        x = CStr(rY + 3 + i)                  ' ligne du micropieu dans le tableau des déplacements
-        rd0 = CStr(rv + 1 + i)                ' ligne du micropieu dans le tableau des efforts
-        ws.Cells(rT + 2, cb).Value = "MP" & i
-        ws.Range(ws.Cells(rT + 2, cb), ws.Cells(rT + 2, cb + 17)).Merge
-        ws.Range(ws.Cells(rT + 3, cb), ws.Cells(rT + 3, cb + 5)).Value = Array("z (m)", "Pas de calcul (m)", _
-            "x = z / l0", "a (m/kN)", "b (1/kN)", "c (1/(kN.m))")
-        For k = 0 To 5
-            ws.Range(ws.Cells(rT + 3, cb + k), ws.Cells(rT + 4, cb + k)).Merge
+        rl0 = CStr(rL + 2 + i)
+        pr = CStr(rT + 3 + i)                 ' ligne des constantes du micropieu
+        ws.Cells(rP, cb).Value = "MP" & i
+        ws.Range(ws.Cells(rP, cb), ws.Cells(rP, cb + 14)).Merge
+        ws.Range(ws.Cells(rP + 1, cb), ws.Cells(rP + 1, cb + 2)).Value = Array("z (m)", _
+            ChrW(955) & "z", ChrW(955) & "u = " & ChrW(955) & "(D - z)")
+        For k = 0 To 2
+            ws.Range(ws.Cells(rP + 1, cb + k), ws.Cells(rP + 2, cb + k)).Merge
         Next k
         For k = 0 To 3
-            ws.Cells(rT + 3, cb + 6 + 3 * k).Value = Choose(k + 1, "ELS CARA", "ELS QP", "ELU FOND", "ELU ACC")
-            ws.Range(ws.Cells(rT + 3, cb + 6 + 3 * k), ws.Cells(rT + 3, cb + 8 + 3 * k)).Merge
-            ws.Range(ws.Cells(rT + 4, cb + 6 + 3 * k), ws.Cells(rT + 4, cb + 8 + 3 * k)).Value = _
-                Array("Y0 (mm)", "T0 (kN)", "M0 (kN.m)")
+            ws.Cells(rP + 1, cb + 3 + 3 * k).Value = Choose(k + 1, "ELS CARA", "ELS QP", "ELU FOND", "ELU ACC")
+            ws.Range(ws.Cells(rP + 1, cb + 3 + 3 * k), ws.Cells(rP + 1, cb + 5 + 3 * k)).Merge
+            ws.Range(ws.Cells(rP + 2, cb + 3 + 3 * k), ws.Cells(rP + 2, cb + 5 + 3 * k)).Value = _
+                Array("Y (mm)", "T (kN)", "M (kN.m)")
         Next k
-        For j = 1 To nZ
-            r = rT + 4 + j
-            ' z : profondeur du pas j, jusqu'à la profondeur D du micropieu (tableau de l0) ;
-            ' pas de calcul du tableau de la capacité portante (colonne F)
-            If Not IsError(hZ) Then
-                ws.Cells(r, cb).Formula = "=IF(OR(" & CALCUL & "$C$" & CLng(hZ) + j & "=""""," & _
-                    "N(" & CALCUL & "$C$" & CLng(hZ) + j & ")>N($X$" & rl0 & ")+1E-9),""""," & _
-                    CALCUL & "$C$" & CLng(hZ) + j & ")"
-                ws.Cells(r, cb + 1).Formula = "=IF(" & ws.Cells(r, cb).Address(False, False) & "="""",""""," & _
-                    "N(" & CALCUL & "$F$" & CLng(hZ) + j & "))"
+        For j = 0 To nZ + 1
+            r = rP + 3 + j
+            xs = ws.Cells(r, cb).Address(False, False)
+            ' z : 0, puis profondeurs du pas de calcul inférieures à D, puis D
+            If j = 0 Then
+                ws.Cells(r, cb).Formula = "=IF(N($C$" & pr & ")>0,0,"""")"
+            Else
+                hs = ws.Cells(r - 1, cb).Address(False, False)
+                If j <= nZ And Not IsError(hZ) Then
+                    zk = "N(" & CALCUL & "$C$" & CLng(hZ) + j & ")"
+                Else
+                    zk = "0"
+                End If
+                ws.Cells(r, cb).Formula = "=IF(" & hs & "="""","""",IF(" & hs & ">=$C$" & pr & "-1E-9,""""," & _
+                    "IF(AND(" & zk & ">" & hs & "," & zk & "<$C$" & pr & "-1E-9)," & zk & ",$C$" & pr & ")))"
             End If
-            xs = ws.Cells(r, cb + 2).Address(False, False)
-            ws.Cells(r, cb + 2).Formula = "=IF(OR(" & ws.Cells(r, cb).Address(False, False) & "="""",N($W$" & _
-                rl0 & ")<=0),""""," & ws.Cells(r, cb).Address(False, False) & "/$W$" & rl0 & ")"
-            ws.Cells(r, cb + 3).Formula = "=IF(" & xs & "="""","""",2/$W$" & rl0 & "/($V$" & rl0 & "*1000)*" & _
-                "(SINH(" & xs & ")*COSH(" & xs & ")-SIN(" & xs & ")*COS(" & xs & "))/(SINH(" & xs & ")^2-SIN(" & xs & ")^2))"
-            ws.Cells(r, cb + 4).Formula = "=IF(" & xs & "="""","""",2/$W$" & rl0 & "^2/($V$" & rl0 & "*1000)*" & _
-                "(SINH(" & xs & ")^2+SIN(" & xs & ")^2)/(SINH(" & xs & ")^2-SIN(" & xs & ")^2))"
-            ws.Cells(r, cb + 5).Formula = "=IF(" & xs & "="""","""",4/$W$" & rl0 & "^3/($V$" & rl0 & "*1000)*" & _
-                "(SINH(" & xs & ")*COSH(" & xs & ")+SIN(" & xs & ")*COS(" & xs & "))/(SINH(" & xs & ")^2-SIN(" & xs & ")^2))"
-            kA = ws.Cells(r, cb + 3).Address(False, False)
-            kB = ws.Cells(r, cb + 4).Address(False, False)
-            kC = ws.Cells(r, cb + 5).Address(False, False)
+            ws.Cells(r, cb + 1).Formula = "=IF(" & xs & "="""",""""," & "$B$" & pr & "*" & xs & ")"
+            ws.Cells(r, cb + 2).Formula = "=IF(" & xs & "="""",""""," & "$B$" & pr & "*($C$" & pr & "-" & xs & "))"
+            kA = ws.Cells(r, cb + 1).Address(False, False)   ' lambda z
+            kB = ws.Cells(r, cb + 2).Address(False, False)   ' lambda u
             For k = 0 To 3
-                ' H = V + T0 (tableau des déplacements, colonne 13 + k), M (efforts, 15 + k)
-                hs = ws.Cells(CLng(x), 13 + k).Address
-                mhs = "N(" & ws.Cells(CLng(rd0), 15 + k).Address & ")"
-                cond0 = "=IF(" & kA & "="""","""","
-                ws.Cells(r, cb + 6 + 3 * k).Formula = cond0 & "1000*IF($B$" & x & "=""Encastré en tête"",(" & _
-                    kA & "-" & kB & "^2/" & kC & ")*" & hs & "," & kA & "*" & hs & "+" & kB & "*" & mhs & "))"
-                ws.Cells(r, cb + 7 + 3 * k).Formula = cond0 & hs & ")"
-                ws.Cells(r, cb + 8 + 3 * k).Formula = cond0 & "IF($B$" & x & "=""Encastré en tête"",-" & kB & _
-                    "/" & kC & "*" & hs & "," & mhs & "))"
+                y0s = ws.Cells(CLng(pr), 6 + 4 * k).Address   ' A
+                hs = ws.Cells(CLng(pr), 7 + 4 * k).Address    ' B
+                ths = ws.Cells(CLng(pr), 8 + 4 * k).Address   ' C
+                mhs = ws.Cells(CLng(pr), 9 + 4 * k).Address   ' E
+                cond0 = "=IF(OR(" & xs & "=""""," & y0s & "=""""),"""","
+                ws.Cells(r, cb + 3 + 3 * k).Formula = cond0 & "1000*(EXP(-" & kA & ")*(" & y0s & "*COS(" & kA & _
+                    ")+" & hs & "*SIN(" & kA & "))+EXP(-" & kB & ")*(" & ths & "*COS(" & kB & ")+" & mhs & _
+                    "*SIN(" & kB & "))))"
+                ws.Cells(r, cb + 4 + 3 * k).Formula = cond0 & "2*$Q$" & rl0 & "*$B$" & pr & "^3*(EXP(-" & kA & _
+                    ")*((" & y0s & "+" & hs & ")*COS(" & kA & ")+(" & hs & "-" & y0s & ")*SIN(" & kA & "))-EXP(-" & _
+                    kB & ")*((" & ths & "+" & mhs & ")*COS(" & kB & ")+(" & mhs & "-" & ths & ")*SIN(" & kB & "))))"
+                ws.Cells(r, cb + 5 + 3 * k).Formula = cond0 & "2*$Q$" & rl0 & "*$B$" & pr & "^2*(EXP(-" & kA & _
+                    ")*(" & y0s & "*SIN(" & kA & ")-" & hs & "*COS(" & kA & "))+EXP(-" & kB & ")*(" & ths & _
+                    "*SIN(" & kB & ")-" & mhs & "*COS(" & kB & "))))"
             Next k
         Next j
-        With ws.Range(ws.Cells(rT + 2, cb), ws.Cells(rT + 4 + nZ, cb + 17))
+        With ws.Range(ws.Cells(rP, cb), ws.Cells(rP + 4 + nZ, cb + 14))
             .Borders.LineStyle = xlContinuous
             .HorizontalAlignment = xlCenter
             .VerticalAlignment = xlCenter
         End With
-        With ws.Range(ws.Cells(rT + 2, cb), ws.Cells(rT + 4, cb + 17))
+        With ws.Range(ws.Cells(rP, cb), ws.Cells(rP + 2, cb + 14))
             .Font.Bold = True
             .Interior.Color = VERT_ENTETE
             .WrapText = True
         End With
-        ws.Range(ws.Cells(rT + 5, cb), ws.Cells(rT + 4 + nZ, cb + 17)).Interior.Color = JAUNE_CALCUL
-        ws.Range(ws.Cells(rT + 5, cb), ws.Cells(rT + 4 + nZ, cb + 2)).NumberFormat = "0.00"
-        ws.Range(ws.Cells(rT + 5, cb + 1), ws.Cells(rT + 4 + nZ, cb + 1)).NumberFormat = "0.000"
-        ws.Range(ws.Cells(rT + 5, cb + 3), ws.Cells(rT + 4 + nZ, cb + 5)).NumberFormat = "0.000E+00"
-        ws.Range(ws.Cells(rT + 5, cb + 6), ws.Cells(rT + 4 + nZ, cb + 17)).NumberFormat = "0.00"
-        ws.Range(ws.Cells(rT + 5, cb), ws.Cells(rT + 4 + nZ, cb)).Font.Bold = True
+        ws.Range(ws.Cells(rP + 3, cb), ws.Cells(rP + 4 + nZ, cb + 14)).Interior.Color = JAUNE_CALCUL
+        ws.Range(ws.Cells(rP + 3, cb), ws.Cells(rP + 4 + nZ, cb + 2)).NumberFormat = "0.000"
+        ws.Range(ws.Cells(rP + 3, cb + 3), ws.Cells(rP + 4 + nZ, cb + 14)).NumberFormat = "0.00"
+        ws.Range(ws.Cells(rP + 3, cb), ws.Cells(rP + 4 + nZ, cb)).Font.Bold = True
     Next i
 
     ' --- Efforts dans les micropieux (sous le tableau des déplacements) ---
@@ -667,12 +743,20 @@ MiseEnForme:
     ws.Columns("C").ColumnWidth = 30
     ws.Columns("D").ColumnWidth = 30
     ws.Columns("E:Y").ColumnWidth = 12
-    ' Graphiques Y0, T0 et M0 en fonction de z de chaque micropieu (sous son tableau)
-    If rT > 0 And m > 0 Then
-        etape = "graphiques Y0, T0 et M0"
+    ' Graphiques Y, T et M le long de chaque micropieu, à la fin de la feuille (sous le
+    ' tableau des efforts)
+    If rP > 0 And m > 0 Then
+        etape = "graphiques Y, T et M"
         ws.Calculate
+        rG = rv + 1 + m + 3
+        With ws.Range("A" & rG)
+            .Value = "GRAPHIQUES - DÉPLACEMENT Y, EFFORT TRANCHANT T ET MOMENT M LE LONG DES MICROPIEUX"
+            .Font.Bold = True
+            .Font.Size = 14
+            .Font.Color = VERT_FONCE
+        End With
         For i = 1 To m
-            GraphiquesProfil ws, i, 1 + LARG_PROFIL * (i - 1), rT, nZ
+            GraphiquesProfil ws, i, 1 + LARG_PROFIL * (i - 1), rP, nZ, rG + 2 + (i - 1) * HAUT_GRAPHE
         Next i
     End If
     ws.Activate
@@ -739,14 +823,14 @@ Private Function LireColonne(ws As Worksheet, titre As String, col As String) As
     LireColonne = t
 End Function
 
-' Graphiques Y0 (mm), T0 (kN) et M0 (kN.m) en tête en fonction de la profondeur z
-' (croissante vers le bas) du micropieu n° i, sous son tableau (1re colonne cb, titre en
-' ligne rT) : une courbe par combinaison, limitée aux profondeurs renseignées
-Private Sub GraphiquesProfil(ws As Worksheet, i As Long, cb As Long, rT As Long, nZ As Long)
+' Graphiques Y (mm), T (kN) et M (kN.m) le long du micropieu n° i en fonction de z
+' (croissante vers le bas), à partir de la ligne rH : une courbe par combinaison, données
+' du profil du micropieu (1re colonne cb, en-tête en ligne rP), lignes renseignées
+Private Sub GraphiquesProfil(ws As Worksheet, i As Long, cb As Long, rP As Long, nZ As Long, rH As Long)
     Dim co As ChartObject, g As Long, k As Long, n As Long, r1 As Long, lg As Double, rz As Range
     Dim noms As Variant, titres As Variant
-    r1 = rT + 5
-    Do While n < nZ                           ' lignes renseignées (D numérique)
+    r1 = rP + 3
+    Do While n <= nZ + 1                      ' lignes renseignées (z numérique)
         If IsEmpty(ws.Cells(r1 + n, cb).Value) Or Not IsNumeric(ws.Cells(r1 + n, cb).Value) Then Exit Do
         If CStr(ws.Cells(r1 + n, cb).Value) = "" Then Exit Do
         n = n + 1
@@ -754,13 +838,11 @@ Private Sub GraphiquesProfil(ws As Worksheet, i As Long, cb As Long, rT As Long,
     If n < 2 Then Exit Sub
     Set rz = ws.Range(ws.Cells(r1, cb), ws.Cells(r1 + n - 1, cb))
     noms = Array("ELS CARA", "ELS QP", "ELU FOND", "ELU ACC")
-    titres = Array("Déplacement en tête Y0 (mm)", "Effort tranchant en tête T0 (kN)", _
-        "Moment en tête M0 (kN.m)")
-    lg = (ws.Cells(1, cb + 18).Left - ws.Cells(1, cb).Left) / 3 - 6
-    If lg < 200 Then lg = 200
+    titres = Array("Déplacement Y (mm)", "Effort tranchant T (kN)", "Moment M (kN.m)")
+    lg = 380
     For g = 0 To 2
-        With ws.Cells(rT + 4 + nZ + 2, cb)
-            Set co = ws.ChartObjects.Add(.Left + g * (lg + 6), .Top, lg, 360)
+        With ws.Cells(rH, 1)
+            Set co = ws.ChartObjects.Add(.Left + g * (lg + 10), .Top, lg, 360)
         End With
         co.Placement = xlFreeFloating
         With co.Chart
@@ -771,14 +853,14 @@ Private Sub GraphiquesProfil(ws As Worksheet, i As Long, cb As Long, rT As Long,
             For k = 0 To 3
                 With .SeriesCollection.NewSeries
                     .Name = noms(k)
-                    .XValues = ws.Range(ws.Cells(r1, cb + 6 + 3 * k + g), ws.Cells(r1 + n - 1, cb + 6 + 3 * k + g))
+                    .XValues = ws.Range(ws.Cells(r1, cb + 3 + 3 * k + g), ws.Cells(r1 + n - 1, cb + 3 + 3 * k + g))
                     .Values = rz
                     .ChartType = xlXYScatterSmoothNoMarkers
                     .Format.Line.Weight = 2
                 End With
             Next k
             .HasTitle = True
-            .ChartTitle.Text = "MP" & i & " - " & titres(g) & " en fonction de z"
+            .ChartTitle.Text = "MP" & i & " - " & titres(g) & " le long du micropieu"
             .HasLegend = True
             .Legend.Position = xlLegendPositionBottom
             With .Axes(xlValue)                ' profondeur, croissante vers le bas
