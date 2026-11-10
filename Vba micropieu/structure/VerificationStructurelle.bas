@@ -55,7 +55,7 @@ Private Const VERT_FONCE As Long = 2315831     ' RGB(55, 86, 35)
 Public Sub CreerVerificationStructurelle()
     Dim ws As Worksheet, wc As Worksheet, wd As Worksheet, f As Worksheet, etape As String
     Dim a As Long, lp As Long, lm As Long, r As Long, i As Long, k As Long, m As Long, n As Long
-    Dim r0 As Long, rv As Long, cC As Long, tC As Long, rd As Long, rP As Long, rS As Long
+    Dim r0 As Long, rv As Long, cC As Long, tC As Long, rd As Long, rPo As Long, rS As Long
     Dim tube As String, dn As String, entete As Variant
     Dim rL As Long, cPhi As Long, cDr As Long, autre As Variant, x As String, j As Long
     Dim dA As String, dI As String, eA As String, pen As String, sol As String, b0 As String
@@ -128,7 +128,7 @@ Public Sub CreerVerificationStructurelle()
         For r = 5 To 79
             If CStr(wd.Range("B" & r).Value) = "Soubassement" Then
                 For i = r + 1 To r + 6
-                    If Left(CStr(wd.Range("B" & i).Value), 6) = "Poteau" And rP = 0 Then rP = i
+                    If Left(CStr(wd.Range("B" & i).Value), 6) = "Poteau" And rPo = 0 Then rPo = i
                     If Left(CStr(wd.Range("B" & i).Value), 7) = "Semelle" And rS = 0 Then rS = i
                 Next i
                 Exit For
@@ -136,7 +136,7 @@ Public Sub CreerVerificationStructurelle()
         Next r
         dn = "'" & wd.Name & "'!"
     End If
-    hT = "(" & IIf(rP > 0, "N(" & dn & "$F$" & rP & ")", "0") & "+" & _
+    hT = "(" & IIf(rPo > 0, "N(" & dn & "$F$" & rPo & ")", "0") & "+" & _
         IIf(rS > 0, "N(" & dn & "$F$" & rS & ")", "0") & ")"
     k0 = "(1-SIN(RADIANS(N(" & DONNEES & "$L$" & LIGNE_COUCHES & "))))"
     hH = "(" & k0 & "*N(" & DONNEES & "$J$" & LIGNE_COUCHES & ")*" & hT & "^2/2)"
