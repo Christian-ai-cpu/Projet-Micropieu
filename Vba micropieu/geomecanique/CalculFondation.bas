@@ -663,7 +663,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     Dim charge As Variant, colCap As Variant, entete As Variant, phi As String, c As Long
     Dim eau As Boolean, cC As Long, cD As Long, cP As Long, cR As Long, cL As Long, cF As Long
     Dim reco As String, eMax As String, eMin As String, eAcc As String, phiT As String
-    Dim incl As Boolean, cRe As Long, kb As String, capk As String, zk As String
+    Dim incl As Boolean, cRe As Long, kb As String, capk As String, zk As String, cZ As Long
     Dim cI As Long, cA As Long, angle0 As Variant
     Dim fx As String, kd As Long, cE As Long, tC As Long, tP As Long
 
@@ -748,7 +748,8 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     cR = cI + 1
     cA = cR + 1
     cRe = cR + 2
-    cL = cR + 3
+    cZ = cR + 3                               ' altitudes Ztête et Zpointe
+    cL = cR + 5
     cF = cL + 3                               ' dernière colonne
     incl = (CStr(ActiveWorkbook.Worksheets("Données du projet").Range("D" & LIGNE_PIEU + 2).Value) = "Oui")
     angle0 = ActiveWorkbook.Worksheets("Données du projet").Range("D" & LIGNE_PIEU + 3).Value
@@ -777,6 +778,12 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     ws.Cells(r0, cRe).Value = "PROFONDEUR RÉELLE (m)"
     ws.Range(ws.Cells(r0, cRe), ws.Cells(r0 + 1, cRe)).Merge
     ws.Cells(r0 + 2, cRe).Value = "D / cos " & ChrW(945)
+    ws.Cells(r0, cZ).Formula = "=""ALTITUDES (""&" & DONNEES & "$E$29&"")"""
+    ws.Range(ws.Cells(r0, cZ), ws.Cells(r0, cZ + 1)).Merge
+    ws.Cells(r0 + 1, cZ).Value = "Ztête"
+    ws.Cells(r0 + 1, cZ + 1).Value = "Zpointe"
+    ws.Range(ws.Cells(r0 + 1, cZ), ws.Cells(r0 + 2, cZ)).Merge
+    ws.Range(ws.Cells(r0 + 1, cZ + 1), ws.Cells(r0 + 2, cZ + 1)).Merge
     ws.Range(ws.Cells(r0, cL), ws.Cells(r0, cF)).Merge
     ws.Range("B" & r0 + 1).Value = "Gstr"
     ws.Range("D" & r0 + 1).Value = "Q"
@@ -873,6 +880,10 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     Commentaire ws.Cells(r0 + 2, cRe), "Profondeur réelle : longueur du micropieu " & _
         "incliné = D / cos " & ChrW(945) & " (" & ChrW(945) & " : angle sur la verticale) ; D si " & _
         "le micropieu n'est pas incliné"
+    Commentaire ws.Cells(r0 + 1, cZ), "Ztête : altitude de la tête du micropieu = cote de l'arase " & _
+        "supérieure de la fondation (« Données du projet »)"
+    Commentaire ws.Cells(r0 + 1, cZ + 1), "Zpointe : altitude de la pointe du micropieu = Ztête - D " & _
+        "(profondeur retenue)"
     Commentaire ws.Cells(r0 + 1, cL), "Profondeur de reconnaissance (« Données du projet »)"
     Commentaire ws.Cells(r0 + 1, cL + 2), "5 " & ChrW(934) & " : longueur reconnue sous la base " & _
         "(NF P94-262, annexe M, M.1)"
@@ -1047,6 +1058,11 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         ' Profondeur réelle : D / cos(angle) si incliné, D sinon
         ws.Cells(r, cRe).Formula = "=IF(ISNUMBER(" & Ad(ws, r, cR) & "),IF(" & Ad(ws, r, cI) & "=""Oui""," & _
             Ad(ws, r, cR) & "/COS(RADIANS(N(" & Ad(ws, r, cA) & ")))," & Ad(ws, r, cR) & "),"""")"
+        ' Altitudes : Ztête = cote de l'arase supérieure (« Données du projet », D32),
+        ' Zpointe = Ztête - D (profondeur retenue)
+        ws.Cells(r, cZ).Formula = "=IF(ISNUMBER(" & DONNEES & "$D$32)," & DONNEES & "$D$32,"""")"
+        ws.Cells(r, cZ + 1).Formula = "=IF(AND(ISNUMBER(" & Ad(ws, r, cZ) & "),ISNUMBER(" & Ad(ws, r, cR) & "))," & _
+            Ad(ws, r, cZ) & "-" & Ad(ws, r, cR) & ","""")"
         ' Vérification de la longueur : profondeur de reconnaissance - D >= 5 Phi retenu
         ws.Cells(r, cL).Formula = "=IF(ISNUMBER(" & reco & ")," & reco & ","""")"
         ' D = profondeur réelle (D / cos alpha) si le micropieu est incliné
