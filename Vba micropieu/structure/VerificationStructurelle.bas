@@ -30,7 +30,7 @@ Option Explicit
 '         de Hetényi : tête libre y0 = a H + b M, tête encastrée y0 = (a - b²/c) H et
 '         moment d'encastrement) ; H = V + T0, T0 = Nc x sin(angle) si le micropieu est
 '         incliné (effort horizontal provenant de la descente de charges)
-'   Y, T et M le long de chaque micropieu, de la tête à la profondeur réelle D (pieu long
+'   Y, T et M le long du micropieu le plus long, de la tête à sa profondeur réelle D (pieu long
 '         à pointe encastrée : ondes issues de la tête et de la pointe, constantes A, B,
 '         C, E par combinaison), profondeurs = pas de calcul de « Calcul et
 '         vérification » ; graphiques Y, T, M à la fin de la feuille
@@ -65,6 +65,7 @@ Public Sub CreerVerificationStructurelle()
     Dim cIn As Long, cAn As Long, rT As Long, nZ As Long, hZ As Variant, cb As Long, rd0 As String
     Dim kA As String, kB As String, kC As String, kD As String, y0s As String, hs As String
     Dim ths As String, mhs As String, cond0 As String, rP As Long, rG As Long, pr As String, zk As String
+    Dim iMax As Long
 
     Application.ScreenUpdating = False
     On Error GoTo Erreur
@@ -365,7 +366,14 @@ Public Sub CreerVerificationStructurelle()
         End If
     End If
     If nZ < 1 Then nZ = 1
-    rP = rT + 3 + m + 3                       ' en-tête des profils le long du micropieu
+    ' Micropieu le plus long (plus grande profondeur réelle du tableau de l0) : seul
+    ' micropieu dont Y, T et M sont calculés le long du fût
+    ws.Calculate
+    iMax = 1
+    For i = 2 To m
+        If N0(ws.Range("X" & rL + 2 + i).Value) > N0(ws.Range("X" & rL + 2 + iMax).Value) Then iMax = i
+    Next i
+    rP = rT + 4 + 3                           ' en-tête du profil le long du micropieu
     rv = rP + 4 + nZ + 5                      ' en-tête du tableau des efforts
     For i = 1 To 80                           ' inclinaison et angle de chaque micropieu
         If CStr(wc.Cells(r0 + 1, i).Value) = "Incliné" Then cIn = i
@@ -517,12 +525,12 @@ Public Sub CreerVerificationStructurelle()
     '   T = 2 EI lambda³ { e^(-lambda z) [(A + B) cos + (B - A) sin](lambda z)
     '                    - e^(-lambda u) [(C + E) cos + (E - C) sin](lambda u) }
     ' Valable pour un micropieu long (D >= 3 l0) ; D = profondeur réelle (« Calcul et
-    ' vérification »). Profondeurs : 0, pas de calcul du tableau de la capacité portante
+    ' vérification ») ; calcul fait pour le seul micropieu le plus long (iMax). Profondeurs : 0, pas de calcul du tableau de la capacité portante
     ' (« Calcul et vérification ») jusqu'à D, puis D. Graphiques à la fin de la feuille.
     etape = "Y, T et M le long du micropieu"
     With ws.Range("A" & rT)
-        .Value = "DÉPLACEMENT Y, EFFORT TRANCHANT T ET MOMENT M LE LONG DU MICROPIEU (PIEU LONG, " & _
-            "POINTE ENCASTRÉE)"
+        .Value = "DÉPLACEMENT Y, EFFORT TRANCHANT T ET MOMENT M LE LONG DU MICROPIEU LE PLUS LONG " & _
+            "(MP" & iMax & ", PIEU LONG, POINTE ENCASTRÉE)"
         .Font.Bold = True
         .Font.Size = 14
         .Font.Color = VERT_FONCE
@@ -546,8 +554,8 @@ Public Sub CreerVerificationStructurelle()
     Commentaire ws.Range("E" & r), "Solution du pieu long : écart inférieur à e^(-2D/l0) (0,25 % pour " & _
         "D = 3 l0) ; pour un micropieu plus court, valeurs approchées (voir le tableau des déplacements " & _
         "en tête, solution de longueur finie)"
-    For i = 1 To m
-        r = rT + 3 + i
+    For i = iMax To iMax                       ' micropieu le plus long seulement
+        r = rT + 4
         x = CStr(rY + 3 + i)                  ' ligne du micropieu dans le tableau des déplacements
         rl0 = CStr(rL + 2 + i)                ' ligne du micropieu dans le tableau de l0
         rd0 = CStr(rv + 1 + i)                ' ligne du micropieu dans le tableau des efforts
@@ -575,7 +583,7 @@ Public Sub CreerVerificationStructurelle()
                 ")*COS($D" & r & ")-(" & kA & "+2*" & kB & ")*SIN($D" & r & ")))"
         Next k
     Next i
-    With ws.Range("A" & rT + 2 & ":U" & rT + 3 + m)
+    With ws.Range("A" & rT + 2 & ":U" & rT + 4)
         .Borders.LineStyle = xlContinuous
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
@@ -585,11 +593,11 @@ Public Sub CreerVerificationStructurelle()
         .Interior.Color = VERT_ENTETE
         .WrapText = True
     End With
-    ws.Range("A" & rT + 4 & ":A" & rT + 3 + m).Font.Bold = True
-    ws.Range("B" & rT + 4 & ":U" & rT + 3 + m).Interior.Color = JAUNE_CALCUL
-    ws.Range("B" & rT + 4 & ":D" & rT + 3 + m).NumberFormat = "0.000"
-    ws.Range("F" & rT + 4 & ":U" & rT + 3 + m).NumberFormat = "0.000E+00"
-    With ws.Range("E" & rT + 4 & ":E" & rT + 3 + m).FormatConditions
+    ws.Range("A" & rT + 4 & ":A" & rT + 4).Font.Bold = True
+    ws.Range("B" & rT + 4 & ":U" & rT + 4).Interior.Color = JAUNE_CALCUL
+    ws.Range("B" & rT + 4 & ":D" & rT + 4).NumberFormat = "0.000"
+    ws.Range("F" & rT + 4 & ":U" & rT + 4).NumberFormat = "0.000E+00"
+    With ws.Range("E" & rT + 4 & ":E" & rT + 4).FormatConditions
         .Delete
         .Add(xlCellValue, xlEqual, "=""D < 3 l0 : approché""").Font.Color = RGB(192, 0, 0)
     End With
@@ -599,10 +607,10 @@ Public Sub CreerVerificationStructurelle()
     ws.Range("A" & rP - 1).Value = "Profils le long du micropieu : z = 0, pas de calcul du tableau de la " & _
         "capacité portante (« Calcul et vérification ») jusqu'à la profondeur réelle D, puis D ; " & _
         "Y en mm, T en kN, M en kN.m"
-    For i = 1 To m
-        cb = 1 + LARG_PROFIL * (i - 1)        ' 1re colonne du tableau du micropieu
+    For i = iMax To iMax                       ' micropieu le plus long seulement
+        cb = 1                                ' 1re colonne du tableau du micropieu
         rl0 = CStr(rL + 2 + i)
-        pr = CStr(rT + 3 + i)                 ' ligne des constantes du micropieu
+        pr = CStr(rT + 4)                     ' ligne des constantes du micropieu
         ws.Cells(rP, cb).Value = "MP" & i
         ws.Range(ws.Cells(rP, cb), ws.Cells(rP, cb + 14)).Merge
         ws.Range(ws.Cells(rP + 1, cb), ws.Cells(rP + 1, cb + 2)).Value = Array("z (m)", _
@@ -750,14 +758,13 @@ MiseEnForme:
         ws.Calculate
         rG = rv + 1 + m + 3
         With ws.Range("A" & rG)
-            .Value = "GRAPHIQUES - DÉPLACEMENT Y, EFFORT TRANCHANT T ET MOMENT M LE LONG DES MICROPIEUX"
+            .Value = "GRAPHIQUES - DÉPLACEMENT Y, EFFORT TRANCHANT T ET MOMENT M LE LONG DU MICROPIEU " & _
+                "LE PLUS LONG (MP" & iMax & ")"
             .Font.Bold = True
             .Font.Size = 14
             .Font.Color = VERT_FONCE
         End With
-        For i = 1 To m
-            GraphiquesProfil ws, i, 1 + LARG_PROFIL * (i - 1), rP, nZ, rG + 2 + (i - 1) * HAUT_GRAPHE
-        Next i
+        GraphiquesProfil ws, iMax, 1, rP, nZ, rG + 2   ' micropieu le plus long
     End If
     ws.Activate
 Fin:
