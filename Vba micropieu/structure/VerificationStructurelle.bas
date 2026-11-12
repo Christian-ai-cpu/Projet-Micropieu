@@ -20,7 +20,7 @@ Option Explicit
 '         M = 0) et constantes A, B, C, E du pieu long à pointe encastrée, avec leurs
 '         symboles et formules ;
 '         profil le long du micropieu par pas de calcul dz (saisi) : z, pas, Y, T et M
-'         de chaque combinaison, graphiques Y, T, M à droite du profil
+'         de chaque combinaison, graphiques Y, T, M sous le profil
 ' Le nombre de micropieux et les adresses des autres feuilles sont lus à la création :
 ' relancer CreerVerificationStructurelle après un changement de ces feuilles.
 
@@ -505,7 +505,7 @@ Public Sub CreerVerificationStructurelle()
     ws.Range("A" & rP + 2 & ":D" & rP + 2 + nZ).NumberFormat = "0.000"
     ws.Range("E" & rP + 2 & ":P" & rP + 2 + nZ).NumberFormat = "0.00"
     ws.Range("A" & rP + 2 & ":A" & rP + 2 + nZ).Font.Bold = True
-    rG = rP                                   ' graphiques à droite du profil
+    rG = rP + 2 + nZ + 3                      ' titre des graphiques, sous le profil
 
 MiseEnForme:
     etape = "mise en forme"
@@ -514,11 +514,18 @@ MiseEnForme:
     ws.Columns("C").ColumnWidth = 30
     ws.Columns("D").ColumnWidth = 30
     ws.Columns("E:Y").ColumnWidth = 12
-    ' Graphiques Y, T et M le long du micropieu le plus long, à droite de son profil
+    ' Graphiques Y, T et M le long du micropieu le plus long, sous son profil : trois
+    ' graphiques côte à côte (une courbe par combinaison)
     If rG > 0 Then
         etape = "graphiques Y, T et M"
         ws.Calculate
-        GraphiquesProfil ws, iMax, rP + 2, nZ + 1, rG, 18
+        With ws.Range("A" & rG)
+            .Value = "GRAPHIQUES - DÉPLACEMENT Y, EFFORT TRANCHANT T ET MOMENT M LE LONG DU MICROPIEU MP" & iMax
+            .Font.Bold = True
+            .Font.Size = 14
+            .Font.Color = VERT_FONCE
+        End With
+        GraphiquesProfil ws, iMax, rP + 2, nZ + 1, rG + 2, 1
     End If
     ws.Activate
 Fin:
