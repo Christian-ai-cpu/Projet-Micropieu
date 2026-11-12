@@ -346,10 +346,12 @@ Public Sub CreerVerificationStructurelle()
             "Vmax de la combinaison (vérification de la profondeur, « Calcul et vérification »)", "kN"), _
         Array("Effort horizontal dû à l'inclinaison", "T0", "T0 = Nc x sin " & ChrW(945) & " (0 si vertical)", "kN"), _
         Array("Effort transversal en tête", "H", "H = T0", "kN"), _
-        Array("Moment en tête", "M", "M = 0 (aucun moment issu de la descente de charges)", "kN.m"), _
+        Array("Moment en tête (selon la condition en tête)", "M0", "tête libre : M0 = 0 (aucun moment de la " & _
+            "descente de charges) ; tête encastrée : M0 = -H.l0/2 = -H/(2" & ChrW(955) & ") (moment d'encastrement)", _
+            "kN.m"), _
         Array("Constante de l'onde issue de la tête", "A", "tête libre : A = 2" & ChrW(955) & "H/Es + 2" & _
-            ChrW(955) & "²M/Es ; tête encastrée : A = " & ChrW(955) & "H/Es", "m"), _
-        Array("Constante de l'onde issue de la tête", "B", "tête libre : B = -2" & ChrW(955) & "²M/Es ; " & _
+            ChrW(955) & "²M0/Es ; tête encastrée : A = " & ChrW(955) & "H/Es", "m"), _
+        Array("Constante de l'onde issue de la tête", "B", "tête libre : B = -2" & ChrW(955) & "²M0/Es ; " & _
             "tête encastrée : B = A", "m"), _
         Array("Constante de l'onde issue de la pointe", "C", "C = -e^(-" & ChrW(955) & "D) [A cos " & ChrW(955) & _
             "D + B sin " & ChrW(955) & "D]", "m"), _
@@ -367,7 +369,9 @@ Public Sub CreerVerificationStructurelle()
         ws.Range(cl & r + 1).Formula = "=N(" & CALCUL & wc.Cells(ci, cC + 2 * k).Address & ")"
         ws.Range(cl & r + 2).Formula = "=IF(" & vInc & "=""Oui"",ABS(" & x & r + 1 & ")*SIN(RADIANS(" & vAng & ")),0)"
         ws.Range(cl & r + 3).Formula = "=" & x & r + 2
-        ws.Range(cl & r + 4).Value = 0
+        ' M0 : 0 en tête libre ; moment d'encastrement -H / (2 lambda) en tête encastrée
+        ws.Range(cl & r + 4).Formula = "=IF(" & vCond & "=""Encastré en tête"",IF(N(" & vLam & ")>0,-" & x & r + 3 & _
+            "/(2*" & vLam & "),0),0)"
         ' constantes A, B (tête), C, E (pointe encastrée) ; Es en kPa
         cond0 = "=IF(OR(" & vLam & "="""",N(" & vEs & ")<=0),"""","
         ws.Range(cl & r + 5).Formula = cond0 & "IF(" & vCond & "=""Encastré en tête""," & vLam & "*" & x & r + 3 & _
