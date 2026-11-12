@@ -388,14 +388,14 @@ Public Sub CreerVerificationStructurelle()
         ws.Range(cl & r + 2).Formula = "=IF(" & vInc & "=""Oui"",ABS(" & x & r + 1 & ")*SIN(RADIANS(" & vAng & ")),0)"
         ws.Range(cl & r + 3).Formula = "=" & x & r + 2
         ' M0 : 0 en tête libre ; moment d'encastrement -H / (2 lambda) en tête encastrée
-        ws.Range(cl & r + 4).Formula = "=IF(" & vCond & "=""" & TETE_ENC & """",IF(N(" & vLam & ")>0,-" & x & r + 3 & _
+        ws.Range(cl & r + 4).Formula = "=IF(" & vCond & "=""" & TETE_ENC & """,IF(N(" & vLam & ")>0,-" & x & r + 3 & _
             "/(2*" & vLam & "),0),0)"
         ' constantes A, B (tête), C, E (pointe encastrée) ; Es en kPa
         cond0 = "=IF(OR(" & vLam & "="""",N(" & vEs & ")<=0),"""","
-        ws.Range(cl & r + 5).Formula = cond0 & "IF(" & vCond & "=""" & TETE_ENC & """"," & vLam & "*" & x & r + 3 & _
+        ws.Range(cl & r + 5).Formula = cond0 & "IF(" & vCond & "=""" & TETE_ENC & """," & vLam & "*" & x & r + 3 & _
             "/(" & vEs & "*1000),2*" & vLam & "*" & x & r + 3 & "/(" & vEs & "*1000)+2*" & vLam & "^2*" & x & r + 4 & _
             "/(" & vEs & "*1000)))"
-        ws.Range(cl & r + 6).Formula = cond0 & "IF(" & vCond & "=""" & TETE_ENC & """"," & x & r + 5 & ",-2*" & vLam & _
+        ws.Range(cl & r + 6).Formula = cond0 & "IF(" & vCond & "=""" & TETE_ENC & """," & x & r + 5 & ",-2*" & vLam & _
             "^2*" & x & r + 4 & "/(" & vEs & "*1000)))"
         ws.Range(cl & r + 7).Formula = "=IF(" & x & r + 5 & "="""","""",-EXP(-" & vx & ")*(" & x & r + 5 & _
             "*COS(" & vx & ")+" & x & r + 6 & "*SIN(" & vx & ")))"
