@@ -20,9 +20,7 @@ Option Explicit
 '         M = 0) et constantes A, B, C, E du pieu long à pointe encastrée, avec leurs
 '         symboles et formules ;
 '         profil le long du micropieu par pas de calcul dz (saisi) : z, pas, Y, T et M
-'         de chaque combinaison (pieu rigide l0 >= D : translation et rotation du corps
-'         rigide, y0,r et theta r ; sinon solution du pieu long), graphiques Y, T, M à
-'         droite du profil
+'         de chaque combinaison, graphiques Y, T, M à droite du profil
 ' Le nombre de micropieux et les adresses des autres feuilles sont lus à la création :
 ' relancer CreerVerificationStructurelle après un changement de ces feuilles.
 
@@ -58,7 +56,7 @@ Public Sub CreerVerificationStructurelle()
     Dim vRho As String, vKf As String, vEs As String, vl0 As String, vLam As String, vD As String
     Dim vx As String, vInc As String, vAng As String, vCond As String, vLm As String, vHp As String
     Dim vEx As String, vPas As String, pasZ As Variant, hF As Variant, nbC As Long, rA As Long
-    Dim libre As Variant, rig As String, hR As String, mR As String, yR As String, tR As String
+    Dim libre As Variant
 
     Application.ScreenUpdating = False
     On Error GoTo Erreur
@@ -232,7 +230,6 @@ Public Sub CreerVerificationStructurelle()
     r = r + 1: Ligne ws, r, "Profondeur réelle du micropieu D", IIf(cDr > 0, "=N(" & CALCUL & _
         wc.Cells(ci, cDr).Address & ")", "=N(" & CALCUL & "$D$20)"), "m": vD = "$D$" & r
     r = r + 1: Ligne ws, r, "x = D / l0", "=IF(" & vLam & "="""",""""," & vLam & "*" & vD & ")", "": vx = "$D$" & r
-    rig = "AND(N(" & vx & ")>0,N(" & vx & ")<=1)"   ' pieu rigide : l0 >= D (x <= 1)
     r = r + 1: Ligne ws, r, "Comportement du micropieu", "=IF(" & vx & "="""",""-"",IF(" & vx & "<=1," & _
         """Rigide (l0 >= D)"",IF(" & vx & ">=3,""Pieu long (D >= 3 l0)"",""Intermédiaire (calcul approché)"")))", ""
     r = r + 1: Ligne ws, r, "Micropieu incliné", IIf(cIn > 0, "=IF(" & CALCUL & wc.Cells(ci, cIn).Address & _
@@ -365,8 +362,8 @@ Public Sub CreerVerificationStructurelle()
         Array("Effort horizontal dû à l'inclinaison", "T0", "T0 = Nc x sin " & ChrW(945) & " (0 si vertical)", "kN"), _
         Array("Effort transversal en tête", "H", "H = T0", "kN"), _
         Array("Moment en tête (selon « Micropieu libre en tête »)", "M0", "libre en tête = Oui : M0 = 0 (aucun moment de la " & _
-            "descente de charges) ; libre en tête = Non (encastrée) : M0 = -H.l0/2 (pieu long) ou -H.D/2 (pieu " & _
-            "rigide) (moment d'encastrement)", "kN.m"), _
+            "descente de charges) ; libre en tête = Non (encastrée) : M0 = -H.l0/2 = -H/(2" & ChrW(955) & ") (moment d'encastrement)", _
+            "kN.m"), _
         Array("Constante de l'onde issue de la tête", "A", "libre en tête = Oui : A = 2" & ChrW(955) & "H/Es + 2" & _
             ChrW(955) & "²M0/Es ; libre en tête = Non (encastrée) : A = " & ChrW(955) & "H/Es", "m"), _
         Array("Constante de l'onde issue de la tête", "B", "libre en tête = Oui : B = -2" & ChrW(955) & "²M0/Es ; " & _
@@ -374,12 +371,8 @@ Public Sub CreerVerificationStructurelle()
         Array("Constante de l'onde issue de la pointe", "C", "C = -e^(-" & ChrW(955) & "D) [A cos " & ChrW(955) & _
             "D + B sin " & ChrW(955) & "D]", "m"), _
         Array("Constante de l'onde issue de la pointe", "E", "E = e^(-" & ChrW(955) & "D) [(B - 2A) cos " & _
-            ChrW(955) & "D - (A + 2B) sin " & ChrW(955) & "D]", "m"), _
-        Array("Déplacement en tête du pieu rigide (l0 >= D)", "y0,r", "libre en tête = Oui : y0,r = 4H/(Es.D) + " & _
-            "6M0/(Es.D²) ; libre en tête = Non : y0,r = H/(Es.D)", "m"), _
-        Array("Rotation du pieu rigide (l0 >= D)", ChrW(952) & "r", "libre en tête = Oui : " & ChrW(952) & _
-            "r = -(6H/(Es.D²) + 12M0/(Es.D³)) ; libre en tête = Non : " & ChrW(952) & "r = 0", "rad"))
-    For j = 0 To 9
+            ChrW(955) & "D - (A + 2B) sin " & ChrW(955) & "D]", "m"))
+    For j = 0 To 7
         ws.Range("B" & r + 1 + j).Value = entete(j)(0)
         ws.Range("C" & r + 1 + j).Value = entete(j)(1)
         ws.Range("D" & r + 1 + j).Value = entete(j)(2)
@@ -392,9 +385,8 @@ Public Sub CreerVerificationStructurelle()
         ws.Range(cl & r + 2).Formula = "=IF(" & vInc & "=""Oui"",ABS(" & x & r + 1 & ")*SIN(RADIANS(" & vAng & ")),0)"
         ws.Range(cl & r + 3).Formula = "=" & x & r + 2
         ' M0 : 0 en tête libre ; moment d'encastrement -H / (2 lambda) en tête encastrée
-        ' (pieu rigide l0 >= D : -H D / 2)
-        ws.Range(cl & r + 4).Formula = "=IF(" & vCond & "=""Non"",IF(" & rig & ",-" & x & r + 3 & "*" & vD & _
-            "/2,IF(N(" & vLam & ")>0,-" & x & r + 3 & "/(2*" & vLam & "),0)),0)"
+        ws.Range(cl & r + 4).Formula = "=IF(" & vCond & "=""Non"",IF(N(" & vLam & ")>0,-" & x & r + 3 & _
+            "/(2*" & vLam & "),0),0)"
         ' constantes A, B (tête), C, E (pointe encastrée) ; Es en kPa
         cond0 = "=IF(OR(" & vLam & "="""",N(" & vEs & ")<=0),"""","
         ws.Range(cl & r + 5).Formula = cond0 & "IF(" & vCond & "=""Non""," & vLam & "*" & x & r + 3 & _
@@ -406,32 +398,23 @@ Public Sub CreerVerificationStructurelle()
             "*COS(" & vx & ")+" & x & r + 6 & "*SIN(" & vx & ")))"
         ws.Range(cl & r + 8).Formula = "=IF(" & x & r + 5 & "="""","""",EXP(-" & vx & ")*((" & x & r + 6 & "-2*" & _
             x & r + 5 & ")*COS(" & vx & ")-(" & x & r + 5 & "+2*" & x & r + 6 & ")*SIN(" & vx & ")))"
-        ' Pieu rigide (l0 >= D) : translation y0,r et rotation theta r du corps rigide sur sol
-        ' de module Es (pointe libre) ; Es en kPa
-        cond0 = "=IF(OR(N(" & vD & ")<=0,N(" & vEs & ")<=0),"""","
-        ws.Range(cl & r + 9).Formula = cond0 & "IF(" & vCond & "=""Non""," & x & r + 3 & "/(" & vEs & "*1000*" & vD & _
-            "),4*" & x & r + 3 & "/(" & vEs & "*1000*" & vD & ")+6*" & x & r + 4 & "/(" & vEs & "*1000*" & vD & "^2)))"
-        ws.Range(cl & r + 10).Formula = cond0 & "IF(" & vCond & "=""Non"",0,-(6*" & x & r + 3 & "/(" & vEs & "*1000*" & _
-            vD & "^2)+12*" & x & r + 4 & "/(" & vEs & "*1000*" & vD & "^3))))"
     Next k
-    With ws.Range("B" & r & ":I" & r + 10)
+    With ws.Range("B" & r & ":I" & r + 8)
         .Borders.LineStyle = xlContinuous
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    ws.Range("B" & r + 1 & ":B" & r + 10 & ",D" & r + 1 & ":D" & r + 10).HorizontalAlignment = xlLeft
+    ws.Range("B" & r + 1 & ":B" & r + 8 & ",D" & r + 1 & ":D" & r + 8).HorizontalAlignment = xlLeft
     With ws.Range("B" & r & ":I" & r)
         .Font.Bold = True
         .Interior.Color = VERT_ENTETE
     End With
-    ws.Range("C" & r + 1 & ":C" & r + 10).Font.Bold = True
-    ws.Range("E" & r + 1 & ":H" & r + 10).Interior.Color = JAUNE_CALCUL
-    ws.Range("E" & r + 9 & ":H" & r + 10).NumberFormat = "0.000E+00"
+    ws.Range("C" & r + 1 & ":C" & r + 8).Font.Bold = True
+    ws.Range("E" & r + 1 & ":H" & r + 8).Interior.Color = JAUNE_CALCUL
     ws.Range("E" & r + 1 & ":H" & r + 4).NumberFormat = "0.0"
     ws.Range("E" & r + 5 & ":H" & r + 8).NumberFormat = "0.000E+00"
-    rK = r                                    ' en-tête : A, B, C, E en lignes rK + 5 à rK + 8,
-                                              ' pieu rigide y0,r et theta r en rK + 9, rK + 10
+    rK = r                                    ' en-tête : A, B, C, E en lignes rK + 5 à rK + 8
 
     ' --- Y, T et M le long du micropieu (z de 0 à la profondeur réelle D) ---
     ' z = 0, dz, 2 dz, ... (pas de calcul dz saisi) jusqu'à D ; pas = z - z précédent ;
@@ -440,7 +423,7 @@ Public Sub CreerVerificationStructurelle()
     '   T = 2 EI lambda³ {e^(-lambda z)[(A + B) cos + (B - A) sin]
     '                   - e^(-lambda u)[(C + E) cos + (E - C) sin]}, u = D - z
     etape = "Y, T et M le long du micropieu"
-    rP = rK + 10 + 5                          ' en-tête du profil
+    rP = rK + 8 + 5                           ' en-tête du profil
     ' Pas de calcul dz (saisi, conservé) : z = 0, dz, 2 dz, ... jusqu'à D
     ws.Range("B" & rP - 2).Value = LIB_PAS
     ws.Range("B" & rP - 2 & ":C" & rP - 2).Merge
@@ -451,10 +434,6 @@ Public Sub CreerVerificationStructurelle()
         .HorizontalAlignment = xlCenter
     End With
     ws.Range("E" & rP - 2).Value = "m"
-    ws.Range("G" & rP - 2).Formula = "=""Solution utilisée : ""&IF(" & rig & ",""pieu rigide (l0 >= D) : " & _
-        "y = y0,r + " & ChrW(952) & "r.z, T = H - Es (y0,r z + " & ChrW(952) & "r z²/2), M = M0 + H z - Es (y0,r z²/2 + " & _
-        ChrW(952) & "r z³/6)"",""pieu long (ondes issues de la tête et de la pointe encastrée)"")"
-    ws.Range("G" & rP - 2).Font.Bold = True
     ws.Range("B" & rP - 2 & ":E" & rP - 2).Borders.LineStyle = xlContinuous
     vPas = "$D$" & rP - 2
     ' Nombre de lignes : D / dz arrondi au-dessus (+ la tête), à la création de la feuille
@@ -498,21 +477,15 @@ Public Sub CreerVerificationStructurelle()
             cl = Chr(Asc("E") + k)
             y0s = cl & "$" & rK + 5: hs = cl & "$" & rK + 6     ' A, B
             ths = cl & "$" & rK + 7: mhs = cl & "$" & rK + 8    ' C, E
-            hR = cl & "$" & rK + 3: mR = cl & "$" & rK + 4      ' H, M0
-            yR = cl & "$" & rK + 9: tR = cl & "$" & rK + 10     ' y0,r, theta r
-            ' Pieu rigide (l0 >= D) : y = y0,r + theta r z ; T = H - Es (y0,r z + theta r z² / 2) ;
-            ' M = M0 + H z - Es (y0,r z² / 2 + theta r z³ / 6) ; sinon solution du pieu long
-            cond0 = "=IF(OR(" & xs & "=""""," & kA & "=""""," & y0s & "=""""),"""",IF(" & rig & ","
-            ws.Cells(r, 5 + 3 * k).Formula = cond0 & "1000*(" & yR & "+" & tR & "*" & xs & "),1000*(EXP(-" & kA & _
-                ")*(" & y0s & "*COS(" & kA & ")+" & hs & "*SIN(" & kA & "))+EXP(-" & kB & ")*(" & ths & "*COS(" & kB & _
-                ")+" & mhs & "*SIN(" & kB & ")))))"
-            ws.Cells(r, 6 + 3 * k).Formula = cond0 & hR & "-" & vEs & "*1000*(" & yR & "*" & xs & "+" & tR & "*" & xs & _
-                "^2/2),2*" & vEI & "*" & vLam & "^3*(EXP(-" & kA & ")*((" & y0s & "+" & hs & ")*COS(" & kA & ")+(" & hs & _
-                "-" & y0s & ")*SIN(" & kA & "))-EXP(-" & kB & ")*((" & ths & "+" & mhs & ")*COS(" & kB & ")+(" & mhs & _
-                "-" & ths & ")*SIN(" & kB & ")))))"
-            ws.Cells(r, 7 + 3 * k).Formula = cond0 & mR & "+" & hR & "*" & xs & "-" & vEs & "*1000*(" & yR & "*" & xs & _
-                "^2/2+" & tR & "*" & xs & "^3/6),2*" & vEI & "*" & vLam & "^2*(EXP(-" & kA & ")*(" & y0s & "*SIN(" & kA & _
-                ")-" & hs & "*COS(" & kA & "))+EXP(-" & kB & ")*(" & ths & "*SIN(" & kB & ")-" & mhs & "*COS(" & kB & ")))))"
+            cond0 = "=IF(OR(" & kA & "=""""," & y0s & "=""""),"""","
+            ws.Cells(r, 5 + 3 * k).Formula = cond0 & "1000*(EXP(-" & kA & ")*(" & y0s & "*COS(" & kA & ")+" & hs & _
+                "*SIN(" & kA & "))+EXP(-" & kB & ")*(" & ths & "*COS(" & kB & ")+" & mhs & "*SIN(" & kB & "))))"
+            ws.Cells(r, 6 + 3 * k).Formula = cond0 & "2*" & vEI & "*" & vLam & "^3*(EXP(-" & kA & ")*((" & y0s & "+" & _
+                hs & ")*COS(" & kA & ")+(" & hs & "-" & y0s & ")*SIN(" & kA & "))-EXP(-" & kB & ")*((" & ths & "+" & _
+                mhs & ")*COS(" & kB & ")+(" & mhs & "-" & ths & ")*SIN(" & kB & "))))"
+            ws.Cells(r, 7 + 3 * k).Formula = cond0 & "2*" & vEI & "*" & vLam & "^2*(EXP(-" & kA & ")*(" & y0s & _
+                "*SIN(" & kA & ")-" & hs & "*COS(" & kA & "))+EXP(-" & kB & ")*(" & ths & "*SIN(" & kB & ")-" & _
+                mhs & "*COS(" & kB & "))))"
         Next k
     Next j
     With ws.Range("A" & rP & ":P" & rP + 2 + nZ)
