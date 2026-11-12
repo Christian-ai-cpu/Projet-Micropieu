@@ -29,6 +29,7 @@ Private Const DONNEES As String = "'Données du projet'!"
 ' Intitulés des saisies conservées quand la feuille est recréée
 Private Const LIB_AUTRE As String = "Autre diamètre (à saisir, vide : " & "Phi retenu)"
 Private Const LIB_PAS As String = "Pas de calcul dz (à saisir)"
+Private Const LIB_LIBRE As String = "Micropieu libre en tête (Oui / Non)"
 Private Const CALCUL As String = "'Calcul et vérification'!"
 
 ' Thème : saisies en vert, valeurs calculées en jaune, en-têtes en vert clair
@@ -55,6 +56,7 @@ Public Sub CreerVerificationStructurelle()
     Dim vRho As String, vKf As String, vEs As String, vl0 As String, vLam As String, vD As String
     Dim vx As String, vInc As String, vAng As String, vCond As String, vLm As String, vHp As String
     Dim vEx As String, vPas As String, pasZ As Variant, hF As Variant, nbC As Long, rA As Long
+    Dim libre As Variant
 
     Application.ScreenUpdating = False
     On Error GoTo Erreur
@@ -77,6 +79,7 @@ Public Sub CreerVerificationStructurelle()
     End If
     autre = LireValeur(ws, LIB_AUTRE)          ' saisies conservées : autre diamètre,
     pasZ = LireValeur(ws, LIB_PAS)             ' pas de calcul dz du profil
+    libre = LireValeur(ws, LIB_LIBRE)          ' micropieu libre en tête (Oui / Non)
     ws.Cells.Clear
     Do While ws.ChartObjects.Count > 0       ' graphiques de la création précédente
         ws.ChartObjects(1).Delete
@@ -233,8 +236,19 @@ Public Sub CreerVerificationStructurelle()
         "=""Oui"",""Oui"",""Non"")", "Non"), "": vInc = "$D$" & r
     r = r + 1: Ligne ws, r, "Angle d'inclinaison sur la verticale " & ChrW(945), IIf(cAn > 0, "=IF(" & vInc & _
         "=""Oui"",N(" & CALCUL & wc.Cells(ci, cAn).Address & "),0)", "0"), "°": vAng = "$D$" & r
-    ' Condition en tête : « Données du projet » (conditions en tête de la fondation)
-    vCond = DONNEES & "$D$" & lp + 18
+    ' Micropieu libre en tête (liste Oui / Non, saisie conservée) : par défaut d'après
+    ' « Données du projet » (conditions en tête de la fondation) ; Non = encastré en tête
+    r = r + 1: Ligne ws, r, LIB_LIBRE, "", "": vCond = "$D$" & r
+    With ws.Range("D" & r)
+        .Validation.Delete
+        .Validation.Add xlValidateList, xlValidAlertStop, , "Oui,Non"
+        .Value = IIf(CStr(ActiveWorkbook.Worksheets("Données du projet").Range("D" & lp + 18).Value) = _
+            "Encastré en tête", "Non", "Oui")
+        If CStr(libre) = "Oui" Or CStr(libre) = "Non" Then .Value = libre
+    End With
+    Commentaire ws.Range("B" & r), "Oui : tête libre (rotation libre, M0 = 0) ; Non : tête encastrée " & _
+        "dans la semelle (rotation nulle, moment d'encastrement M0 = -H.l0/2). Valeur par défaut : " & _
+        "« Données du projet », conditions en tête de la fondation"
     rF = r
     With ws.Range("B5:E" & rF)
         .Borders.LineStyle = xlContinuous
@@ -243,7 +257,7 @@ Public Sub CreerVerificationStructurelle()
     End With
     ws.Range("D5:E" & rF).HorizontalAlignment = xlCenter
     ws.Range("D5:D" & rF).Interior.Color = JAUNE_CALCUL
-    ws.Range(vAut).Interior.Color = VERT_SAISIE
+    ws.Range(vAut & "," & vCond).Interior.Color = VERT_SAISIE
     ws.Range("D5:D" & rF).NumberFormat = "0.000"
     ws.Range(vI & "," & vI & ":" & vI).NumberFormat = "0.000E+00"
     ws.Range("D" & Mid(vI, 4) - 1).NumberFormat = "0.000E+00"
@@ -337,7 +351,8 @@ Public Sub CreerVerificationStructurelle()
         .Font.Size = 14
         .Font.Color = VERT_FONCE
     End With
-    ws.Range("B" & rT + 1).Formula = "=""Condition en tête : ""&" & vCond & "&"" (« Données du projet »)"""
+    ws.Range("B" & rT + 1).Formula = "=""Micropieu libre en tête : ""&" & vCond & "&IF(" & vCond & _
+        "=""Oui"","" (tête libre)"","" (tête encastrée)"")"
     r = rT + 2
     ws.Range("B" & r & ":I" & r).Value = Array("Grandeur", "Symbole", "Formule", "ELS CARA", "ELS QP", _
         "ELU FOND", "ELU ACC", "Unité")
@@ -346,13 +361,13 @@ Public Sub CreerVerificationStructurelle()
             "Vmax de la combinaison (vérification de la profondeur, « Calcul et vérification »)", "kN"), _
         Array("Effort horizontal dû à l'inclinaison", "T0", "T0 = Nc x sin " & ChrW(945) & " (0 si vertical)", "kN"), _
         Array("Effort transversal en tête", "H", "H = T0", "kN"), _
-        Array("Moment en tête (selon la condition en tête)", "M0", "tête libre : M0 = 0 (aucun moment de la " & _
-            "descente de charges) ; tête encastrée : M0 = -H.l0/2 = -H/(2" & ChrW(955) & ") (moment d'encastrement)", _
+        Array("Moment en tête (selon « Micropieu libre en tête »)", "M0", "libre en tête = Oui : M0 = 0 (aucun moment de la " & _
+            "descente de charges) ; libre en tête = Non (encastrée) : M0 = -H.l0/2 = -H/(2" & ChrW(955) & ") (moment d'encastrement)", _
             "kN.m"), _
-        Array("Constante de l'onde issue de la tête", "A", "tête libre : A = 2" & ChrW(955) & "H/Es + 2" & _
-            ChrW(955) & "²M0/Es ; tête encastrée : A = " & ChrW(955) & "H/Es", "m"), _
-        Array("Constante de l'onde issue de la tête", "B", "tête libre : B = -2" & ChrW(955) & "²M0/Es ; " & _
-            "tête encastrée : B = A", "m"), _
+        Array("Constante de l'onde issue de la tête", "A", "libre en tête = Oui : A = 2" & ChrW(955) & "H/Es + 2" & _
+            ChrW(955) & "²M0/Es ; libre en tête = Non (encastrée) : A = " & ChrW(955) & "H/Es", "m"), _
+        Array("Constante de l'onde issue de la tête", "B", "libre en tête = Oui : B = -2" & ChrW(955) & "²M0/Es ; " & _
+            "libre en tête = Non (encastrée) : B = A", "m"), _
         Array("Constante de l'onde issue de la pointe", "C", "C = -e^(-" & ChrW(955) & "D) [A cos " & ChrW(955) & _
             "D + B sin " & ChrW(955) & "D]", "m"), _
         Array("Constante de l'onde issue de la pointe", "E", "E = e^(-" & ChrW(955) & "D) [(B - 2A) cos " & _
@@ -370,14 +385,14 @@ Public Sub CreerVerificationStructurelle()
         ws.Range(cl & r + 2).Formula = "=IF(" & vInc & "=""Oui"",ABS(" & x & r + 1 & ")*SIN(RADIANS(" & vAng & ")),0)"
         ws.Range(cl & r + 3).Formula = "=" & x & r + 2
         ' M0 : 0 en tête libre ; moment d'encastrement -H / (2 lambda) en tête encastrée
-        ws.Range(cl & r + 4).Formula = "=IF(" & vCond & "=""Encastré en tête"",IF(N(" & vLam & ")>0,-" & x & r + 3 & _
+        ws.Range(cl & r + 4).Formula = "=IF(" & vCond & "=""Non"",IF(N(" & vLam & ")>0,-" & x & r + 3 & _
             "/(2*" & vLam & "),0),0)"
         ' constantes A, B (tête), C, E (pointe encastrée) ; Es en kPa
         cond0 = "=IF(OR(" & vLam & "="""",N(" & vEs & ")<=0),"""","
-        ws.Range(cl & r + 5).Formula = cond0 & "IF(" & vCond & "=""Encastré en tête""," & vLam & "*" & x & r + 3 & _
+        ws.Range(cl & r + 5).Formula = cond0 & "IF(" & vCond & "=""Non""," & vLam & "*" & x & r + 3 & _
             "/(" & vEs & "*1000),2*" & vLam & "*" & x & r + 3 & "/(" & vEs & "*1000)+2*" & vLam & "^2*" & x & r + 4 & _
             "/(" & vEs & "*1000)))"
-        ws.Range(cl & r + 6).Formula = cond0 & "IF(" & vCond & "=""Encastré en tête""," & x & r + 5 & ",-2*" & vLam & _
+        ws.Range(cl & r + 6).Formula = cond0 & "IF(" & vCond & "=""Non""," & x & r + 5 & ",-2*" & vLam & _
             "^2*" & x & r + 4 & "/(" & vEs & "*1000)))"
         ws.Range(cl & r + 7).Formula = "=IF(" & x & r + 5 & "="""","""",-EXP(-" & vx & ")*(" & x & r + 5 & _
             "*COS(" & vx & ")+" & x & r + 6 & "*SIN(" & vx & ")))"
