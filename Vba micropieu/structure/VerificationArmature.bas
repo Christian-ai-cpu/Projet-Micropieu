@@ -26,6 +26,9 @@ Option Explicit
 Private Const NOM_FEUILLE As String = "Vérification structurelle"
 Private Const DONNEES As String = "'Données du projet'!"
 Private Const TITRE As String = "VÉRIFICATION DE L'ARMATURE (NF EN 1993-1-1, 6.2) - TUBE APRÈS CORROSION"
+Private Const TITRE2 As String = "EFFORTS SUR LE MICROPIEU - VÉRIFICATION DES DÉPLACEMENTS ET DES CONTRAINTES ADMISSIBLES"
+Private Const LIB_YADM As String = "Déplacement horizontal admissible (à saisir)"
+Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
 
 Private Const JAUNE_CALCUL As Long = 13434879  ' RGB(255, 255, 204)
 Private Const VERT_ENTETE As Long = 14348258   ' RGB(226, 239, 218)
@@ -34,6 +37,8 @@ Private Const GRIS_TITRE As Long = 15921906    ' RGB(242, 242, 242)
 
 Private mR As Long                              ' ligne courante du tableau
 Private mWs As Worksheet
+Private mN As Long                              ' ligne de Nc (efforts en tête, colonnes E à H)
+Private mP1 As Long, mPn As Long                ' 1re ligne et nombre de lignes du profil Y, T, M
 
 Public Sub VerificationArmature()
     Dim ws As Worksheet, co As ChartObject, v As Variant, r0 As Long, etape As String
@@ -45,6 +50,9 @@ Public Sub VerificationArmature()
     Dim NcRd As String, Av As String, VplRd As String, McRd As String
     Dim rap1 As String, rap2 As String, rap3 As String, rap4 As String
     Dim ok1 As String, ok2 As String, ok3 As String, ok4 As String
+    Dim r2 As Long, yAdm As Variant, vYa As String, xN As Long, xV As Long, xM As Long, xY0 As Long
+    Dim xYm As Long, xRy As Long, xOkY As Long, xsN As Long, xsM As Long, xsx As Long, xtau As Long
+    Dim xsa As Long, xta As Long, xcr As Long, xOkS As Long, xin As Long, xOkI As Long
 
     On Error Resume Next
     Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
@@ -54,6 +62,7 @@ Public Sub VerificationArmature()
         Exit Sub
     End If
     Set mWs = ws
+    yAdm = LireD(ws, LIB_YADM)                ' déplacement admissible saisi (conservé)
 
     ' --- Cellules de la feuille « Vérification structurelle » (repérées par intitulé) ---
     etape = "lecture de la feuille"
@@ -69,6 +78,7 @@ Public Sub VerificationArmature()
         Exit Sub
     End If
     rN = CLng(v)
+    mN = rN
     v = Application.Match("z (m)", ws.Range("A1:A1000"), 0)    ' profil Y, T, M
     If Not IsError(v) Then
         hP = CLng(v)
@@ -77,6 +87,7 @@ Public Sub VerificationArmature()
             If nP > 5000 Then Exit Do
         Loop
         rFin = hP + 2 + nP
+        mP1 = hP + 2: mPn = nP
     Else
         rFin = rN + 12
     End If
@@ -85,7 +96,7 @@ Public Sub VerificationArmature()
     ' (les graphiques ne sont pas touchés) ---
     etape = "position du tableau"
     v = Application.Match(TITRE, ws.Range("A1:A5000"), 0)
-    If Not IsError(v) Then ws.Range(ws.Rows(CLng(v)), ws.Rows(CLng(v) + 80)).Clear
+    If Not IsError(v) Then ws.Range(ws.Rows(CLng(v)), ws.Rows(CLng(v) + 160)).Clear
     bas = ws.Cells(rFin, 1).Top
     For Each co In ws.ChartObjects
         If co.Top + co.Height > bas Then bas = co.Top + co.Height
@@ -204,6 +215,110 @@ Public Sub VerificationArmature()
         .Delete
         .Add(xlTextString, String:="changer", TextOperator:=xlContains).Font.Color = RGB(192, 0, 0)
     End With
+
+    ' === Second tableau : efforts le long du micropieu, vérification des déplacements et
+    ' des contraintes admissibles du tube, pour chaque combinaison (colonnes D à G) ===
+    etape = "efforts sur le micropieu"
+    If hP = 0 Then GoTo Fin2
+    mR = mR + 3
+    r2 = mR
+    With ws.Range("A" & r2)
+        .Value = TITRE2
+        .Font.Bold = True
+        .Font.Size = 14
+        .Font.Color = VERT_FONCE
+    End With
+    mR = r2 + 1
+    ws.Range("B" & mR & ":H" & mR).Value = Array("Caractéristique", "", "ELS CARA", "ELS QP", "ELU FOND", _
+        "ELU ACC", "Unité")
+    ws.Range("B" & mR & ":C" & mR).Merge
+    With ws.Range("B" & mR & ":H" & mR)
+        .Font.Bold = True
+        .Interior.Color = VERT_ENTETE
+        .HorizontalAlignment = xlCenter
+    End With
+
+    ' 4. Efforts et déplacements le long du micropieu (profil Y, T, M)
+    MiniTitre2 "4. Efforts et déplacements le long du micropieu (profil, par combinaison)", ""
+    xN = LigC("Effort normal de compression (descente de charges)", "NEd", "=ABS(N(@" & rN & "))", "kN", "0.0")
+    xV = LigC("Effort tranchant maximal le long du micropieu", "VEd = max|T(z)|", _
+        "=IF(COUNT({T})=0,0,MAX(MAX({T}),-MIN({T})))", "kN", "0.0")
+    xM = LigC("Moment fléchissant maximal le long du micropieu", "MEd = max|M(z)|", _
+        "=IF(COUNT({M})=0,0,MAX(MAX({M}),-MIN({M})))", "kN.m", "0.00")
+    xY0 = LigC("Déplacement horizontal en tête", "y0 = Y(z = 0)", "=N({Y0})", "mm", "0.00")
+    xYm = LigC("Déplacement horizontal maximal", "ymax = max|Y(z)|", _
+        "=IF(COUNT({Y})=0,0,MAX(MAX({Y}),-MIN({Y})))", "mm", "0.00")
+
+    ' 5. Vérification des déplacements
+    MiniTitre2 "5. Vérification des déplacements", _
+        "Condition : ymax / yadm " & ChrW(8804) & " 1,0 ; yadm : déplacement horizontal admissible fixé par " & _
+        "le projet (compatibilité avec l'ouvrage)"
+    mR = mR + 1
+    ws.Range("B" & mR).Value = LIB_YADM
+    ws.Range("C" & mR).Value = "yadm"
+    With ws.Range("D" & mR & ":G" & mR)
+        .Merge
+        .Value = IIf(N0(yAdm) > 0, N0(yAdm), 10)
+        .Interior.Color = VERT_SAISIE
+        .NumberFormat = "0.00"
+    End With
+    ws.Range("H" & mR).Value = "mm"
+    ws.Range("C" & mR & ":H" & mR).HorizontalAlignment = xlCenter
+    vYa = "$D$" & mR
+    xRy = LigC("Rapport déplacement agissant / admissible", "ymax / yadm", "=IF(N(" & vYa & ")>0,#" & xYm & _
+        "/" & vYa & ","""")", "", "0.00")
+    xOkY = LigC("Vérification", "", ConclusionC(xRy), "", "@")
+
+    ' 6. Vérification des contraintes admissibles (6.2.1(5))
+    MiniTitre2 "6. Vérification des contraintes admissibles du tube (6.2.1(5))", _
+        "Condition (6.1) : (" & ChrW(963) & "x,Ed / (fy/" & ChrW(947) & "M0))² + 3 (" & ChrW(964) & "Ed / (fy/" & _
+        ChrW(947) & "M0))² " & ChrW(8804) & " 1 avec " & ChrW(963) & "x,Ed = NEd/A + MEd/Wel et " & ChrW(964) & _
+        "Ed = 2 VEd / A (tube)"
+    xsN = LigC("Contrainte normale due à l'effort normal", ChrW(963) & "N = NEd / A", "=IF(N(" & A & ")>0,1000*#" & _
+        xN & "/" & A & ","""")", "MPa", "0.0")
+    xsM = LigC("Contrainte normale due au moment fléchissant", ChrW(963) & "M = MEd / Wel", "=IF(N(" & Wel & _
+        ")>0,1000000*#" & xM & "/" & Wel & ","""")", "MPa", "0.0")
+    xsx = LigC("Contrainte longitudinale de calcul", ChrW(963) & "x,Ed = " & ChrW(963) & "N + " & ChrW(963) & "M", _
+        "=IF(OR(#" & xsN & "="""",#" & xsM & "=""""),"""",#" & xsN & "+#" & xsM & ")", "MPa", "0.0")
+    xtau = LigC("Contrainte de cisaillement de calcul", ChrW(964) & "Ed = 2 VEd / A", "=IF(N(" & A & ")>0,2000*#" & _
+        xV & "/" & A & ","""")", "MPa", "0.0")
+    xsa = LigC("Contrainte normale admissible", "fy / " & ChrW(947) & "M0", "=IF(N(" & gM0 & ")>0," & fy & "/" & _
+        gM0 & ","""")", "MPa", "0.0")
+    xta = LigC("Contrainte de cisaillement admissible", "fy / (" & ChrW(8730) & "3 " & ChrW(947) & "M0)", _
+        "=IF(N(" & gM0 & ")>0," & fy & "/(SQRT(3)*" & gM0 & "),"""")", "MPa", "0.0")
+    LigC "Rapport contrainte normale agissante / admissible", ChrW(963) & "x,Ed / (fy/" & ChrW(947) & "M0)", _
+        "=IF(N(#" & xsa & ")>0,#" & xsx & "/#" & xsa & ","""")", "", "0.00"
+    LigC "Rapport cisaillement agissant / admissible", ChrW(964) & "Ed / (fy/(" & ChrW(8730) & "3 " & ChrW(947) & _
+        "M0))", "=IF(N(#" & xta & ")>0,#" & xtau & "/#" & xta & ","""")", "", "0.00"
+    xcr = LigC("Critère de résistance élastique (6.1)", "(" & ChrW(963) & "x,Ed/(fy/" & ChrW(947) & "M0))² + 3(" & _
+        ChrW(964) & "Ed/(fy/" & ChrW(947) & "M0))²", "=IF(OR(#" & xsx & "="""",#" & xtau & "="""",N(#" & xsa & _
+        ")=0),"""",(#" & xsx & "/#" & xsa & ")^2+3*(#" & xtau & "/#" & xsa & ")^2)", "", "0.00")
+    xOkS = LigC("Vérification", "", ConclusionC(xcr), "", "@")
+
+    ' 7. Interaction effort normal et moment (6.2.1(7))
+    MiniTitre2 "7. Interaction effort normal et moment fléchissant (6.2.1(7))", _
+        "Condition (6.2) : NEd / Nc,Rd + MEd / Mc,Rd " & ChrW(8804) & " 1 (Nc,Rd et Mc,Rd du tableau précédent, " & _
+        "3.2 et 3.4)"
+    xin = LigC("Somme des rapports effort agissant / effort résistant", "NEd/Nc,Rd + MEd/Mc,Rd", _
+        "=IF(OR(N(" & NcRd & ")=0,N(" & McRd & ")=0),"""",#" & xN & "/" & NcRd & "+#" & xM & "/" & McRd & ")", _
+        "", "0.00")
+    xOkI = LigC("Vérification", "", ConclusionC(xin), "", "@")
+
+    ' Conclusion par combinaison
+    MiniTitre2 "Conclusion", ""
+    LigC "Micropieu (déplacements, contraintes, interaction)", "", "=IF(AND(LEFT(#" & xOkY & ",2)=""OK"",LEFT(#" & _
+        xOkS & ",2)=""OK"",LEFT(#" & xOkI & ",2)=""OK""),""OK"",""Non vérifié : changer de section"")", "", "@"
+
+    With ws.Range("B" & r2 + 1 & ":H" & mR)
+        .Borders.LineStyle = xlContinuous
+        .VerticalAlignment = xlCenter
+        .WrapText = True
+    End With
+    With ws.Range("B" & r2 + 1 & ":H" & mR).FormatConditions
+        .Delete
+        .Add(xlTextString, String:="changer", TextOperator:=xlContains).Font.Color = RGB(192, 0, 0)
+    End With
+Fin2:
     Exit Sub
 Erreur:
     MsgBox "Erreur pendant la vérification de l'armature, partie « " & etape & " » : " & Err.Description & _
@@ -253,6 +368,76 @@ End Function
 Private Function Conclusion(rapport As String) As String
     Conclusion = "=IF(" & rapport & "="""",""-"",IF(" & rapport & "<=1,""OK (taux ""&TEXT(" & rapport & _
         ",""0%"")&"")"",""Non vérifiée : changer de section""))"
+End Function
+
+' Mini-titre du second tableau (B:H fusionnées), suivi éventuellement de la condition
+Private Sub MiniTitre2(texte As String, condition As String)
+    mR = mR + 1
+    With mWs.Range("B" & mR & ":H" & mR)
+        .Merge
+        .Value = texte
+        .Font.Bold = True
+        .Font.Color = VERT_FONCE
+        .Interior.Color = GRIS_TITRE
+    End With
+    If condition <> "" Then
+        mR = mR + 1
+        With mWs.Range("B" & mR & ":H" & mR)
+            .Merge
+            .Value = condition
+            .Font.Italic = True
+            .WrapText = True
+        End With
+        mWs.Rows(mR).RowHeight = 30
+    End If
+End Sub
+
+' Ligne par combinaison du second tableau : désignation (B), symbole (C), formules des
+' colonnes D à G (combinaison k = 0 à 3), unité (H). Dans le modèle tpl : « # » = colonne
+' de la combinaison dans ce tableau, « @ » = colonne de la combinaison dans le tableau
+' des efforts en tête (E à H), {Y}, {T}, {M} = colonne du profil de la combinaison, {Y0}
+' = déplacement en tête. Renvoie le numéro de la ligne.
+Private Function LigC(designation As String, symbole As String, tpl As String, unite As String, _
+        fmt As String) As Long
+    Dim k As Long, f As String, cP As Long
+    mR = mR + 1
+    mWs.Range("B" & mR).Value = designation
+    mWs.Range("C" & mR).Value = symbole
+    mWs.Range("H" & mR).Value = unite
+    For k = 0 To 3
+        cP = 5 + 3 * k                          ' colonne Y de la combinaison dans le profil
+        f = tpl
+        f = Replace(f, "{Y0}", mWs.Cells(mP1, cP).Address)
+        f = Replace(f, "{Y}", mWs.Range(mWs.Cells(mP1, cP), mWs.Cells(mP1 + mPn - 1, cP)).Address)
+        f = Replace(f, "{T}", mWs.Range(mWs.Cells(mP1, cP + 1), mWs.Cells(mP1 + mPn - 1, cP + 1)).Address)
+        f = Replace(f, "{M}", mWs.Range(mWs.Cells(mP1, cP + 2), mWs.Cells(mP1 + mPn - 1, cP + 2)).Address)
+        f = Replace(f, "#", Chr(Asc("D") + k))
+        f = Replace(f, "@", Chr(Asc("E") + k))
+        mWs.Cells(mR, 4 + k).Formula = f
+        If fmt <> "@" Then mWs.Cells(mR, 4 + k).NumberFormat = fmt
+    Next k
+    mWs.Range("C" & mR & ":H" & mR).HorizontalAlignment = xlCenter
+    mWs.Range("D" & mR & ":G" & mR).Interior.Color = JAUNE_CALCUL
+    If designation = "Vérification" Or Left(designation, 9) = "Micropieu" Then mWs.Range("B" & mR & ":G" & mR).Font.Bold = True
+    LigC = mR
+End Function
+
+' Conclusion d'une vérification par combinaison (rapport en ligne r, même colonne)
+Private Function ConclusionC(r As Long) As String
+    ConclusionC = "=IF(#" & r & "="""",""-"",IF(#" & r & "<=1,""OK (taux ""&TEXT(#" & r & _
+        ",""0%"")&"")"",""Non vérifiée : changer de section""))"
+End Function
+
+' Valeur (colonne D) de la ligne d'intitulé lib (colonne B) ; vide si absente
+Private Function LireD(ws As Worksheet, lib As String) As Variant
+    Dim v As Variant
+    v = Application.Match(lib, ws.Range("B1:B5000"), 0)
+    If Not IsError(v) Then LireD = ws.Range("D" & CLng(v)).Value
+End Function
+
+' Valeur numérique (0 si vide ou texte)
+Private Function N0(v As Variant) As Double
+    If Not IsEmpty(v) And IsNumeric(v) Then N0 = CDbl(v)
 End Function
 
 ' Adresse ($D$n) de la valeur de la ligne d'intitulé lib (colonne B) ; vide si absente
