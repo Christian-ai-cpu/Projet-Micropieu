@@ -1302,14 +1302,10 @@ Private Sub InstallerCodeFeuille(ws As Worksheet)
 Fin:
     ' Accès refusé : rappel sur l'en-tête du pas de calcul
     On Error Resume Next
-    With ws.Range("A" & LIGNE_FROT - 1)
-        .ClearComments
-        .AddComment "Pour que le tableau de la capacité portante et la vérification de la " & _
-            "profondeur s'ajustent dès la saisie d'un pas : coller CodeFeuilleCalcul.txt dans le " & _
-            "code de cette feuille, ou autoriser l'accès au projet VBA puis relancer " & _
-            "CreerCalculVerification."
-        .Comment.Shape.TextFrame.AutoSize = True
-    End With
+    Commentaire ws.Range("A" & LIGNE_FROT - 1), "Pour que le tableau de la capacité portante et la " & _
+        "vérification de la profondeur s'ajustent dès la saisie d'un pas : coller CodeFeuilleCalcul.txt " & _
+        "dans le code de cette feuille, ou autoriser l'accès au projet VBA puis relancer " & _
+        "CreerCalculVerification."
 End Sub
 
 ' Adresse relative (ex. « F395 ») de la cellule ligne r, colonne c
@@ -1456,9 +1452,16 @@ End Function
 
 ' Commentaire (signification) sur une cellule d'en-tête
 Private Sub Commentaire(c As Range, texte As String)
-    c.ClearComments
-    c.AddComment texte
-    c.Comment.Shape.TextFrame.AutoSize = True
+    ' Commentaire en image (module CommentaireImage) ; à défaut, commentaire texte
+    On Error Resume Next
+    Application.Run "CommentaireImage", c, texte
+    If Err.Number <> 0 Then
+        Err.Clear
+        c.ClearComments
+        c.AddComment texte
+        c.Comment.Shape.TextFrame.AutoSize = True
+    End If
+    On Error GoTo 0
 End Sub
 
 ' Tableau 2D (lignes x colonnes) à partir d'un tableau de lignes (Array d'Array)

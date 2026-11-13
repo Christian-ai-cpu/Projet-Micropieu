@@ -289,7 +289,7 @@ End Function
 ' copie du mur k + 1, voir le module DuplicationMurs). Les formules sont écrites en
 ' références relatives (R1C1) pour rester justes dans les copies.
 Public Sub MajLigne(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
-    Dim typeElement As String
+    Dim typeElement As String, texteNote As String
 
     typeElement = CStr(ws.Cells(ligne, 2 + dc).Value)
     If Left(typeElement, 7) = "Toiture" Then
@@ -326,11 +326,18 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
         ws.Cells(ligne, 4 + dc).ClearContents
         ' Rappel sur l'épaisseur h d'une poutre (commentaire sur la cellule F)
         If Left(typeElement, 6) = "Poutre" Then
-            ws.Cells(ligne, 6 + dc).ClearComments
-            ws.Cells(ligne, 6 + dc).AddComment _
-                "Hauteur h de la poutre : si une dalle est présente, prendre " & _
+            ' Commentaire en image (module CommentaireImage) ; à défaut, commentaire texte
+            texteNote = "Hauteur h de la poutre : si une dalle est présente, prendre " & _
                 "h = hauteur totale de la poutre - épaisseur de la dalle " & _
                 "(retombée seule), pour ne pas compter deux fois le béton de la dalle."
+            On Error Resume Next
+            Application.Run "CommentaireImage", ws.Cells(ligne, 6 + dc), texteNote
+            If Err.Number <> 0 Then
+                Err.Clear
+                ws.Cells(ligne, 6 + dc).ClearComments
+                ws.Cells(ligne, 6 + dc).AddComment texteNote
+            End If
+            On Error GoTo 0
         End If
     End If
 End Sub

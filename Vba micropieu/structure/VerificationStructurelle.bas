@@ -643,7 +643,14 @@ End Sub
 
 ' Commentaire (signification) sur une cellule d'en-tête
 Private Sub Commentaire(c As Range, texte As String)
-    c.ClearComments
-    c.AddComment texte
-    c.Comment.Shape.TextFrame.AutoSize = True
+    ' Commentaire en image (module CommentaireImage) ; à défaut, commentaire texte
+    On Error Resume Next
+    Application.Run "CommentaireImage", c, texte
+    If Err.Number <> 0 Then
+        Err.Clear
+        c.ClearComments
+        c.AddComment texte
+        c.Comment.Shape.TextFrame.AutoSize = True
+    End If
+    On Error GoTo 0
 End Sub
