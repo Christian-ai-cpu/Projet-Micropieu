@@ -20,7 +20,8 @@ Option Explicit
 '         M = 0) et constantes A, B, C, E du pieu long à pointe encastrée, avec leurs
 '         symboles et formules ;
 '         profil le long du micropieu par pas de calcul dz (saisi) : z, pas, Y, T et M
-'         de chaque combinaison, graphiques Y, T, M sous le profil
+'         de chaque combinaison, graphiques Y, T, M sous le profil, puis vérification de
+'         l'armature (module VerificationArmature) sous les graphiques
 ' Le nombre de micropieux et les adresses des autres feuilles sont lus à la création :
 ' relancer CreerVerificationStructurelle après un changement de ces feuilles.
 
@@ -526,6 +527,13 @@ MiseEnForme:
             .Font.Color = VERT_FONCE
         End With
         GraphiquesProfil ws, iMax, rP + 2, nZ + 1, rG + 2, 1
+    End If
+    ' Vérification de l'armature (module VerificationArmature), sous les graphiques
+    If rG > 0 Then
+        etape = "vérification de l'armature"
+        On Error Resume Next
+        Application.Run "VerificationArmature"
+        On Error GoTo Erreur
     End If
     ws.Activate
 Fin:
