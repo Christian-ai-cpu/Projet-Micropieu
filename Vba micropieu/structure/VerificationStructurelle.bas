@@ -224,14 +224,11 @@ Public Sub CreerVerificationStructurelle()
     r = r + 1: Ligne ws, r, "Module de réaction Kf (selon la méthode de calcul)", "=IF(OR(N(" & vEM & ")<=0," & vRho & _
         "=""""),"""",IF(" & pen & "," & vAl & "*" & vEM & "/2," & vEM & "*18*" & vRho & "/(4*(2.65*" & vRho & ")^" & _
         vAl & "+3*" & vAl & "*" & vRho & ")))", "MPa": vKf = "$D$" & r
-    NoteNorme ws.Range("B" & r), "fascicule_Kf_pressio_CPT.png", ""
     r = r + 1: Ligne ws, r, "Type de sollicitation", "=" & sol, ""
     r = r + 1: Ligne ws, r, "Module Es (a, b : Kf ; c, d : 2 Kf)", "=IF(" & vKf & "="""",""""," & _
         "IF(OR(LEFT(" & sol & ",1)=""c"",LEFT(" & sol & ",1)=""d""),2,1)*" & vKf & ")", "MPa": vEs = "$D$" & r
-    NoteNorme ws.Range("B" & r), "fascicule_courbes_reaction.png", ""
     r = r + 1: Ligne ws, r, "Longueur de transfert l0 = (4 EI / Es)^(1/4)", "=IF(OR(" & vEs & "="""",N(" & vEs & _
         ")=0),"""",(4*" & vEI & "/(" & vEs & "*1000))^0.25)", "m": vl0 = "$D$" & r
-    NoteNorme ws.Range("B" & r), "fascicule_methode_resolution_l0.png", ""
     r = r + 1: Ligne ws, r, ChrW(955) & " = 1 / l0", "=IF(N(" & vl0 & ")<=0,"""",1/" & vl0 & ")", "1/m": vLam = "$D$" & r
     r = r + 1: Ligne ws, r, "Profondeur réelle du micropieu D", IIf(cDr > 0, "=N(" & CALCUL & _
         wc.Cells(ci, cDr).Address & ")", "=N(" & CALCUL & "$D$20)"), "m": vD = "$D$" & r
@@ -359,7 +356,6 @@ Public Sub CreerVerificationStructurelle()
         .Font.Size = 14
         .Font.Color = VERT_FONCE
     End With
-    NoteNorme ws.Range("A" & rT), "fascicule_equation_yg.png", ""
     ws.Range("B" & rT + 1).Formula = "=""Condition en tête : ""&" & vCond
     r = rT + 2
     ws.Range("B" & r & ":I" & r).Value = Array("Grandeur", "Symbole", "Formule", "ELS CARA", "ELS QP", _
@@ -457,7 +453,6 @@ Public Sub CreerVerificationStructurelle()
         .Font.Size = 14
         .Font.Color = VERT_FONCE
     End With
-    NoteNorme ws.Range("A" & rP - 3), "fascicule_methode_resolution_l0.png", ""
     ws.Range("A" & rP & ":D" & rP).Value = Array("z (m)", "Pas de calcul (m)", ChrW(955) & "z", _
         ChrW(955) & "u = " & ChrW(955) & "(D - z)")
     For k = 0 To 3
@@ -644,18 +639,6 @@ Private Sub SousTitre(ws As Worksheet, r As Long, texte As String)
         .Font.Size = 14
         .Font.Color = VERT_FONCE
     End With
-End Sub
-
-' Capture de la norme fichier (module CommentaireImage, dossier « images-normes ») en
-' commentaire de la cellule c ; à défaut, commentaire texte
-Private Sub NoteNorme(c As Range, fichier As String, texte As String)
-    On Error Resume Next
-    Application.Run "CommentaireNorme", c, fichier, texte
-    If Err.Number <> 0 Then
-        Err.Clear
-        If texte <> "" Then Commentaire c, texte
-    End If
-    On Error GoTo 0
 End Sub
 
 ' Commentaire (signification) sur une cellule d'en-tête

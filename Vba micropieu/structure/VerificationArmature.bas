@@ -144,7 +144,6 @@ Public Sub VerificationArmature()
     fy = Lig("Limite d'élasticité de l'acier", "fy", "=N(" & DONNEES & "$D$" & LIGNE_ACIER + 7 & ")", "MPa", "0")
     gM0 = Lig("Coefficient partiel (résistance des sections)", ChrW(947) & "M0", "=IF(N(" & DONNEES & "$D$" & _
         LIGNE_ACIER + 20 & ")>0,N(" & DONNEES & "$D$" & LIGNE_ACIER + 20 & "),1)", "", "0.00")
-    NoteA gM0, "ec3_6-1_gamma_M0.png"
 
     ' --- 2. Sollicitations (maximum des combinaisons, descente de charges) ---
     etape = "sollicitations"
@@ -160,7 +159,7 @@ Public Sub VerificationArmature()
     etape = "classification"
     MiniTitre "3.1 Classification de la section (tableau 5.2, section tubulaire)", _
         "Condition : classe 1 si d/t " & ChrW(8804) & " 50" & ChrW(949) & "² ; classe 2 si d/t " & ChrW(8804) & _
-        " 70" & ChrW(949) & "² ; classe 3 si d/t " & ChrW(8804) & " 90" & ChrW(949) & "²", "ec3_tableau_5-2_tube.png"
+        " 70" & ChrW(949) & "² ; classe 3 si d/t " & ChrW(8804) & " 90" & ChrW(949) & "²"
     eps = Lig("Coefficient dépendant de fy", ChrW(949) & " = " & ChrW(8730) & "(235/fy)", "=IF(N(" & fy & ")>0,SQRT(235/" & _
         fy & "),"""")", "", "0.000")
     dt = Lig("Élancement de la paroi", "d/t", "=IF(N(" & t & ")>0," & d & "/" & t & ","""")", "", "0.00")
@@ -175,10 +174,9 @@ Public Sub VerificationArmature()
     ' --- 3.2 Compression (6.2.4) ---
     etape = "compression"
     MiniTitre "3.2 Vérification en compression (6.2.4)", _
-        "Condition : NEd / Nc,Rd " & ChrW(8804) & " 1,0 (6.9) avec Nc,Rd = A.fy / " & ChrW(947) & "M0 (6.10)", "ec3_6-2-4_eq_6-9.png"
+        "Condition : NEd / Nc,Rd " & ChrW(8804) & " 1,0 (6.9) avec Nc,Rd = A.fy / " & ChrW(947) & "M0 (6.10)"
     NcRd = Lig("Résistance de calcul à la compression", "Nc,Rd", "=IF(N(" & gM0 & ")>0," & A & "*" & fy & "/" & gM0 & _
         "/1000,"""")", "kN", "0.0")
-    NoteA NcRd, "ec3_6-2-4_eq_6-10.png"
     rap2 = Lig("Rapport effort agissant / effort résistant", "NEd / Nc,Rd", "=IF(N(" & NcRd & ")>0," & NEd & "/" & _
         NcRd & ","""")", "", "0.00")
     ok2 = Lig("Vérification", "", Conclusion(rap2), "", "@")
@@ -187,9 +185,8 @@ Public Sub VerificationArmature()
     etape = "cisaillement"
     MiniTitre "3.3 Vérification au cisaillement (6.2.6)", _
         "Condition : VEd / Vpl,Rd " & ChrW(8804) & " 1,0 (6.17) avec Vpl,Rd = Av (fy/" & ChrW(8730) & "3) / " & _
-        ChrW(947) & "M0 (6.18) et Av = 2A/" & ChrW(960) & " (6.2.6(3) g)", "ec3_6-2-6_cisaillement.png"
+        ChrW(947) & "M0 (6.18) et Av = 2A/" & ChrW(960) & " (6.2.6(3) g)"
     Av = Lig("Aire de cisaillement (tube)", "Av = 2A/" & ChrW(960), "=2*" & A & "/PI()", "mm²", "0.0")
-    NoteA Av, "ec3_6-2-6_Av_tube.png"
     VplRd = Lig("Résistance plastique de calcul au cisaillement", "Vpl,Rd", "=IF(N(" & gM0 & ")>0," & Av & "*(" & fy & _
         "/SQRT(3))/" & gM0 & "/1000,"""")", "kN", "0.0")
     rap3 = Lig("Rapport effort agissant / effort résistant", "VEd / Vpl,Rd", "=IF(N(" & VplRd & ")>0," & VEd & "/" & _
@@ -200,7 +197,7 @@ Public Sub VerificationArmature()
     etape = "moment fléchissant"
     MiniTitre "3.4 Vérification au moment fléchissant (6.2.5)", _
         "Condition : MEd / Mc,Rd " & ChrW(8804) & " 1,0 (6.12) avec Mc,Rd = Wpl.fy / " & ChrW(947) & _
-        "M0 (classes 1 et 2, 6.13) ou Wel.fy / " & ChrW(947) & "M0 (classe 3, 6.14)", "ec3_6-2-5_moment.png"
+        "M0 (classes 1 et 2, 6.13) ou Wel.fy / " & ChrW(947) & "M0 (classe 3, 6.14)"
     McRd = Lig("Moment résistant de calcul", "Mc,Rd", "=IF(OR(N(" & gM0 & ")<=0,N(" & cl & ")=0,N(" & cl & ")>3),""""," & _
         "IF(" & cl & "<=2," & Wpl & "," & Wel & ")*" & fy & "/" & gM0 & "/1000000)", "kN.m", "0.00")
     rap4 = Lig("Rapport effort agissant / effort résistant", "MEd / Mc,Rd", "=IF(N(" & McRd & ")>0," & MEd & "/" & _
@@ -290,12 +287,11 @@ Public Sub VerificationArmature()
         "Condition : " & ChrW(963) & "VM = " & ChrW(8730) & "(" & ChrW(963) & "² + 3" & ChrW(964) & "²) " & _
         ChrW(8804) & " fy/" & ChrW(947) & "M0 avec " & ChrW(963) & " = N/A + M.v/I et " & ChrW(964) & _
         "max = V.R²/Iy ; " & ChrW(964) & " " & ChrW(8804) & " " & ChrW(964) & "e = fy/(" & ChrW(8730) & "3." & _
-        ChrW(947) & "M0)", "enpc_diapo_44.png"
+        ChrW(947) & "M0)"
     xsN = LigC("Contrainte normale de compression", ChrW(963) & "N = NEd / A", "=IF(N(" & A & ")>0,1000*#" & _
         xN & "/" & A & ","""")", "MPa", "0.0")
     xsM = LigC("Contrainte normale de flexion (fibre extrême, v = d/2)", ChrW(963) & "M = MEd.v / I", _
         "=IF(N(" & I & ")>0,1000000*#" & xM & "*(" & d & "/2)/" & I & ","""")", "MPa", "0.0")
-    NoteR xsM, "enpc_diapo_42.png"
     xsx = LigC("Contrainte normale totale", ChrW(963) & " = " & ChrW(963) & "N + " & ChrW(963) & "M", _
         "=IF(OR(#" & xsN & "="""",#" & xsM & "=""""),"""",#" & xsN & "+#" & xsM & ")", "MPa", "0.0")
     ' Section circulaire creuse (paroi mince, rayon R = d/2, épaisseur t) : coupe à la
@@ -305,11 +301,9 @@ Public Sub VerificationArmature()
     xR = LigC("Rayon de la section", "R = d / 2", "=" & d & "/2", "mm", "0.00")
     xSy = LigC("Moment statique de la coupe au droit de l'axe neutre (z' = R)", "Sy(A') = 2Rt" & ChrW(8730) & _
         "(2Rz' - z'²) = 2R²t", "=2*#" & xR & "^2*" & t, "mm³", "0.000E+00")
-    NoteR xSy, "enpc_diapo_43.png"
     xb = LigC("Largeur coupée (deux parois)", "b = 2t", "=2*" & t, "mm", "0.00")
     xtau = LigC("Contrainte de cisaillement maximale (axe neutre)", ChrW(964) & "max = VEd.Sy(A') / (2t.Iy) = " & _
         "VEd.R² / Iy", "=IF(N(" & I & ")>0,1000*#" & xV & "*#" & xR & "^2/" & I & ","""")", "MPa", "0.00")
-    NoteR xtau, "document_cisaillement_tube.png"
     xta = LigC("Limite élastique en cisaillement pur", ChrW(964) & "e = fy / (" & ChrW(8730) & "3." & ChrW(947) & "M0)", _
         "=IF(N(" & gM0 & ")>0," & fy & "/(SQRT(3)*" & gM0 & "),"""")", "MPa", "0.0")
     LigC "Rapport cisaillement agissant / limite", ChrW(964) & " / " & ChrW(964) & "e", "=IF(N(#" & xta & _
@@ -326,7 +320,7 @@ Public Sub VerificationArmature()
     ' 7. Interaction effort normal et moment (6.2.1(7))
     MiniTitre2 "7. Interaction effort normal et moment fléchissant (6.2.1(7))", _
         "Condition (6.2) : NEd / Nc,Rd + MEd / Mc,Rd " & ChrW(8804) & " 1 (Nc,Rd et Mc,Rd du tableau précédent, " & _
-        "3.2 et 3.4)", "ec3_6-2-1_eq_6-2.png"
+        "3.2 et 3.4)"
     xin = LigC("Somme des rapports effort agissant / effort résistant", "NEd/Nc,Rd + MEd/Mc,Rd", _
         "=IF(OR(N(" & NcRd & ")=0,N(" & McRd & ")=0),"""",#" & xN & "/" & NcRd & "+#" & xM & "/" & McRd & ")", _
         "", "0.00")
@@ -355,7 +349,7 @@ End Sub
 
 ' Mini-titre d'un passage du tableau (B:E fusionnées), suivi éventuellement de la
 ' condition de vérification (ligne en italique sous le titre)
-Private Sub MiniTitre(texte As String, condition As String, Optional image As String = "")
+Private Sub MiniTitre(texte As String, condition As String)
     mR = mR + 1
     With mWs.Range("B" & mR & ":E" & mR)
         .Merge
@@ -374,8 +368,6 @@ Private Sub MiniTitre(texte As String, condition As String, Optional image As St
         End With
         mWs.Rows(mR).RowHeight = 30
     End If
-    ' capture de la norme en commentaire de la condition (ou du titre)
-    If image <> "" Then NoteNorme mWs.Range("B" & mR), image, condition
 End Sub
 
 ' Ligne « désignation (B) | symbole (C) | valeur (D) | unité (E) » ; renvoie l'adresse
@@ -401,7 +393,7 @@ Private Function Conclusion(rapport As String) As String
 End Function
 
 ' Mini-titre du second tableau (B:H fusionnées), suivi éventuellement de la condition
-Private Sub MiniTitre2(texte As String, condition As String, Optional image As String = "")
+Private Sub MiniTitre2(texte As String, condition As String)
     mR = mR + 1
     With mWs.Range("B" & mR & ":H" & mR)
         .Merge
@@ -420,8 +412,6 @@ Private Sub MiniTitre2(texte As String, condition As String, Optional image As S
         End With
         mWs.Rows(mR).RowHeight = 30
     End If
-    ' capture de la norme en commentaire de la condition (ou du titre)
-    If image <> "" Then NoteNorme mWs.Range("B" & mR), image, condition
 End Sub
 
 ' Ligne par combinaison du second tableau : désignation (B), symbole (C), formules des
@@ -459,25 +449,6 @@ Private Function ConclusionC(r As Long) As String
     ConclusionC = "=IF(#" & r & "="""",""-"",IF(#" & r & "<=1,""OK (taux ""&TEXT(#" & r & _
         ",""0%"")&"")"",""Non vérifiée : changer de section""))"
 End Function
-
-' Capture de la norme fichier (module CommentaireImage, dossier « images-normes ») en
-' commentaire de la cellule c ; texte à défaut d'image ; rien si le module est absent
-Private Sub NoteNorme(c As Range, fichier As String, Optional texte As String = "")
-    On Error Resume Next
-    Application.Run "CommentaireNorme", c, fichier, texte
-    Err.Clear
-    On Error GoTo 0
-End Sub
-
-' Capture en commentaire de l'intitulé (colonne B) de la ligne d'adresse adr ($D$n)
-Private Sub NoteA(adr As String, fichier As String)
-    NoteNorme mWs.Range("B" & Mid(adr, 4)), fichier
-End Sub
-
-' Capture en commentaire de l'intitulé (colonne B) de la ligne r
-Private Sub NoteR(r As Long, fichier As String)
-    NoteNorme mWs.Range("B" & r), fichier
-End Sub
 
 ' Valeur (colonne D) de la ligne d'intitulé lib (colonne B) ; vide si absente
 Private Function LireD(ws As Worksheet, lib As String) As Variant
