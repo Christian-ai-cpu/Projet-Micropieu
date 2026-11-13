@@ -23,7 +23,7 @@ Option Explicit
 '      conclusion : section vérifiée ou section à changer.
 ' Second tableau (par combinaison) : efforts le long du micropieu (NEd, VEd, MEd, y0,
 ' ymax), vérification des déplacements (ymax <= yadm), contraintes dans le tube
-' (sigma = N/A + M.v/I, tau = V.Sy/(b.I), critère de von Mises pour les poutres
+' (sigma = N/A + M.v/I, tau max = V.R²/Iy, critère de von Mises pour les poutres
 ' sigma VM = racine(sigma² + 3 tau²) <= fy / gamma M0, tau e = fy / racine 3) et
 ' interaction NEd/Nc,Rd + MEd/Mc,Rd <= 1.
 ' Appelée à la fin de CreerVerificationStructurelle ; peut être relancée seule.
@@ -58,7 +58,7 @@ Public Sub VerificationArmature()
     Dim r2 As Long, yAdm As Variant, vYa As String, xN As Long, xV As Long, xM As Long, xY0 As Long
     Dim xYm As Long, xRy As Long, xOkY As Long, xsN As Long, xsM As Long, xsx As Long, xtau As Long
     Dim xsa As Long, xta As Long, xcr As Long, xOkS As Long, xin As Long, xOkI As Long
-    Dim xSy As Long, xb As Long, xsv As Long
+    Dim xSy As Long, xb As Long, xsv As Long, xR As Long
 
     On Error Resume Next
     Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
@@ -278,15 +278,15 @@ Public Sub VerificationArmature()
     ' 6. Contraintes dans le tube et critère de von Mises (théorie des poutres, élasticité) :
     '    contrainte normale de compression et de flexion à la fibre extrême
     '    sigma = N / A + M.v / I (v = d / 2, soit M / Wel avec Wel = 2 I / d) ;
-    '    contrainte de cisaillement sous effort tranchant tau = V.Sy(A') / (b.I), au droit
-    '    de l'axe neutre pour le tube : Sy = Wpl / 2 = (d³ - di³) / 12 (moment statique de la
-    '    demi-couronne), b = d - di (deux parois) ;
+    '    contrainte de cisaillement sous effort tranchant tau = V.Sy(A') / (b.I) (diapo 43),
+    '    section circulaire creuse : Sy(A') = 2 R t racine(2 R z' - z'²), b = 2 t, maximum à
+    '    l'axe neutre tau max = V R² / Iy (R = d / 2) ;
     '    critère de von Mises pour les poutres sigma VM = racine(sigma² + 3 tau²) <= fy
     '    (fy / gamma M0) ; limite élastique en cisaillement pur tau e = fy / racine 3.
     MiniTitre2 "6. Contraintes dans le tube et critère de von Mises (élasticité, théorie des poutres)", _
         "Condition : " & ChrW(963) & "VM = " & ChrW(8730) & "(" & ChrW(963) & "² + 3" & ChrW(964) & "²) " & _
         ChrW(8804) & " fy/" & ChrW(947) & "M0 avec " & ChrW(963) & " = N/A + M.v/I et " & ChrW(964) & _
-        " = V.Sy/(b.I) ; " & ChrW(964) & " " & ChrW(8804) & " " & ChrW(964) & "e = fy/(" & ChrW(8730) & "3." & _
+        "max = V.R²/Iy ; " & ChrW(964) & " " & ChrW(8804) & " " & ChrW(964) & "e = fy/(" & ChrW(8730) & "3." & _
         ChrW(947) & "M0)"
     xsN = LigC("Contrainte normale de compression", ChrW(963) & "N = NEd / A", "=IF(N(" & A & ")>0,1000*#" & _
         xN & "/" & A & ","""")", "MPa", "0.0")
@@ -294,13 +294,16 @@ Public Sub VerificationArmature()
         "=IF(N(" & I & ")>0,1000000*#" & xM & "*(" & d & "/2)/" & I & ","""")", "MPa", "0.0")
     xsx = LigC("Contrainte normale totale", ChrW(963) & " = " & ChrW(963) & "N + " & ChrW(963) & "M", _
         "=IF(OR(#" & xsN & "="""",#" & xsM & "=""""),"""",#" & xsN & "+#" & xsM & ")", "MPa", "0.0")
-    ' moment statique de la demi-section : la moitié du module plastique (section
-    ' bi-symétrique, cours séance 2 diapo 45 : Wpl = 2 S), soit (d³ - di³) / 12
-    xSy = LigC("Moment statique de la demi-section au-dessus de l'axe neutre", "Sy = Wpl / 2", "=" & Wpl & "/2", _
-        "mm³", "0.000E+00")
-    xb = LigC("Largeur de la section au droit de l'axe neutre", "b = d - di", "=" & d & "-" & di, "mm", "0.00")
-    xtau = LigC("Contrainte de cisaillement sous effort tranchant", ChrW(964) & " = VEd.Sy / (b.I)", _
-        "=IF(N(#" & xb & ")*N(" & I & ")>0,1000*#" & xV & "*#" & xSy & "/(#" & xb & "*" & I & "),"""")", "MPa", "0.00")
+    ' Section circulaire creuse (paroi mince, rayon R = d/2, épaisseur t) : coupe à la
+    ' distance z' du bord supérieur, Sy(A') = 2 R t racine(2 R z' - z'²), largeur coupée
+    ' b = 2 t, tau(z') = Vz Sy(A') / (2 t Iy) = Vz R racine(2 R z' - z'²) / Iy ;
+    ' maximum au droit de l'axe neutre (z' = R) : Sy(A') = 2 R² t, tau max = Vz R² / Iy
+    xR = LigC("Rayon de la section", "R = d / 2", "=" & d & "/2", "mm", "0.00")
+    xSy = LigC("Moment statique de la coupe au droit de l'axe neutre (z' = R)", "Sy(A') = 2Rt" & ChrW(8730) & _
+        "(2Rz' - z'²) = 2R²t", "=2*#" & xR & "^2*" & t, "mm³", "0.000E+00")
+    xb = LigC("Largeur coupée (deux parois)", "b = 2t", "=2*" & t, "mm", "0.00")
+    xtau = LigC("Contrainte de cisaillement maximale (axe neutre)", ChrW(964) & "max = VEd.Sy(A') / (2t.Iy) = " & _
+        "VEd.R² / Iy", "=IF(N(" & I & ")>0,1000*#" & xV & "*#" & xR & "^2/" & I & ","""")", "MPa", "0.00")
     xta = LigC("Limite élastique en cisaillement pur", ChrW(964) & "e = fy / (" & ChrW(8730) & "3." & ChrW(947) & "M0)", _
         "=IF(N(" & gM0 & ")>0," & fy & "/(SQRT(3)*" & gM0 & "),"""")", "MPa", "0.0")
     LigC "Rapport cisaillement agissant / limite", ChrW(964) & " / " & ChrW(964) & "e", "=IF(N(#" & xta & _
