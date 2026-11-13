@@ -3,29 +3,19 @@ Option Explicit
 
 ' Module « Vérification de l'armature » : ajoute, sous les graphiques Y, T, M de la
 ' feuille « Vérification structurelle » (module VerificationStructurelle), le tableau
-' de la vérification métallique du tube (ou de la barre) du micropieu le plus long,
-' après corrosion. Toutes les valeurs sont des formules : elles suivent la feuille.
-'   Section (NF EN 1993-1-1) : diamètre extérieur après corrosion de, diamètre intérieur
-'     di, épaisseur t = (de - di) / 2, As, I, Wel = 2 I / de, Wpl = (de³ - di³) / 6,
-'     epsilon = racine(235 / fy), d / t et classe du tube (tableau 5.2 : classe 1 si
-'     d/t <= 50 eps², 2 si <= 70 eps², 3 si <= 90 eps², 4 sinon), module retenu
-'     (Wpl en classe 1 ou 2, Wel en classe 3), aire de cisaillement Av = 2 As / pi ;
-'   par combinaison (ELS CARA, ELS QP, ELU FOND, ELU ACC) : coefficient partiel
-'     (1 aux ELS ; gamma s ELU fondamental et accidentel de « Données du projet »),
-'     fyd = fy / gamma ; efforts N = Nc (efforts en tête), Mmax = max |M(z)| et
-'     Tmax = max |T(z)| (profil le long du micropieu) ;
-'     contraintes : sigma N = N / As, sigma M = Mmax / Wel, sigma = sigma N + sigma M,
-'     tau = 2 Tmax / As (tube mince), sigma VM = racine(sigma² + 3 tau²), taux
-'     sigma VM / fyd ;
-'     résistances : Npl,Rd = As fyd, Mpl,Rd = W fyd, Vpl,Rd = Av fyd / racine(3),
-'     n = N / Npl,Rd, MN,Rd = Mpl,Rd (1 - n^1,7) (tube circulaire, NF EN 1993-1-1,
-'     6.2.9, à vérifier selon l'annexe nationale), vérification N <= Npl,Rd,
-'     Mmax <= MN,Rd et Tmax <= Vpl,Rd.
+' de l'armature du micropieu le plus long. Toutes les valeurs sont des formules.
+'   Caractéristiques du tube étudié : type et désignation (« Données du projet »), d, e,
+'     di, rayon de corrosion retenu rc, de = d - 2 rc, t = (de - di) / 2, As, I,
+'     Wel = 2 I / de, Wpl = (de³ - di³) / 6, E, fy ;
+'   sollicitations agissant sur le tube, pour chaque combinaison (ELS CARA, ELS QP,
+'     ELU FOND, ELU ACC) et maximum des combinaisons : effort normal Nc, effort
+'     horizontal en tête T0 = H, moment en tête M0 (tableau des efforts en tête, issus
+'     de la descente de charges).
 ' Appelée à la fin de CreerVerificationStructurelle ; peut être relancée seule.
 
 Private Const NOM_FEUILLE As String = "Vérification structurelle"
 Private Const DONNEES As String = "'Données du projet'!"
-Private Const TITRE As String = "VÉRIFICATION DE L'ARMATURE (VÉRIFICATION MÉTALLIQUE DU TUBE APRÈS CORROSION)"
+Private Const TITRE As String = "VÉRIFICATION DE L'ARMATURE - CARACTÉRISTIQUES DU TUBE ET SOLLICITATIONS"
 
 Private Const JAUNE_CALCUL As Long = 13434879  ' RGB(255, 255, 204)
 Private Const VERT_ENTETE As Long = 14348258   ' RGB(226, 239, 218)
@@ -34,7 +24,7 @@ Private Const VERT_FONCE As Long = 2315831     ' RGB(55, 86, 35)
 Public Sub VerificationArmature()
     Dim ws As Worksheet, co As ChartObject, v As Variant, r As Long, r0 As Long, k As Long
     Dim bas As Double, hP As Long, rN As Long, nP As Long, cl As String, c As String
-    Dim rde As String, rdi As String, rAs As String, rI As String, fy As String
+    Dim rde As String, rdi As String, rAs As String, rI As String, fy As String, rrc As String
     Dim lig As Object, etape As String, zone As String, j As Long
 
     On Error Resume Next
@@ -51,6 +41,7 @@ Public Sub VerificationArmature()
     rdi = Valeur(ws, "Diamètre intérieur di (tube)")
     rAs = Valeur(ws, "Section après corrosion As")
     rI = Valeur(ws, "Inertie de la section après corrosion I")
+    rrc = Valeur(ws, "Rayon de corrosion retenu rc (0 si protection efficace)")
     v = Application.Match("Nc", ws.Range("C1:C500"), 0)       ' efforts en tête
     If rde = "" Or rAs = "" Or rI = "" Or IsError(v) Then
         MsgBox "Tableaux de la feuille « " & NOM_FEUILLE & " » introuvables : relancez " & _
@@ -97,100 +88,61 @@ Public Sub VerificationArmature()
     ws.Range("B" & r & ":C" & r).Merge
     Set lig = CreateObject("Scripting.Dictionary")
 
-    ' --- Caractéristiques de la section (valeur en E, commune aux combinaisons) ---
-    etape = "caractéristiques de la section"
-    Section ws, r, lig, "fy", "Limite d'élasticité de l'acier", "fy = fyk (« Données du projet »)", "=" & fy, "MPa"
+    ' --- Caractéristiques du tube étudié (valeur en E, commune aux combinaisons) ---
+    etape = "caractéristiques du tube"
+    Section ws, r, lig, "typ", "Type d'armature", "« Données du projet »", "=" & DONNEES & "$D$" & LIGNE_ACIER & "&""""", ""
+    Section ws, r, lig, "des", "Désignation de l'armature", "« Données du projet »", "=" & DONNEES & "$D$" & _
+        LIGNE_ACIER + 1 & "&""""", ""
+    Section ws, r, lig, "d", "Diamètre extérieur nominal", "d", "=N(" & DONNEES & "$D$" & LIGNE_ACIER + 2 & ")", "mm"
+    Section ws, r, lig, "e", "Épaisseur nominale", "e", "=N(" & DONNEES & "$D$" & LIGNE_ACIER + 3 & ")", "mm"
+    Section ws, r, lig, "di", "Diamètre intérieur", "di = d - 2 e (0 pour une barre)", "=" & IIf(rdi = "", "0", rdi), "mm"
+    Section ws, r, lig, "rc", "Rayon de corrosion retenu", "rc", "=" & IIf(rrc = "", "0", rrc), "mm"
     Section ws, r, lig, "de", "Diamètre extérieur après corrosion", "de = d - 2 rc", "=" & rde, "mm"
-    Section ws, r, lig, "di", "Diamètre intérieur", "di (0 pour une barre)", "=" & IIf(rdi = "", "0", rdi), "mm"
     Section ws, r, lig, "t", "Épaisseur après corrosion", "t = (de - di) / 2", "=(" & lig("de") & "-" & _
         lig("di") & ")/2", "mm"
-    Section ws, r, lig, "As", "Section après corrosion", "As", "=" & rAs, "mm²"
-    Section ws, r, lig, "I", "Inertie après corrosion", "I", "=" & rI, "mm4"
+    Section ws, r, lig, "As", "Section d'acier après corrosion", "As = " & ChrW(960) & " (de² - di²) / 4", "=" & rAs, "mm²"
+    Section ws, r, lig, "I", "Inertie après corrosion", "I = " & ChrW(960) & " (de^4 - di^4) / 64", "=" & rI, "mm4"
     Section ws, r, lig, "Wel", "Module de flexion élastique", "Wel = 2 I / de", "=IF(N(" & lig("de") & _
         ")>0,2*" & lig("I") & "/" & lig("de") & ","""")", "mm³"
     Section ws, r, lig, "Wpl", "Module de flexion plastique", "Wpl = (de³ - di³) / 6", "=(" & lig("de") & _
         "^3-" & lig("di") & "^3)/6", "mm³"
-    Section ws, r, lig, "eps", "Coefficient " & ChrW(949), ChrW(949) & " = racine(235 / fy)", "=IF(N(" & _
-        lig("fy") & ")>0,SQRT(235/" & lig("fy") & "),"""")", ""
-    Section ws, r, lig, "dt", "Élancement de la paroi", "d / t = de / t", "=IF(N(" & lig("t") & ")>0," & _
-        lig("de") & "/" & lig("t") & ","""")", ""
-    Section ws, r, lig, "cl", "Classe de la section (NF EN 1993-1-1, tableau 5.2, tube)", _
-        "1 : d/t <= 50 " & ChrW(949) & "² ; 2 : <= 70 " & ChrW(949) & "² ; 3 : <= 90 " & ChrW(949) & "² ; 4 sinon", _
-        "=IF(OR(" & lig("dt") & "=""""," & lig("eps") & "=""""),""-"",IF(" & lig("dt") & "<=50*" & lig("eps") & _
-        "^2,1,IF(" & lig("dt") & "<=70*" & lig("eps") & "^2,2,IF(" & lig("dt") & "<=90*" & lig("eps") & "^2,3,4))))", ""
-    Section ws, r, lig, "W", "Module de flexion retenu", "W = Wpl (classe 1 ou 2), Wel (classe 3)", _
-        "=IF(N(" & lig("cl") & ")<=2," & lig("Wpl") & "," & lig("Wel") & ")", "mm³"
-    Section ws, r, lig, "Av", "Aire de cisaillement", "Av = 2 As / " & ChrW(960), "=2*" & lig("As") & "/PI()", "mm²"
+    Section ws, r, lig, "E", "Module de Young", "E (« Données du projet »)", "=N(" & DONNEES & "$D$" & _
+        LIGNE_ACIER + 6 & ")", "MPa"
+    Section ws, r, lig, "fy", "Limite d'élasticité de l'acier", "fy = fyk (« Données du projet »)", "=" & fy, "MPa"
 
-    ' --- Par combinaison : efforts, contraintes, résistances, vérifications ---
-    etape = "contraintes et résistances"
-    Ligne4 ws, r, lig, "g", "Coefficient partiel de l'acier", ChrW(947) & " (ELS : 1 ; ELU : " & ChrW(947) & _
-        "s de « Données du projet »)", "", Array("=1", "=1", "=N(" & DONNEES & "$D$" & LIGNE_ACIER + 8 & ")", _
-        "=N(" & DONNEES & "$D$" & LIGNE_ACIER + 9 & ")")
-    Ligne4 ws, r, lig, "fyd", "Limite d'élasticité de calcul", "fyd = fy / " & ChrW(947), "MPa", _
-        Formules("=IF(N(#g)>0," & lig("fy") & "/#g,"""")")
-    Ligne4 ws, r, lig, "N", "Effort normal (descente de charges)", "N = Nc (efforts en tête)", "kN", _
+    ' --- Sollicitations agissant sur le tube : efforts en tête de la descente de charges
+    ' pour chaque combinaison (tableau des efforts en tête) et valeur maximale ---
+    etape = "sollicitations"
+    Ligne4 ws, r, lig, "N", "Effort normal de compression (descente de charges)", "Nc = Vmax", "kN", _
         Array("=ABS(N(E" & rN & "))", "=ABS(N(F" & rN & "))", "=ABS(N(G" & rN & "))", "=ABS(N(H" & rN & "))")
-    ' Mmax et Tmax du profil : colonnes M (7 + 3 k) et T (6 + 3 k) de la combinaison k
-    Ligne4 ws, r, lig, "M", "Moment maximal le long du micropieu", "Mmax = max |M(z)| (profil)", "kN.m", _
-        Array(MaxAbs(ws, hP + 2, nP, 7), MaxAbs(ws, hP + 2, nP, 10), MaxAbs(ws, hP + 2, nP, 13), _
-        MaxAbs(ws, hP + 2, nP, 16))
-    Ligne4 ws, r, lig, "T", "Effort tranchant maximal le long du micropieu", "Tmax = max |T(z)| (profil)", "kN", _
-        Array(MaxAbs(ws, hP + 2, nP, 6), MaxAbs(ws, hP + 2, nP, 9), MaxAbs(ws, hP + 2, nP, 12), _
-        MaxAbs(ws, hP + 2, nP, 15))
-    Ligne4 ws, r, lig, "sN", "Contrainte normale due à N", ChrW(963) & "N = N / As", "MPa", _
-        Formules("=IF(N(" & lig("As") & ")>0,1000*#N/" & lig("As") & ","""")")
-    Ligne4 ws, r, lig, "sM", "Contrainte normale due à M", ChrW(963) & "M = Mmax / Wel", "MPa", _
-        Formules("=IF(N(" & lig("Wel") & ")>0,1000000*#M/" & lig("Wel") & ","""")")
-    Ligne4 ws, r, lig, "s", "Contrainte normale maximale", ChrW(963) & " = " & ChrW(963) & "N + " & ChrW(963) & "M", _
-        "MPa", Formules("=IF(OR(#sN="""",#sM=""""),"""",#sN+#sM)")
-    Ligne4 ws, r, lig, "tau", "Contrainte de cisaillement maximale (tube mince)", ChrW(964) & " = 2 Tmax / As", _
-        "MPa", Formules("=IF(N(" & lig("As") & ")>0,2000*#T/" & lig("As") & ","""")")
-    Ligne4 ws, r, lig, "svm", "Contrainte équivalente de von Mises", ChrW(963) & "VM = racine(" & ChrW(963) & _
-        "² + 3 " & ChrW(964) & "²)", "MPa", Formules("=IF(OR(#s="""",#tau=""""),"""",SQRT(#s^2+3*#tau^2))")
-    Ligne4 ws, r, lig, "tx", "Taux de travail en contraintes", ChrW(963) & "VM / fyd", "", _
-        Formules("=IF(OR(#svm="""",N(#fyd)=0),"""",#svm/#fyd)")
-    Ligne4 ws, r, lig, "vs", "Vérification des contraintes", ChrW(963) & "VM <= fyd", "", _
-        Formules("=IF(#tx="""",""-"",IF(#tx<=1,""Vérifiée"",""Non vérifiée""))")
-    Ligne4 ws, r, lig, "Npl", "Résistance plastique à l'effort normal", "Npl,Rd = As fyd", "kN", _
-        Formules("=IF(#fyd="""","""",#fyd*" & lig("As") & "/1000)")
-    Ligne4 ws, r, lig, "Mpl", "Moment résistant", "Mpl,Rd = W fyd", "kN.m", _
-        Formules("=IF(#fyd="""","""",#fyd*" & lig("W") & "/1000000)")
-    Ligne4 ws, r, lig, "Vpl", "Résistance plastique au cisaillement", "Vpl,Rd = Av fyd / racine(3)", "kN", _
-        Formules("=IF(#fyd="""","""",#fyd*" & lig("Av") & "/SQRT(3)/1000)")
-    Ligne4 ws, r, lig, "n", "Taux d'effort normal", "n = N / Npl,Rd", "", _
-        Formules("=IF(N(#Npl)>0,#N/#Npl,"""")")
-    Ligne4 ws, r, lig, "MN", "Moment résistant réduit par l'effort normal (tube)", _
-        "MN,Rd = Mpl,Rd (1 - n^1,7) (6.2.9)", "kN.m", Formules("=IF(#n="""","""",IF(#n>=1,0,#Mpl*(1-#n^1.7)))")
-    Ligne4 ws, r, lig, "tM", "Taux de flexion composée", "Mmax / MN,Rd", "", _
-        Formules("=IF(N(#MN)>0,#M/#MN,IF(#n="""","""",99))")
-    Ligne4 ws, r, lig, "tV", "Taux de cisaillement", "Tmax / Vpl,Rd (> 0,5 : réduction de fy)", "", _
-        Formules("=IF(N(#Vpl)>0,#T/#Vpl,"""")")
-    Ligne4 ws, r, lig, "vr", "Vérification des résistances", "n <= 1, Mmax <= MN,Rd, Tmax <= Vpl,Rd", "", _
-        Formules("=IF(OR(#n="""",#tM="""",#tV=""""),""-"",IF(AND(#n<=1,#tM<=1,#tV<=1),""Vérifiée"",""Non vérifiée""))")
+    Ligne4 ws, r, lig, "T0", "Effort horizontal en tête (inclinaison)", "T0 = H = Nc x sin " & ChrW(945), "kN", _
+        Array("=ABS(N(E" & rN + 2 & "))", "=ABS(N(F" & rN + 2 & "))", "=ABS(N(G" & rN + 2 & "))", _
+        "=ABS(N(H" & rN + 2 & "))")
+    Ligne4 ws, r, lig, "M0", "Moment en tête (selon la condition en tête)", "M0", "kN.m", _
+        Array("=ABS(N(E" & rN + 3 & "))", "=ABS(N(F" & rN + 3 & "))", "=ABS(N(G" & rN + 3 & "))", _
+        "=ABS(N(H" & rN + 3 & "))")
+    ' Valeur maximale des quatre combinaisons (colonne J)
+    For j = 0 To 2
+        ws.Range("J" & r - 2 + j).Formula = "=MAX(E" & r - 2 + j & ":H" & r - 2 + j & ")"
+    Next j
+    ws.Range("J" & r0 + 1).Value = "Maximum"
+    ws.Range("J" & r - 2 & ":J" & r).NumberFormat = "0.00"
+    ws.Range("J" & r - 2 & ":J" & r).Font.Bold = True
 
     ' --- Mise en forme ---
     etape = "mise en forme"
-    With ws.Range("B" & r0 + 1 & ":I" & r)
+    With ws.Range("B" & r0 + 1 & ":J" & r)
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    ws.Range("E" & r0 + 1 & ":I" & r).HorizontalAlignment = xlCenter
-    With ws.Range("B" & r0 + 1 & ":I" & r0 + 1)
+    ws.Range("E" & r0 + 1 & ":J" & r).HorizontalAlignment = xlCenter
+    With ws.Range("B" & r0 + 1 & ":J" & r0 + 1)
         .Font.Bold = True
         .Interior.Color = VERT_ENTETE
         .HorizontalAlignment = xlCenter
     End With
-    ws.Range("E" & r0 + 2 & ":H" & r).Interior.Color = JAUNE_CALCUL
-    zone = lig("vs") & "," & lig("vr")
-    For j = 0 To 1
-        With ws.Range(Split(zone, ",")(j)).Resize(1, 4)
-            .Font.Bold = True
-            .FormatConditions.Delete
-            .FormatConditions.Add(xlCellValue, xlEqual, "=""Non vérifiée""").Font.Color = RGB(192, 0, 0)
-        End With
-    Next j
+    ws.Range("E" & r0 + 2 & ":H" & r & ",J" & r - 2 & ":J" & r).Interior.Color = JAUNE_CALCUL
     Exit Sub
 Erreur:
     MsgBox "Erreur pendant la vérification de l'armature, partie « " & etape & " » : " & Err.Description & _
