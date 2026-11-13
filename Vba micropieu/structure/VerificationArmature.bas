@@ -279,7 +279,7 @@ Public Sub VerificationArmature()
     '    contrainte normale de compression et de flexion à la fibre extrême
     '    sigma = N / A + M.v / I (v = d / 2, soit M / Wel avec Wel = 2 I / d) ;
     '    contrainte de cisaillement sous effort tranchant tau = V.Sy(A') / (b.I), au droit
-    '    de l'axe neutre pour le tube : Sy = (d³ - di³) / 12 (moment statique de la
+    '    de l'axe neutre pour le tube : Sy = Wpl / 2 = (d³ - di³) / 12 (moment statique de la
     '    demi-couronne), b = d - di (deux parois) ;
     '    critère de von Mises pour les poutres sigma VM = racine(sigma² + 3 tau²) <= fy
     '    (fy / gamma M0) ; limite élastique en cisaillement pur tau e = fy / racine 3.
@@ -294,8 +294,10 @@ Public Sub VerificationArmature()
         "=IF(N(" & I & ")>0,1000000*#" & xM & "*(" & d & "/2)/" & I & ","""")", "MPa", "0.0")
     xsx = LigC("Contrainte normale totale", ChrW(963) & " = " & ChrW(963) & "N + " & ChrW(963) & "M", _
         "=IF(OR(#" & xsN & "="""",#" & xsM & "=""""),"""",#" & xsN & "+#" & xsM & ")", "MPa", "0.0")
-    xSy = LigC("Moment statique de la demi-section (axe neutre)", "Sy = (d³ - di³) / 12", "=(" & d & "^3-" & di & _
-        "^3)/12", "mm³", "0.000E+00")
+    ' moment statique de la demi-section : la moitié du module plastique (section
+    ' bi-symétrique, cours séance 2 diapo 45 : Wpl = 2 S), soit (d³ - di³) / 12
+    xSy = LigC("Moment statique de la demi-section au-dessus de l'axe neutre", "Sy = Wpl / 2", "=" & Wpl & "/2", _
+        "mm³", "0.000E+00")
     xb = LigC("Largeur de la section au droit de l'axe neutre", "b = d - di", "=" & d & "-" & di, "mm", "0.00")
     xtau = LigC("Contrainte de cisaillement sous effort tranchant", ChrW(964) & " = VEd.Sy / (b.I)", _
         "=IF(N(#" & xb & ")*N(" & I & ")>0,1000*#" & xV & "*#" & xSy & "/(#" & xb & "*" & I & "),"""")", "MPa", "0.00")
