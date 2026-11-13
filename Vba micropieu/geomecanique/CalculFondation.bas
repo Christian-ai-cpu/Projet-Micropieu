@@ -856,7 +856,9 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     entete = Array("ELS caractéristique (NF EN 1990, 6.14b)", "ELS quasi permanent (6.16b)", _
         "ELU fondamental (6.10)", "ELU accidentel (6.11b)")
     For k = 0 To 3
-        Commentaire ws.Cells(r0 + 1, cC + 2 * k), "Combinaison " & entete(k) & " : coefficients " & _
+        ' capture de l'expression de la combinaison (NF EN 1990)
+        NoteNorme ws.Cells(r0 + 1, cC + 2 * k), CStr(Choose(k + 1, "en1990_6-14b.png", "en1990_6-16b.png", _
+            "en1990_6-10.png", "en1990_6-11b.png")), "Combinaison " & entete(k) & " : coefficients " & _
             "dans le tableau des combinaisons sous la vérification"
         Commentaire ws.Cells(r0 + 2, cC + 2 * k), "Vmax : charge verticale de calcul maximale " & _
             "(actions défavorables)"
@@ -935,6 +937,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     ws.Range("A" & tP).Value = "Tableau A1.1 - Valeurs recommandées des coefficients " & ChrW(968) & _
         " pour les bâtiments (NF EN 1990)"
     ws.Range("A" & tP).Font.Bold = True
+    NoteNorme ws.Range("A" & tP), "en1990_tableau_A1-1.png", ""
     ws.Range("B" & tP + 1 & ":F" & tP + 1).Value = Array("Catégorie", "Charges d'exploitation", _
         ChrW(968) & "0", ChrW(968) & "1", ChrW(968) & "2")
     ws.Range("B" & tP + 2 & ":F" & tP + 9).Value = Array2D(Array( _
@@ -1449,6 +1452,18 @@ Private Function IndexNorme(zones As String, lig As String, sol As String, _
         IndexNorme = "INDEX(" & z(1) & "," & lig & "," & IIf(f6, Rang6(sol), Rang5(sol)) & ")"
     End If
 End Function
+
+' Capture de la norme fichier (module CommentaireImage, dossier « images-normes ») en
+' commentaire de la cellule c ; à défaut, commentaire texte
+Private Sub NoteNorme(c As Range, fichier As String, texte As String)
+    On Error Resume Next
+    Application.Run "CommentaireNorme", c, fichier, texte
+    If Err.Number <> 0 Then
+        Err.Clear
+        If texte <> "" Then Commentaire c, texte
+    End If
+    On Error GoTo 0
+End Sub
 
 ' Commentaire (signification) sur une cellule d'en-tête
 Private Sub Commentaire(c As Range, texte As String)
