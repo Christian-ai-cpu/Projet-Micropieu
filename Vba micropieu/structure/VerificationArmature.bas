@@ -107,7 +107,11 @@ Public Sub VerificationArmature()
         rFin = hP + 2 + nP
         mP1 = hP + 2: mPn = nP
     Else
+        ' Profil non calculé (H0 / butée < 1) : sous la vérification de la résistance
+        ' frontale de la fondation
         rFin = rN + 12
+        v = Application.Match(TITRE_FRONTALE & "*", ws.Range("A1:A1000"), 0)
+        If Not IsError(v) Then rFin = CLng(v) + 12
     End If
 
     ' --- Position : sous les graphiques (ou sous le profil) ; ancien tableau effacé

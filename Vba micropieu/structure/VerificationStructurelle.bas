@@ -15,10 +15,14 @@ Option Explicit
 '         profondeur réelle D, x = D / l0, inclinaison et angle
 '   dessous : butée des terres sur l'ancrage (h = poteau BA + semelle BA,
 '         réparti sur les couches de « Données du projet ») : K0 = (1 + sin phi')/(1 - sin phi'),
-'         sigma h = K0 sigma v + 2 c' racine(K0), H0,i = (sigma h haut + bas) / 2 hi ;
+'         sigma h = K0 sigma v + 2 c' racine(K0), Bp,i = (sigma h haut + bas) / 2 hi ;
 '         efforts en tête de la descente de charges (Nc, H0 = Nc sin(alpha) + H talus,
 '         M0 = M talus ou -H0/(2 lambda) si encastré) et constantes A, B, C, E du pieu long à pointe encastrée, avec leurs
 '         symboles et formules ;
+'         vérification de la résistance frontale de la fondation : H0 / Bp par
+'         combinaison (Bp = butée totale x longueur de mur reprise par le micropieu) ;
+'         si H0 / Bp < 1 pour toutes les combinaisons, profil Y, T, M et graphiques
+'         non calculés ;
 '         profil le long du micropieu par pas de calcul dz (saisi) : z, pas, Y, T et M
 '         de chaque combinaison, graphiques Y, T, M sous le profil, puis vérification de
 '         l'armature (module VerificationArmature) sous les graphiques
@@ -36,6 +40,7 @@ Private Const TETE_ENC As String = "Micropieu encastré en tête"
 Private Const CALCUL As String = "'Calcul et vérification'!"
 
 ' Thème : saisies en vert, valeurs calculées en jaune, en-têtes en vert clair
+Public Const TITRE_FRONTALE As String = "VÉRIFICATION DE LA RÉSISTANCE FRONTALE DE LA FONDATION"
 Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
 Private Const JAUNE_CALCUL As Long = 13434879  ' RGB(255, 255, 204)
 Private Const VERT_ENTETE As Long = 14348258   ' RGB(226, 239, 218)
@@ -59,6 +64,7 @@ Public Sub CreerVerificationStructurelle()
     Dim vRho As String, vKf As String, vEs As String, vl0 As String, vLam As String, vD As String
     Dim vx As String, vInc As String, vAng As String, vCond As String, vLm As String, vHp As String
     Dim vEx As String, vPas As String, pasZ As Variant, hF As Variant, nbC As Long, rA As Long
+    Dim vBut As String, rV As Long, calcY As Boolean, v As Variant
     Dim libre As Variant, cTal As Long, fH0 As String, fM0 As String
 
     Application.ScreenUpdating = False
@@ -291,7 +297,7 @@ Public Sub CreerVerificationStructurelle()
     '   coefficient de poussée : K0 = (1 + sin phi') / (1 - sin phi') ;
     '   contrainte verticale : sigma v = somme(gamma j x hj) des couches au-dessus ;
     '   contrainte horizontale : sigma h = K0 x sigma v + 2 c' racine(K0) (haut et bas) ;
-    '   effort par mètre linéaire : H0,i = (sigma h haut + sigma h bas) / 2 x hi.
+    '   effort par mètre linéaire : Bp,i = (sigma h haut + sigma h bas) / 2 x hi.
     etape = "butée des terres sur l'ancrage"
     nbC = CLng(N0(ActiveWorkbook.Worksheets("Données du projet").Range(CELLULE_NB_COUCHES).Value))
     If nbC < 1 Then nbC = 1
@@ -330,7 +336,7 @@ Public Sub CreerVerificationStructurelle()
         "K0 = (1 + sin " & ChrW(966) & "')/(1 - sin " & ChrW(966) & "')", ChrW(963) & "v haut (kPa)", ChrW(963) & "v bas (kPa)", _
         ChrW(963) & "h haut = K0." & ChrW(963) & "v + 2c'" & ChrW(8730) & "K0 (kPa)", _
         ChrW(963) & "h bas = K0." & ChrW(963) & "v + 2c'" & ChrW(8730) & "K0 (kPa)", _
-        "H0,i = (" & ChrW(963) & "h haut + " & ChrW(963) & "h bas)/2 . hi (kN/ml)", "Profondeur d'application (m)")
+        "Bp,i = (" & ChrW(963) & "h haut + " & ChrW(963) & "h bas)/2 . hi (kN/ml)", "Profondeur d'application (m)")
     Commentaire ws.Range("C" & r), "z haut = min(profondeur du haut de la couche depuis le TN ; h)"
     Commentaire ws.Range("D" & r), "z bas = min(profondeur du bas de la couche depuis le TN ; h) ; " & _
         "épaisseurs du tableau des couches de « Données du projet »"
@@ -366,9 +372,10 @@ Public Sub CreerVerificationStructurelle()
             "+2*M" & r & ")/(3*(L" & r & "+M" & r & ")),0)"
     Next i
     r = rA + 6 + nbC
-    ws.Range("A" & r).Value = "Butée des terres totale sur l'ancrage " & ChrW(931) & "H0,i et profondeur d'application"
+    ws.Range("A" & r).Value = "Butée des terres totale sur l'ancrage " & ChrW(931) & "Bp,i et profondeur d'application"
     ws.Range("A" & r & ":M" & r).Merge
     ws.Range("N" & r).Formula = "=SUM(N" & rA + 6 & ":N" & r - 1 & ")"
+    vBut = "$N$" & r                          ' butée totale (kN/ml)
     ws.Range("O" & r).Formula = "=IF(N" & r & ">0,SUMPRODUCT(N" & rA + 6 & ":N" & r - 1 & ",O" & rA + 6 & ":O" & _
         r - 1 & ")/N" & r & ",0)"
     With ws.Range("A" & rA + 5 & ":O" & r)
@@ -485,6 +492,98 @@ Public Sub CreerVerificationStructurelle()
     ws.Range("E" & r + 4 & ":H" & r + 7).NumberFormat = "0.000E+00"
     rK = r                                    ' en-tête : Nc, H0, M0 puis A, B, C, E en lignes rK + 4 à rK + 7
 
+    ' --- Vérification de la résistance frontale de la fondation : effort horizontal en
+    ' tête H0 de chaque combinaison comparé à la butée des terres reprise par l'ancrage
+    ' du micropieu (butée totale par mètre linéaire x longueur de mur reprise par le
+    ' micropieu). Rapport H0 / Bp < 1 pour toutes les combinaisons : la butée reprend
+    ' l'effort horizontal, le calcul de Y, T et M du micropieu n'est pas nécessaire. ---
+    etape = "résistance frontale de la fondation"
+    rV = rK + 9
+    With ws.Range("A" & rV)
+        .Value = TITRE_FRONTALE & " (MP" & iMax & ")"
+        .Font.Bold = True
+        .Font.Size = 14
+        .Font.Color = VERT_FONCE
+    End With
+    r = rV + 1
+    ws.Range("B" & r & ":I" & r).Value = Array("Grandeur", "Symbole", "Formule", "ELS CARA", "ELS QP", _
+        "ELU FOND", "ELU ACC", "Unité")
+    ws.Range("B" & r + 1 & ":D" & r + 1).Value = Array("Butée des terres totale sur l'ancrage (par mètre linéaire)", _
+        ChrW(931) & "Bp,i", "tableau « Butée des terres sur l'ancrage »")
+    ws.Range("B" & r + 2 & ":D" & r + 2).Value = Array("Longueur de mur reprise par le micropieu", "L", _
+        "descente de charges : somme des longueurs de murs de la ligne du micropieu (matrice des micropieux)")
+    ws.Range("B" & r + 3 & ":D" & r + 3).Value = Array("Butée des terres reprise par le micropieu", "Bp", _
+        "Bp = " & ChrW(931) & "Bp,i x L")
+    ws.Range("B" & r + 4 & ":D" & r + 4).Value = Array("Effort horizontal en tête", "H0", _
+        "tableau des efforts en tête (H0 = Nc x sin " & ChrW(945) & " + H talus)")
+    ws.Range("B" & r + 5 & ":D" & r + 5).Value = Array("Rapport effort horizontal / butée", "H0 / Bp", _
+        "Condition : H0 / Bp < 1")
+    ws.Range("B" & r + 6 & ":D" & r + 6).Value = Array("Vérification", "", _
+        "H0 / Bp < 1 : la butée reprend l'effort horizontal ; sinon calcul de Y, T et M du micropieu")
+    ws.Range("I" & r + 1 & ":I" & r + 5).Value = Application.Transpose(Array("kN/ml", "m", "kN", "kN", ""))
+    For k = 0 To 3
+        cl = Chr(Asc("E") + k)
+        ws.Range(cl & r + 1).Formula = "=N(" & vBut & ")"
+        If Not wd Is Nothing And n > 0 Then
+            ws.Range(cl & r + 2).Formula = "=SUM(" & dn & wd.Range(wd.Cells(rd + iMax - 1, 3), _
+                wd.Cells(rd + iMax - 1, 2 + n)).Address & ")"
+        Else
+            ws.Range(cl & r + 2).Formula = "=0"
+        End If
+        ws.Range(cl & r + 3).Formula = "=" & cl & r + 1 & "*" & cl & r + 2
+        ws.Range(cl & r + 4).Formula = "=ABS(N(" & cl & "$" & rK + 2 & "))"
+        ws.Range(cl & r + 5).Formula = "=IF(N(" & cl & r + 3 & ")>0," & cl & r + 4 & "/" & cl & r + 3 & _
+            ",IF(N(" & cl & r + 4 & ")=0,0,""""))"
+        ws.Range(cl & r + 6).Formula = "=IF(" & cl & r + 5 & "="""",""Butée nulle : calcul du micropieu""," & _
+            "IF(" & cl & r + 5 & "<1,""OK : calcul non nécessaire"",""Butée insuffisante : calcul du micropieu""))"
+    Next k
+    With ws.Range("B" & r & ":I" & r + 6)
+        .Borders.LineStyle = xlContinuous
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .WrapText = True
+    End With
+    ws.Range("B" & r + 1 & ":B" & r + 6 & ",D" & r + 1 & ":D" & r + 6).HorizontalAlignment = xlLeft
+    With ws.Range("B" & r & ":I" & r)
+        .Font.Bold = True
+        .Interior.Color = VERT_ENTETE
+    End With
+    ws.Range("C" & r + 1 & ":C" & r + 6 & ",B" & r + 6 & ":H" & r + 6).Font.Bold = True
+    ws.Range("E" & r + 1 & ":H" & r + 6).Interior.Color = JAUNE_CALCUL
+    ws.Range("E" & r + 1 & ":H" & r + 4).NumberFormat = "0.0"
+    ws.Range("E" & r + 5 & ":H" & r + 5).NumberFormat = "0.00"
+    With ws.Range("E" & r + 6 & ":H" & r + 6).FormatConditions
+        .Delete
+        .Add(xlTextString, String:="calcul du micropieu", TextOperator:=xlContains).Font.Color = RGB(192, 0, 0)
+    End With
+    ' Décision : calcul de Y, T et M seulement si une combinaison a H0 / Bp >= 1
+    ws.Calculate
+    calcY = False
+    For k = 0 To 3
+        v = ws.Cells(r + 5, 5 + k).Value
+        If IsError(v) Then
+            calcY = True
+        ElseIf Not IsNumeric(v) Or IsEmpty(v) Or CStr(v) = "" Then
+            calcY = True
+        ElseIf CDbl(v) >= 1 Then
+            calcY = True
+        End If
+    Next k
+    rF = r + 6
+    If Not calcY Then
+        With ws.Range("B" & rF + 2 & ":I" & rF + 2)
+            .Merge
+            .Value = "H0 / Bp < 1 pour toutes les combinaisons : la butée des terres sur l'ancrage reprend " & _
+                "l'effort horizontal en tête ; le calcul des déplacements Y, de l'effort tranchant T et du " & _
+                "moment M du micropieu n'est pas nécessaire."
+            .Font.Bold = True
+            .Font.Color = VERT_FONCE
+            .WrapText = True
+        End With
+        ws.Rows(rF + 2).RowHeight = 32
+        GoTo MiseEnForme
+    End If
+
     ' --- Y, T et M le long du micropieu (z de 0 à la profondeur réelle D) ---
     ' z = 0, dz, 2 dz, ... (pas de calcul dz saisi) jusqu'à D ; pas = z - z précédent ;
     '   Y = e^(-lambda z)[A cos + B sin](lambda z) + e^(-lambda u)[C cos + E sin](lambda u)
@@ -492,7 +591,7 @@ Public Sub CreerVerificationStructurelle()
     '   T = 2 EI lambda³ {e^(-lambda z)[(A + B) cos + (B - A) sin]
     '                   - e^(-lambda u)[(C + E) cos + (E - C) sin]}, u = D - z
     etape = "Y, T et M le long du micropieu"
-    rP = rK + 7 + 5                           ' en-tête du profil
+    rP = rF + 5                               ' en-tête du profil
     ' Pas de calcul dz (saisi, conservé) : z = 0, dz, 2 dz, ... jusqu'à D
     ws.Range("B" & rP - 2).Value = LIB_PAS
     ws.Range("B" & rP - 2 & ":C" & rP - 2).Merge
@@ -593,8 +692,9 @@ MiseEnForme:
         End With
         GraphiquesProfil ws, iMax, rP + 2, nZ + 1, rG + 2, 1
     End If
-    ' Vérification de l'armature (module VerificationArmature), sous les graphiques
-    If rG > 0 Then
+    ' Vérification de l'armature (module VerificationArmature), sous les graphiques (ou
+    ' sous la vérification de la résistance frontale si le profil n'est pas calculé)
+    If rK > 0 Then
         etape = "vérification de l'armature"
         On Error Resume Next
         Application.Run "VerificationArmature"
