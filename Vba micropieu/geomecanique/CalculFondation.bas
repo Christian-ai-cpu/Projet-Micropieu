@@ -728,15 +728,16 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     ' matrice de la descente de charges les contient (colonnes 10 + n à 12 + n)
     eau = (CStr(ActiveWorkbook.Worksheets("Données du projet").Range("D34").Value) = "Oui") And _
         (Left(CStr(wd.Cells(88 + n, 10 + n).Value), 15) = "CHARGES DE L'EA")
-    ' Colonnes : A micropieu ; B à E Gmax, Gmin, Qmax, Qmin ; F à J Geo max, Geo min, Gsn,
-    ' A max, A min (saisis) (+ 3 colonnes d'eau) ; cC
+    ' Colonnes : A micropieu ; B à E Gmax, Gmin, Qmax, Qmin ; F, G Geo max, Geo min ;
+    ' H, I, J eau EB, EH, EE (descente de charges, 0 sans nappe) ; K Gsn ; L, M A max,
+    ' A min (saisis) ; cC
     ' combinaisons Vmax / Vmin ; cD diamètres (Phi CARA, QP, FOND, ACC, Phi pieu, Phi
     ' manuel, Phi retenu) ; cP profondeurs Dmax / Dmin ; cR profondeur retenue D ; cL
     ' vérification de la longueur (profondeur de reconnaissance - D >= 5 Phi retenu)
-    ' Actions : Geo max, Geo min (= Geo max) en F, G ; frottement négatif Gsn en H ;
-    ' action accidentelle A max, A min en I, J ; eau éventuelle en K à M
-    cE = 11                                   ' 1re colonne de l'eau
-    cC = cE + IIf(eau, 3, 0)
+    ' Actions : Geo max, Geo min (= Geo max) en F, G ; eau EB, EH, EE en H, I, J (avant
+    ' Gsn) ; frottement négatif Gsn en K ; action accidentelle A max, A min en L, M
+    cE = 8                                    ' 1re colonne de l'eau (EB)
+    cC = 14
     cD = cC + 8
     cP = cD + 7
     ' Inclinaison de chaque micropieu (cI, liste Oui / Non) avant la profondeur retenue
@@ -793,16 +794,14 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     ws.Range("F" & r0 + 1).Value = "Geo (poussée des terres)"
     ws.Range("F" & r0 + 1 & ":G" & r0 + 1).Merge
     ws.Range("F" & r0 + 2 & ":G" & r0 + 2).Value = Array("Geo max", "Geo min")
-    ws.Range("H" & r0 + 1).Value = "Gsn"
-    ws.Range("H" & r0 + 1 & ":H" & r0 + 2).Merge
-    ws.Range("I" & r0 + 1).Value = "A (accidentel)"
-    ws.Range("I" & r0 + 1 & ":J" & r0 + 1).Merge
-    ws.Range("I" & r0 + 2 & ":J" & r0 + 2).Value = Array("A max", "A min")
-    If eau Then
-        ws.Range("K" & r0 + 1).Value = "EAU"
-        ws.Range("K" & r0 + 1 & ":M" & r0 + 1).Merge
-        ws.Range("K" & r0 + 2 & ":M" & r0 + 2).Value = Array("Eau EB", "Eau EH", "Eau EE")
-    End If
+    ws.Range("H" & r0 + 1).Value = "EAU"
+    ws.Range("H" & r0 + 1 & ":J" & r0 + 1).Merge
+    ws.Range("H" & r0 + 2 & ":J" & r0 + 2).Value = Array("EB", "EH", "EE")
+    ws.Range("K" & r0 + 1).Value = "Gsn"
+    ws.Range("K" & r0 + 1 & ":K" & r0 + 2).Merge
+    ws.Range("L" & r0 + 1).Value = "A (accidentel)"
+    ws.Range("L" & r0 + 1 & ":M" & r0 + 1).Merge
+    ws.Range("L" & r0 + 2 & ":M" & r0 + 2).Value = Array("A max", "A min")
     ws.Range(ws.Cells(r0 + 1, cD), ws.Cells(r0 + 1, cD + 6)).Value = Array(ChrW(934) & " CARA", _
         ChrW(934) & " QP", ChrW(934) & " FOND", ChrW(934) & " ACC", ChrW(934) & " PIEU", _
         ChrW(934) & " MANUEL", ChrW(934) & " RETENU")
@@ -841,18 +840,18 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         "transmise au micropieu"
     Commentaire ws.Range("F" & r0 + 2), "Geo max : valeur de la poussée des terres (à saisir)"
     Commentaire ws.Range("G" & r0 + 2), "Geo min : prise égale à Geo max"
-    Commentaire ws.Range("H" & r0 + 1), "Gsn : frottement négatif (action permanente due au " & _
+    Commentaire ws.Range("H" & r0 + 1), "Charges de l'eau (descente de charges, 0 sans nappe " & _
+        "phréatique), comptées seulement dans les combinaisons min (Vmin) : EH pour l'ELS " & _
+        "caractéristique et l'ELU fondamental, EB pour l'ELS quasi permanent, EE pour l'ELU accidentel"
+    Commentaire ws.Range("H" & r0 + 2), "EB : niveau des basses eaux"
+    Commentaire ws.Range("I" & r0 + 2), "EH : niveau des hautes eaux"
+    Commentaire ws.Range("J" & r0 + 2), "EE : niveau des eaux exceptionnelles"
+    Commentaire ws.Range("K" & r0 + 1), "Gsn : frottement négatif (action permanente due au " & _
         "tassement du sol autour du micropieu), compté aux combinaisons max"
-    Commentaire ws.Range("I" & r0 + 1), "A : action accidentelle (choc, explosion...), " & _
+    Commentaire ws.Range("L" & r0 + 1), "A : action accidentelle (choc, explosion...), " & _
         "combinaison ELU accidentelle seulement"
-    Commentaire ws.Range("I" & r0 + 2), "A max : action accidentelle de la combinaison max"
-    Commentaire ws.Range("J" & r0 + 2), "A min : action accidentelle de la combinaison min"
-    If eau Then
-        Commentaire ws.Range("K" & r0 + 1), "Charges de l'eau (nappe phréatique)"
-        Commentaire ws.Range("K" & r0 + 2), "Eau EB : niveau des basses eaux"
-        Commentaire ws.Range("L" & r0 + 2), "Eau EH : niveau des hautes eaux"
-        Commentaire ws.Range("M" & r0 + 2), "Eau EE : niveau des eaux exceptionnelles"
-    End If
+    Commentaire ws.Range("L" & r0 + 2), "A max : action accidentelle de la combinaison max"
+    Commentaire ws.Range("M" & r0 + 2), "A min : action accidentelle de la combinaison min"
     entete = Array("ELS caractéristique (NF EN 1990, 6.14b)", "ELS quasi permanent (6.16b)", _
         "ELU fondamental (6.10)", "ELU accidentel (6.11b)")
     For k = 0 To 3
@@ -897,8 +896,8 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     ' Profondeur Dmax / Dmin de chaque cas : 1re profondeur du tableau de Phi retenu où
     ' la portance est >= la charge ; D = la plus grande ; profondeur réelle D / cos(angle)
     ' pour un micropieu incliné.
-    ' Eau ajoutée avec un coefficient 1 : EH aux combinaisons max, EB aux combinaisons
-    ' min, EE à l'ELU accidentel max
+    ' Eau ajoutée avec un coefficient 1, seulement aux combinaisons min (Vmin) : EH à l'ELS
+    ' caractéristique et à l'ELU fondamental, EB à l'ELS quasi permanent, EE à l'ELU accidentel
     ' --- Coefficients des combinaisons (NF EN 1990), sous le tableau de vérification ---
     ' Tableau des combinaisons (lignes tC + 2 à tC + 5 : ELS CARA, ELS QP, ELU FOND, ELU ACC)
     '   Vmax = gamma G,sup x (Gmax + Geo + Gsn) + gamma Q x psi x Qmax + gamma A x A max
@@ -973,17 +972,17 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         ' Actions saisies (0 par défaut, conservées quand le tableau est recréé)
         ws.Range("F" & r).Value = Saisie(mGeo, i)
         ws.Range("G" & r).Formula = "=F" & r                    ' Geo min = Geo max
-        ws.Range("H" & r).Value = Saisie(mGsn, i)
-        ws.Range("I" & r).Value = Saisie(mAmax, i)
-        ws.Range("J" & r).Value = Saisie(mAmin, i)
-        If eau Then
-            For k = 0 To 2                   ' eau EB, EH, EE de la descente de charges
+        ws.Range("K" & r).Value = Saisie(mGsn, i)
+        ws.Range("L" & r).Value = Saisie(mAmax, i)
+        ws.Range("M" & r).Value = Saisie(mAmin, i)
+        ' Eau EB, EH, EE (H, I, J) de la descente de charges ; 0 sans nappe phréatique
+        For k = 0 To 2
+            If eau Then
                 ws.Cells(r, cE + k).Formula = "=N(" & dn & wd.Cells(rd + i - 1, 10 + n + k).Address & ")"
-            Next k
-            eMax = "+L" & r: eMin = "+K" & r: eAcc = "+M" & r
-        Else
-            eMax = "": eMin = "": eAcc = ""
-        End If
+            Else
+                ws.Cells(r, cE + k).Value = 0
+            End If
+        Next k
         ' Combinaisons (NF EN 1990 et NF P94-262) : permanentes G + Geo + Gsn (Gsn
         ' défavorable, compté seulement aux combinaisons max)
         '   ELS caractéristique : G + Geo + Gsn + Q
@@ -991,12 +990,14 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         '   ELU fondamental     : 1,35 (Gmax + Geo + Gsn) + 1,5 Q (max) ;
         '                         1,0 (Gmin + Geo) + 1,5 Qmin (min)
         '   ELU accidentel      : G + Geo + Gsn + A + psi1 Q (A max au max, A min au min)
+        ' Eau ajoutée seulement aux combinaisons min (Vmin) : EH (I) à l'ELS caractéristique
+        ' et à l'ELU fondamental, EB (H) à l'ELS quasi permanent, EE (J) à l'ELU accidentel
         For k = 0 To 3                       ' coefficients : ligne tC + 2 + k
             c = tC + 2 + k
-            ws.Cells(r, cC + 2 * k).Formula = "=$D$" & c & "*(B" & r & "+F" & r & "+H" & r & ")+$F$" & c & _
-                "*$H$" & c & "*D" & r & "+$I$" & c & "*I" & r & IIf(k = 3, eAcc, eMax)
+            ws.Cells(r, cC + 2 * k).Formula = "=$D$" & c & "*(B" & r & "+F" & r & "+K" & r & ")+$F$" & c & _
+                "*$H$" & c & "*D" & r & "+$I$" & c & "*L" & r
             ws.Cells(r, cC + 2 * k + 1).Formula = "=$E$" & c & "*(C" & r & "+G" & r & ")+$F$" & c & _
-                "*$H$" & c & "*E" & r & "+$I$" & c & "*J" & r & eMin
+                "*$H$" & c & "*E" & r & "+$I$" & c & "*M" & r & "+" & Choose(k + 1, "I", "H", "I", "J") & r
         Next k
         For k = 0 To 3
             ' Phi de la combinaison : charge verticale (plus grande de Vmax et Vmin) comparée
@@ -1105,7 +1106,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         ws.Range("A" & r0 + 3 & ":A" & rt).Font.Bold = True
         ws.Range(ws.Cells(r0 + 3, 2), ws.Cells(rt, cF)).Interior.Color = JAUNE_CALCUL
         ws.Range(ws.Cells(r0 + 3, cD + 5), ws.Cells(rt, cD + 5)).Interior.Color = VERT_SAISIE ' Phi manuel
-        ws.Range("F" & r0 + 3 & ":F" & rt & ",H" & r0 + 3 & ":J" & rt).Interior.Color = VERT_SAISIE ' actions
+        ws.Range("F" & r0 + 3 & ":F" & rt & ",K" & r0 + 3 & ":M" & rt).Interior.Color = VERT_SAISIE ' actions
         ws.Range(ws.Cells(r0 + 3, 2), ws.Cells(rt, cD - 1)).NumberFormat = "0.0"
         ws.Range(ws.Cells(r0 + 3, cD), ws.Cells(rt, cP - 1)).NumberFormat = "0.000"
         ws.Range(ws.Cells(r0 + 3, cP), ws.Cells(rt, cL + 2)).NumberFormat = "0.00"

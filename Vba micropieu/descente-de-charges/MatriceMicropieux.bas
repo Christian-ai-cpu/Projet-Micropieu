@@ -21,9 +21,11 @@ Option Explicit
 '               POIDS TOTAL ÉLÉMENTAIRE DDC : G = G des murs + massif + longrine, Q ;
 '               CHARGES DE L'EAU EB (basses eaux), EH (hautes eaux), EE (eaux
 '               exceptionnelles) en kN, à saisir : colonnes créées seulement s'il y a
-'               une nappe phréatique (« Données du projet », D34).
+'               une nappe phréatique (« Données du projet », D34) ;
+'               CHARGE DU TALUS en fin de tableau : H0 (kN) et M0 (kN.m) en tête de
+'               chaque micropieu, à saisir (repris dans « Vérification structurelle »).
 ' Les saisies (dimensions, longueurs Li, longueurs modifiées de la matrice, choix M / L,
-' charges de l'eau)
+' charges de l'eau, charge du talus)
 ' sont conservées quand le tableau est recréé (nombre de murs ou de micropieux changé).
 ' Appelé par DupliquerMurs (nombre de murs, G1) et quand K1 change (CodeFeuille.txt) ;
 ' met ensuite à jour la vérification de la profondeur des micropieux de « Calcul et
@@ -42,7 +44,7 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     Dim nOld As Long, mOld As Long, r0Old As Long, x0 As Long, r As Long, derniere As Long
     Dim li() As Variant, mat() As Variant, gc() As Variant, dims As Variant, dimsN() As Variant, eau() As Variant
     Dim ligne As String, cG As String, cQ As String, c As Range, evenements As Boolean
-    Dim nappe As Boolean, f As Worksheet, xf As Long
+    Dim nappe As Boolean, f As Worksheet, xf As Long, xt As Long, talus() As Variant, cT As Long
 
     If ws Is Nothing Then Set ws = ActiveSheet
     L = LIGNE_MATRICE
@@ -61,6 +63,7 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     ReDim mat(1 To m, 1 To n)
     ReDim gc(1 To m)
     ReDim eau(1 To m, 1 To 3)
+    ReDim talus(1 To m, 1 To 2)
     dims = ws.Range("C" & L + 1 & ":E" & L + 3).Value
     If Left(CStr(ws.Range("B" & L + 1).Value), 7) <> "Élément" Then
         ' Ancienne disposition (gamma ; massif l, b, h ; longrine b, h) : conversion
@@ -90,6 +93,16 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
                 eau(i, j) = ws.Cells(r0Old + 2 + i, 9 + nOld + j).Value
             Next j
         Next i
+        ' Charge du talus H0, M0 saisies (colonnes repérées par leur en-tête)
+        For j = 3 To 80
+            If CStr(ws.Cells(r0Old, j).Value) = "CHARGE DU TALUS" Then cT = j: Exit For
+        Next j
+        If cT > 0 Then
+            For i = 1 To Application.Min(m, mOld)
+                talus(i, 1) = ws.Cells(r0Old + 2 + i, cT).Value
+                talus(i, 2) = ws.Cells(r0Old + 2 + i, cT + 1).Value
+            Next i
+        End If
     End If
 
     ' --- Ancien tableau effacé (lignes à partir de L) ---
@@ -165,7 +178,13 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     ws.Cells(r0, x0 + 5).Value = "POIDS TOTAL ÉLÉMENTAIRE DDC"
     ws.Range(ws.Cells(r0, x0 + 5), ws.Cells(r0, x0 + 6)).Merge
     ' Charges de l'eau : colonnes créées seulement s'il y a une nappe phréatique
-    xf = x0 + IIf(nappe, 9, 6)               ' dernière colonne du tableau
+    xf = x0 + IIf(nappe, 9, 6)               ' dernière colonne avant la charge du talus
+    ' Charge du talus (à saisir) en fin de tableau : effort horizontal H0 et moment M0 en
+    ' tête de chaque micropieu, repris dans « Vérification structurelle »
+    xt = xf + 1
+    ws.Cells(r0, xt).Value = "CHARGE DU TALUS"
+    ws.Range(ws.Cells(r0, xt), ws.Cells(r0, xt + 1)).Merge
+    ws.Range(ws.Cells(r0 + 1, xt), ws.Cells(r0 + 1, xt + 1)).Value = Array("H0 (kN)", "M0 (kN.m)")
     If nappe Then
         ws.Cells(r0, x0 + 7).Value = "CHARGES DE L'EAU (kN)"
         ws.Range(ws.Cells(r0, x0 + 7), ws.Cells(r0, x0 + 9)).Merge
@@ -220,6 +239,9 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
                 ws.Cells(r, x0 + j).Value = IIf(IsEmpty(eau(i, j - 6)), 0, eau(i, j - 6))
             Next j
         End If
+        ' Charge du talus H0, M0 (saisies conservées, 0 par défaut)
+        ws.Cells(r, xt).Value = IIf(IsEmpty(talus(i, 1)), 0, talus(i, 1))
+        ws.Cells(r, xt + 1).Value = IIf(IsEmpty(talus(i, 2)), 0, talus(i, 2))
     Next i
 
     ' Ligne TOTAL
@@ -229,20 +251,24 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         If i <> 2 Then ws.Cells(r, x0 + i).Formula = "=SUM(" & _
             ws.Range(ws.Cells(r0 + 3, x0 + i), ws.Cells(r - 1, x0 + i)).Address(False, False) & ")"
     Next i
-    ws.Range(ws.Cells(r, 2), ws.Cells(r, xf)).Font.Bold = True
+    For i = 0 To 1                           ' total de la charge du talus
+        ws.Cells(r, xt + i).Formula = "=SUM(" & _
+            ws.Range(ws.Cells(r0 + 3, xt + i), ws.Cells(r - 1, xt + i)).Address(False, False) & ")"
+    Next i
+    ws.Range(ws.Cells(r, 2), ws.Cells(r, xt + 1)).Font.Bold = True
 
     ' --- Mise en forme ---
     With ws.Range(ws.Cells(L + 5, 2), ws.Cells(L + 5 + n, 4))
         .Borders.LineStyle = xlContinuous
         .HorizontalAlignment = xlCenter
     End With
-    With ws.Range(ws.Cells(r0, 2), ws.Cells(r, xf))
+    With ws.Range(ws.Cells(r0, 2), ws.Cells(r, xt + 1))
         .Borders.LineStyle = xlContinuous
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
     End With
     With Union(ws.Range("B" & L + 5 & ":D" & L + 5), _
-            ws.Range(ws.Cells(r0, 2), ws.Cells(r0 + 1, xf)))
+            ws.Range(ws.Cells(r0, 2), ws.Cells(r0 + 1, xt + 1)))
         .Font.Bold = True
         .Interior.Color = VERT_ENTETE
         .WrapText = True
@@ -255,7 +281,9 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         ws.Range(ws.Cells(r0 + 3, x0 + 7), ws.Cells(r - 1, x0 + 9)).Interior.Color = VERT_SAISIE
         ws.Range(ws.Cells(r, x0 + 7), ws.Cells(r, x0 + 9)).Interior.Color = JAUNE_CALCUL
     End If
-    ws.Range(ws.Cells(r0 + 2, 3), ws.Cells(r, xf)).NumberFormat = "0.00"
+    ws.Range(ws.Cells(r0 + 2, 3), ws.Cells(r, xt + 1)).NumberFormat = "0.00"
+    ws.Range(ws.Cells(r0 + 3, xt), ws.Cells(r - 1, xt + 1)).Interior.Color = VERT_SAISIE   ' talus
+    ws.Range(ws.Cells(r, xt), ws.Cells(r, xt + 1)).Interior.Color = JAUNE_CALCUL
     ws.Range("C" & L + 2 & ":E" & L + 3 & ",C" & L + 6 & ":D" & L + 5 + n).NumberFormat = "0.00"
     ws.Range("C" & L + 2 & ":E" & L + 3).HorizontalAlignment = xlCenter
     ws.Rows(r0).RowHeight = 45

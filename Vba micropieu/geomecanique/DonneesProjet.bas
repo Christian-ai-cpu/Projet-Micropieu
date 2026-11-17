@@ -30,9 +30,9 @@ Option Explicit
 '               résistance de pointe, type de mise en oeuvre, B, nombres,
 '               conditions en tête, essai de contrôle ; intitulé sur B:C, valeur en D)
 '   B89       : HYPOTHÈSES RELATIVES AUX MATÉRIAUX CONSTITUTIFS DES FONDATIONS PROFONDES
-'   B91 à E99 : Caractéristiques du coulis de ciment (rapport E/C, dosage en ciment,
-'               masse volumique, rayon de corrosion repris des caractéristiques de
-'               l'acier, fc28, coefficients gamma c ELU / accidentel / sismique)
+'   B91 à E98 : Caractéristiques du coulis de ciment (rapport E/C, dosage en ciment,
+'               masse volumique, fc28, coefficients gamma c ELU / accidentel / sismique) ;
+'               le rayon de corrosion n'est donné qu'une fois (caractéristiques de l'acier)
 '   B101 à E120: Caractéristiques de l'acier (type d'armature Tube N80, Barre HA ou Barre
 '               GEWI, désignation, dimensions, section, E et fyk associés, coefficients
 '               gamma s, durée d'utilisation du projet, environnement et perte
@@ -430,34 +430,29 @@ Public Sub CreerDonneesProjet()
         .HorizontalAlignment = xlCenter
     End With
     ' Coulis de ciment du scellement : rapport E/C et dosage en ciment (saisis), masse
-    ' volumique du coulis, rayon de corrosion (perte d'épaisseur de l'armature, d'après
-    ' la durée d'utilisation du projet et la nature du terrain du tableau de l'acier),
-    ' résistance du coulis à 28 jours et coefficients gamma c
+    ' volumique du coulis, résistance du coulis à 28 jours et coefficients gamma c (le
+    ' rayon de corrosion n'est donné qu'une fois, dans les caractéristiques de l'acier)
     SousTitre ws, la + 2, "Caractéristiques du coulis de ciment"
-    ws.Range("B" & la + 3 & ":B" & la + 10).Value = Application.Transpose(Array( _
+    ws.Range("B" & la + 3 & ":B" & la + 9).Value = Application.Transpose(Array( _
         "Rapport eau / ciment E/C du coulis", _
         "Dosage en ciment du coulis C", _
         "Masse volumique du coulis = C (1 + E/C)", _
-        "Rayon de corrosion (perte d'épaisseur selon la durée du projet et la nature du " & _
-            "terrain, caractéristiques de l'acier)", _
         "Résistance du coulis à 28 jours fc28", _
         "Coefficient " & ChrW(947) & "c - combinaison ELU fondamentale", _
         "Coefficient " & ChrW(947) & "c - combinaison accidentelle", _
         "Coefficient " & ChrW(947) & "c - combinaison sismique"))
-    ws.Range("E" & la + 3 & ":E" & la + 7).Value = Application.Transpose(Array("", "kg/m3", "kN/m3", _
-        "mm", "MPa"))
+    ws.Range("E" & la + 3 & ":E" & la + 6).Value = Application.Transpose(Array("", "kg/m3", "kN/m3", "MPa"))
     ws.Range("D" & la + 3).Value = 0.45      ' E/C < 0,5 (protection de l'armature par le coulis)
     ' Dosage théorique d'un coulis pur : C = 1000 / (1 / rho ciment + E/C) (kg/m3),
     ' modifiable (saisie)
     ws.Range("D" & la + 4).Value = Round(1000 / (1 / RHO_CIMENT + 0.45), 0)
     ws.Range("D" & la + 5).Formula = "=IF(OR(N(D" & la + 3 & ")=0,N(D" & la + 4 & ")=0),""""," & _
         "D" & la + 4 & "*(1+D" & la + 3 & ")*9.81/1000)"
-    ws.Range("D" & la + 6).Formula = "=D" & LIGNE_ACIER + 13
-    ws.Range("D" & la + 7).Value = 25
-    ws.Range("D" & la + 8 & ":D" & la + 10).Value = Application.Transpose(Array(1.5, 1.2, 1.3))
+    ws.Range("D" & la + 6).Value = 25
+    ws.Range("D" & la + 7 & ":D" & la + 9).Value = Application.Transpose(Array(1.5, 1.2, 1.3))
     ws.Range("D" & la + 3).NumberFormat = "0.00"
     ws.Range("D" & la + 4).NumberFormat = "0"
-    ws.Range("D" & la + 5 & ":D" & la + 10).NumberFormat = "0.00"
+    ws.Range("D" & la + 5 & ":D" & la + 9).NumberFormat = "0.00"
 
     ' Acier : la liste des désignations dépend du type d'armature, les dimensions et
     ' caractéristiques mécaniques sont remplies (voir MajArmature et MajAcier) ; perte
@@ -472,7 +467,7 @@ Public Sub CreerDonneesProjet()
         "Coefficient " & ChrW(947) & "s - combinaison sismique", _
         "Durée d'utilisation du projet", _
         "Environnement de l'armature (NF EN 1993-5, tableaux 4.1 et 4.2)", _
-        "Perte d'épaisseur due à la corrosion", _
+        "Rayon de corrosion (perte d'épaisseur due à la corrosion, selon la durée et l'environnement)", _
         "Épaisseur résiduelle du tube (e - perte) ou diamètre résiduel de la barre (d - 2 x perte)", _
         "Platine d'appui (liaison fondation / structure, NF EN 1993-1-8)", _
         "Épaisseur t de la platine", _
@@ -524,7 +519,7 @@ Public Sub CreerDonneesProjet()
     With ws.Range("B4:C9,B12:C16,B19:I26,B28:E29,B" & LIGNE_COUCHES - 2 & ":C" & LIGNE_COUCHES - 2 & _
             ",B" & LIGNE_COUCHES - 1 & ":N" & lc & _
             ",B" & lm + 1 & ":E" & LIGNE_COUCHE_MOLLE + 6 & ",B" & lp & ":D" & lp + 22 & _
-            ",B" & la + 3 & ":E" & la + 10 & ",B" & LIGNE_ACIER & ":E" & LIGNE_ACIER + 21)
+            ",B" & la + 3 & ":E" & la + 9 & ",B" & LIGNE_ACIER & ":E" & LIGNE_ACIER + 21)
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
         .WrapText = True
@@ -539,11 +534,11 @@ Public Sub CreerDonneesProjet()
         ).Interior.Color = VERT_SAISIE
     ws.Range("D" & lp + 8 & ":D" & lp + 11 & ",D" & lp + 13 & ":D" & lp + 15).Interior.Color = JAUNE_CALCUL
     ws.Range("C4:C9,C12:C16,D28:D29," & CELLULE_NB_COUCHES & ",D" & la + 3 & ":D" & la + 4 & _
-        ",D" & la + 7 & ":D" & la + 10 & _
+        ",D" & la + 6 & ":D" & la + 9 & _
         ",D" & LIGNE_ACIER & ":D" & LIGNE_ACIER + 1 & ",D" & LIGNE_ACIER + 8 & ":D" & _
         LIGNE_ACIER + 10 & ",D" & LIGNE_ACIER + 12 & ",D" & LIGNE_ACIER + 15 & ",D" & LIGNE_ACIER + 17 & ",D" & LIGNE_ACIER + 20 & ":D" & _
         LIGNE_ACIER + 21).Interior.Color = VERT_SAISIE
-    ws.Range("D" & la + 5 & ":D" & la + 6 & ",D" & LIGNE_ACIER + 2 & ":D" & LIGNE_ACIER + 7 & _
+    ws.Range("D" & la + 5 & ",D" & LIGNE_ACIER + 2 & ":D" & LIGNE_ACIER + 7 & _
         ",D" & LIGNE_ACIER + 11 & ":D" & LIGNE_ACIER + 14 & _
         ",D" & LIGNE_ACIER + 16 & ",D" & LIGNE_ACIER + 18 & ":D" & LIGNE_ACIER + 19).Interior.Color = JAUNE_CALCUL
     ws.Columns("A").ColumnWidth = 3
