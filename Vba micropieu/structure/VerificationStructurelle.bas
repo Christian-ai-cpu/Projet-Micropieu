@@ -13,7 +13,7 @@ Option Explicit
 '         corrosion, I, EI, EM et alpha (ou qc et beta), rho, Kf selon la méthode de
 '         calcul, Es selon le type de sollicitation, l0 = (4 EI / Es)^(1/4), lambda,
 '         profondeur réelle D, x = D / l0, inclinaison et angle
-'   dessous : poussée des terres au repos sur l'ancrage (h = poteau BA + semelle BA,
+'   dessous : butée des terres sur l'ancrage (h = poteau BA + semelle BA,
 '         réparti sur les couches de « Données du projet ») : K0 = (1 + sin phi')/(1 - sin phi'),
 '         sigma h = K0 sigma v + 2 c' racine(K0), H0,i = (sigma h haut + bas) / 2 hi ;
 '         efforts en tête de la descente de charges (Nc, H0 = Nc sin(alpha) + H talus,
@@ -283,7 +283,7 @@ Public Sub CreerVerificationStructurelle()
         .Add(xlCellValue, xlEqual, "=""Non efficace""").Font.Color = RGB(192, 0, 0)
     End With
 
-    ' --- Poussée des terres au repos sur l'ancrage (poteau BA + semelle BA du
+    ' --- Butée des terres sur l'ancrage (poteau BA + semelle BA du
     ' soubassement) ---
     '   hauteur de l'ancrage : h = hp (poteau BA) + hs (semelle BA), descente de charges ;
     '   la hauteur h est répartie sur les couches du tableau de « Données du projet »
@@ -292,13 +292,13 @@ Public Sub CreerVerificationStructurelle()
     '   contrainte verticale : sigma v = somme(gamma j x hj) des couches au-dessus ;
     '   contrainte horizontale : sigma h = K0 x sigma v + 2 c' racine(K0) (haut et bas) ;
     '   effort par mètre linéaire : H0,i = (sigma h haut + sigma h bas) / 2 x hi.
-    etape = "poussée des terres au repos sur l'ancrage"
+    etape = "butée des terres sur l'ancrage"
     nbC = CLng(N0(ActiveWorkbook.Worksheets("Données du projet").Range(CELLULE_NB_COUCHES).Value))
     If nbC < 1 Then nbC = 1
     If nbC > MAX_COUCHES Then nbC = MAX_COUCHES
     rA = rF + 3
     With ws.Range("A" & rA)
-        .Value = "POUSSÉE DES TERRES AU REPOS SUR L'ANCRAGE (POTEAU BA + SEMELLE BA)"
+        .Value = "BUTÉE DES TERRES SUR L'ANCRAGE (POTEAU BA + SEMELLE BA)"
         .Font.Bold = True
         .Font.Size = 14
         .Font.Color = VERT_FONCE
@@ -366,7 +366,7 @@ Public Sub CreerVerificationStructurelle()
             "+2*M" & r & ")/(3*(L" & r & "+M" & r & ")),0)"
     Next i
     r = rA + 6 + nbC
-    ws.Range("A" & r).Value = "Poussée totale au repos sur l'ancrage " & ChrW(931) & "H0,i et profondeur d'application"
+    ws.Range("A" & r).Value = "Butée des terres totale sur l'ancrage " & ChrW(931) & "H0,i et profondeur d'application"
     ws.Range("A" & r & ":M" & r).Merge
     ws.Range("N" & r).Formula = "=SUM(N" & rA + 6 & ":N" & r - 1 & ")"
     ws.Range("O" & r).Formula = "=IF(N" & r & ">0,SUMPRODUCT(N" & rA + 6 & ":N" & r - 1 & ",O" & rA + 6 & ":O" & _
