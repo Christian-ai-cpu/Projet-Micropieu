@@ -9,7 +9,7 @@ Option Explicit
 '   1. Caractéristiques de la section : d0, t0 (nominaux), rc, d = d0 - 2 rc,
 '      t = (d - di) / 2, A, I, Wel = 2 I / d, Wpl = (d³ - di³) / 6, fy, gamma M0 ;
 '   2. Sollicitations (maximum des combinaisons du tableau des efforts en tête, issus
-'      de la descente de charges) : NEd = Nc, VEd = H (= T0), MEd = M0 ;
+'      de la descente de charges) : NEd = Nc, VEd = H0, MEd = M0 ;
 '   3. Vérifications, en quatre volets (mini-titre, condition sous le titre, effort
 '      résistant, rapport effort agissant / effort résistant, conclusion) :
 '      3.1 classification du tube (tableau 5.2) : d/t <= 50 eps² (classe 1), 70 eps²
@@ -77,7 +77,7 @@ Public Sub VerificationArmature()
     rAs = Valeur(ws, "Section après corrosion As")
     rI = Valeur(ws, "Inertie de la section après corrosion I")
     rrc = Valeur(ws, "Rayon de corrosion retenu rc (0 si protection efficace)")
-    v = Application.Match("Nc", ws.Range("C1:C500"), 0)       ' efforts en tête (Nc, T0, H, M0)
+    v = Application.Match("Nc", ws.Range("C1:C500"), 0)       ' efforts en tête (Nc, H0, M0)
     If rde = "" Or rAs = "" Or rI = "" Or IsError(v) Then
         MsgBox "Tableaux de la feuille « " & NOM_FEUILLE & " » introuvables : relancez " & _
             "CreerVerificationStructurelle.", vbExclamation
@@ -150,10 +150,10 @@ Public Sub VerificationArmature()
     MiniTitre "2. Sollicitations de calcul (maximum des combinaisons, descente de charges)", ""
     NEd = Lig("Effort normal de compression", "NEd", "=MAX(ABS(N(E" & rN & ")),ABS(N(F" & rN & ")),ABS(N(G" & rN & _
         ")),ABS(N(H" & rN & ")))", "kN", "0.0")
-    VEd = Lig("Effort tranchant", "VEd", "=MAX(ABS(N(E" & rN + 2 & ")),ABS(N(F" & rN + 2 & ")),ABS(N(G" & rN + 2 & _
-        ")),ABS(N(H" & rN + 2 & ")))", "kN", "0.0")
-    MEd = Lig("Moment fléchissant", "MEd", "=MAX(ABS(N(E" & rN + 3 & ")),ABS(N(F" & rN + 3 & ")),ABS(N(G" & rN + 3 & _
-        ")),ABS(N(H" & rN + 3 & ")))", "kN.m", "0.0")
+    VEd = Lig("Effort tranchant", "VEd", "=MAX(ABS(N(E" & rN + 1 & ")),ABS(N(F" & rN + 1 & ")),ABS(N(G" & rN + 1 & _
+        ")),ABS(N(H" & rN + 1 & ")))", "kN", "0.0")
+    MEd = Lig("Moment fléchissant", "MEd", "=MAX(ABS(N(E" & rN + 2 & ")),ABS(N(F" & rN + 2 & ")),ABS(N(G" & rN + 2 & _
+        ")),ABS(N(H" & rN + 2 & ")))", "kN.m", "0.0")
 
     ' --- 3.1 Classification du tube (tableau 5.2) ---
     etape = "classification"

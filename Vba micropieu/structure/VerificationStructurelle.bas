@@ -14,10 +14,10 @@ Option Explicit
 '         calcul, Es selon le type de sollicitation, l0 = (4 EI / Es)^(1/4), lambda,
 '         profondeur réelle D, x = D / l0, inclinaison et angle
 '   dessous : poussée des terres au repos sur l'ancrage (h = poteau BA + semelle BA,
-'         réparti sur les couches de « Données du projet ») : K0 = 1 - sin phi',
+'         réparti sur les couches de « Données du projet ») : K0 = (1 + sin phi')/(1 - sin phi'),
 '         sigma h = K0 sigma v + 2 c' racine(K0), H0,i = (sigma h haut + bas) / 2 hi ;
-'         efforts en tête de la descente de charges (Nc, T0 = Nc sin(alpha), H = T0 + H0,
-'         M0 selon la condition en tête) et constantes A, B, C, E du pieu long à pointe encastrée, avec leurs
+'         efforts en tête de la descente de charges (Nc, H0 = Nc sin(alpha) + H talus,
+'         M0 = M talus ou -H0/(2 lambda) si encastré) et constantes A, B, C, E du pieu long à pointe encastrée, avec leurs
 '         symboles et formules ;
 '         profil le long du micropieu par pas de calcul dz (saisi) : z, pas, Y, T et M
 '         de chaque combinaison, graphiques Y, T, M sous le profil, puis vérification de
@@ -288,7 +288,7 @@ Public Sub CreerVerificationStructurelle()
     '   hauteur de l'ancrage : h = hp (poteau BA) + hs (semelle BA), descente de charges ;
     '   la hauteur h est répartie sur les couches du tableau de « Données du projet »
     '   (épaisseurs depuis le TN) : couche i entre zh = min(z haut ; h) et zb = min(z bas ; h) ;
-    '   coefficient des terres au repos : K0 = 1 - sin phi' ;
+    '   coefficient de poussée : K0 = (1 + sin phi') / (1 - sin phi') ;
     '   contrainte verticale : sigma v = somme(gamma j x hj) des couches au-dessus ;
     '   contrainte horizontale : sigma h = K0 x sigma v + 2 c' racine(K0) (haut et bas) ;
     '   effort par mètre linéaire : H0,i = (sigma h haut + sigma h bas) / 2 x hi.
@@ -327,15 +327,14 @@ Public Sub CreerVerificationStructurelle()
     r = rA + 5
     ws.Range("A" & r & ":O" & r).Value = Array("N° de couche", "Nom de couche", "z haut (m)", "z bas (m)", _
         "Épaisseur dans l'ancrage hi (m)", ChrW(947) & " (kN/m3)", "c' (kPa)", ChrW(966) & "' (°)", _
-        "K0 = 1 - sin " & ChrW(966) & "'", ChrW(963) & "v haut (kPa)", ChrW(963) & "v bas (kPa)", _
+        "K0 = (1 + sin " & ChrW(966) & "')/(1 - sin " & ChrW(966) & "')", ChrW(963) & "v haut (kPa)", ChrW(963) & "v bas (kPa)", _
         ChrW(963) & "h haut = K0." & ChrW(963) & "v + 2c'" & ChrW(8730) & "K0 (kPa)", _
         ChrW(963) & "h bas = K0." & ChrW(963) & "v + 2c'" & ChrW(8730) & "K0 (kPa)", _
         "H0,i = (" & ChrW(963) & "h haut + " & ChrW(963) & "h bas)/2 . hi (kN/ml)", "Profondeur d'application (m)")
     Commentaire ws.Range("C" & r), "z haut = min(profondeur du haut de la couche depuis le TN ; h)"
     Commentaire ws.Range("D" & r), "z bas = min(profondeur du bas de la couche depuis le TN ; h) ; " & _
         "épaisseurs du tableau des couches de « Données du projet »"
-    Commentaire ws.Range("I" & r), "Coefficient des terres au repos de Jaky : K0 = 1 - sin " & ChrW(966) & _
-        "' (sol normalement consolidé, terrain horizontal)"
+    Commentaire ws.Range("I" & r), "K0 = (1 + sin " & ChrW(966) & "') / (1 - sin " & ChrW(966) & "')"
     Commentaire ws.Range("J" & r), ChrW(963) & "v haut = somme des " & ChrW(947) & "j.hj des couches au-dessus"
     Commentaire ws.Range("O" & r), "Centre de gravité du diagramme trapézoïdal de poussée de la couche : " & _
         "z haut + hi (" & ChrW(963) & "h haut + 2 " & ChrW(963) & "h bas) / (3 (" & ChrW(963) & "h haut + " & _
@@ -358,7 +357,7 @@ Public Sub CreerVerificationStructurelle()
         ws.Range("F" & r).Formula = "=N(" & DONNEES & "$J$" & k & ")"
         ws.Range("G" & r).Formula = "=N(" & DONNEES & "$K$" & k & ")"
         ws.Range("H" & r).Formula = "=N(" & DONNEES & "$L$" & k & ")"
-        ws.Range("I" & r).Formula = "=1-SIN(RADIANS(H" & r & "))"
+        ws.Range("I" & r).Formula = "=(1+SIN(RADIANS(H" & r & ")))/(1-SIN(RADIANS(H" & r & ")))"
         ws.Range("K" & r).Formula = "=J" & r & "+F" & r & "*E" & r
         ws.Range("L" & r).Formula = "=I" & r & "*J" & r & "+2*G" & r & "*SQRT(I" & r & ")"
         ws.Range("M" & r).Formula = "=I" & r & "*K" & r & "+2*G" & r & "*SQRT(I" & r & ")"
@@ -414,82 +413,77 @@ Public Sub CreerVerificationStructurelle()
         Next j
     End If
     If cTal > 0 Then
-        fH0 = "=N(" & dn & wd.Cells(rd + iMax - 1, cTal).Address & ")"
-        fM0 = "=N(" & dn & wd.Cells(rd + iMax - 1, cTal + 1).Address & ")"
+        fH0 = "N(" & dn & wd.Cells(rd + iMax - 1, cTal).Address & ")"
+        fM0 = "N(" & dn & wd.Cells(rd + iMax - 1, cTal + 1).Address & ")"
     Else
-        fH0 = "=0": fM0 = "=0"
+        fH0 = "0": fM0 = "0"
     End If
     entete = Array( _
         Array("Effort de compression de la descente de charges", "Nc", _
             "Vmax de la combinaison (vérification de la profondeur, « Calcul et vérification »)", "kN"), _
-        Array("Effort horizontal dû à l'inclinaison", "T0", "T0 = Nc x sin " & ChrW(945) & " (0 si vertical)", "kN"), _
-        Array("Effort transversal en tête", "H", "H = T0 + H0 (charge du talus)", "kN"), _
-        Array("Moment en tête (selon la condition en tête)", "M0", "micropieu libre en tête : M0 = M0,talus ; " & _
-            "micropieu encastré en tête : M0 = -H.l0/2 = -H/(2" & ChrW(955) & ") (moment d'encastrement, le " & _
-            "moment du talus étant repris par l'encastrement)", "kN.m"), _
-        Array("Charge du talus : effort horizontal en tête", "H0", "descente de charges (matrice des micropieux, " & _
-            "charge du talus)", "kN"), _
-        Array("Charge du talus : moment en tête", "M0,talus", "descente de charges (matrice des micropieux, " & _
-            "charge du talus)", "kN.m"), _
-        Array("Constante de l'onde issue de la tête", "A", "micropieu libre en tête : A = 2" & ChrW(955) & "H/Es + 2" & _
-            ChrW(955) & "²M0/Es ; micropieu encastré en tête : A = " & ChrW(955) & "H/Es", "m"), _
+        Array("Effort horizontal en tête", "H0", "H0 = Nc x sin " & ChrW(945) & " (composante inclinée de la " & _
+            "descente de charges, 0 si vertical) + H talus (descente de charges, charge du talus)", "kN"), _
+        Array("Moment en tête (selon la condition en tête)", "M0", "micropieu libre en tête : M0 = M talus " & _
+            "(descente de charges, charge du talus) ; micropieu encastré en tête : M0 = -H0.l0/2 = -H0/(2" & _
+            ChrW(955) & ") (moment repris par la tête encastrée)", "kN.m"), _
+        Array("Constante de l'onde issue de la tête", "A", "micropieu libre en tête : A = 2" & ChrW(955) & "H0/Es + 2" & _
+            ChrW(955) & "²M0/Es ; micropieu encastré en tête : A = " & ChrW(955) & "H0/Es", "m"), _
         Array("Constante de l'onde issue de la tête", "B", "micropieu libre en tête : B = -2" & ChrW(955) & "²M0/Es ; " & _
             "micropieu encastré en tête : B = A", "m"), _
         Array("Constante de l'onde issue de la pointe", "C", "C = -e^(-" & ChrW(955) & "D) [A cos " & ChrW(955) & _
             "D + B sin " & ChrW(955) & "D]", "m"), _
         Array("Constante de l'onde issue de la pointe", "E", "E = e^(-" & ChrW(955) & "D) [(B - 2A) cos " & _
             ChrW(955) & "D - (A + 2B) sin " & ChrW(955) & "D]", "m"))
-    For j = 0 To 9
+    For j = 0 To 6
         ws.Range("B" & r + 1 + j).Value = entete(j)(0)
         ws.Range("C" & r + 1 + j).Value = entete(j)(1)
         ws.Range("D" & r + 1 + j).Value = entete(j)(2)
         ws.Range("I" & r + 1 + j).Value = entete(j)(3)
     Next j
-    Commentaire ws.Range("C" & r + 4), "Micropieu libre en tête : M0 = M0,talus (moment de la charge du talus, " & _
-        "descente de charges)." & vbLf & "Micropieu encastré en tête : on garde M0 = -H/(2" & ChrW(955) & _
-        ") = -H.l0/2, qui inclut maintenant H0 puisque H = T0 + H0. Le moment du talus M0,talus n'y est " & _
-        "pas ajouté, car on considère qu'il est repris par l'encastrement."
+    Commentaire ws.Range("C" & r + 2), "H0 = Nc x sin " & ChrW(945) & " + H talus : composante horizontale de " & _
+        "l'effort de la descente de charges (micropieu incliné) plus l'effort horizontal du talus (descente de " & _
+        "charges, matrice des micropieux, colonne « CHARGE DU TALUS »)."
+    Commentaire ws.Range("C" & r + 3), "Micropieu libre en tête : M0 = moment du talus (descente de charges, " & _
+        "colonne « CHARGE DU TALUS »)." & vbLf & "Micropieu encastré en tête : M0 = -H0/(2" & ChrW(955) & _
+        ") = -H0.l0/2, moment repris par la tête encastrée (le moment du talus est repris par l'encastrement)."
     For k = 0 To 3
         cl = Chr(Asc("E") + k)
         x = cl & "$"                          ' colonne de la combinaison (ligne absolue)
         ws.Range(cl & r + 1).Formula = "=N(" & CALCUL & wc.Cells(ci, cC + 2 * k).Address & ")"
-        ws.Range(cl & r + 2).Formula = "=IF(" & vInc & "=""Oui"",ABS(" & x & r + 1 & ")*SIN(RADIANS(" & vAng & ")),0)"
-        ws.Range(cl & r + 5).Formula = fH0
-        ws.Range(cl & r + 6).Formula = fM0
-        ' H = T0 + H0 (charge du talus)
-        ws.Range(cl & r + 3).Formula = "=" & x & r + 2 & "+" & x & r + 5
-        ' M0 : moment du talus en tête libre ; moment d'encastrement -H / (2 lambda) en
-        ' tête encastrée
-        ws.Range(cl & r + 4).Formula = "=IF(" & vCond & "=""" & TETE_ENC & """,IF(N(" & vLam & ")>0,-" & x & r + 3 & _
-            "/(2*" & vLam & "),0)," & x & r + 6 & ")"
+        ' H0 = composante inclinée de la descente de charges + charge du talus
+        ws.Range(cl & r + 2).Formula = "=IF(" & vInc & "=""Oui"",ABS(" & x & r + 1 & ")*SIN(RADIANS(" & vAng & _
+            ")),0)+" & fH0
+        ' M0 : moment du talus en tête libre ; moment repris par la tête encastrée
+        ws.Range(cl & r + 3).Formula = "=IF(" & vCond & "=""" & TETE_ENC & """,IF(N(" & vLam & ")>0,-" & x & r + 2 & _
+            "/(2*" & vLam & "),0)," & fM0 & ")"
         ' constantes A, B (tête), C, E (pointe encastrée) ; Es en kPa
         cond0 = "=IF(OR(" & vLam & "="""",N(" & vEs & ")<=0),"""","
-        ws.Range(cl & r + 7).Formula = cond0 & "IF(" & vCond & "=""" & TETE_ENC & """," & vLam & "*" & x & r + 3 & _
-            "/(" & vEs & "*1000),2*" & vLam & "*" & x & r + 3 & "/(" & vEs & "*1000)+2*" & vLam & "^2*" & x & r + 4 & _
+        ws.Range(cl & r + 4).Formula = cond0 & "IF(" & vCond & "=""" & TETE_ENC & """," & vLam & "*" & x & r + 2 & _
+            "/(" & vEs & "*1000),2*" & vLam & "*" & x & r + 2 & "/(" & vEs & "*1000)+2*" & vLam & "^2*" & x & r + 3 & _
             "/(" & vEs & "*1000)))"
-        ws.Range(cl & r + 8).Formula = cond0 & "IF(" & vCond & "=""" & TETE_ENC & """," & x & r + 7 & ",-2*" & vLam & _
-            "^2*" & x & r + 4 & "/(" & vEs & "*1000)))"
-        ws.Range(cl & r + 9).Formula = "=IF(" & x & r + 7 & "="""","""",-EXP(-" & vx & ")*(" & x & r + 7 & _
-            "*COS(" & vx & ")+" & x & r + 8 & "*SIN(" & vx & ")))"
-        ws.Range(cl & r + 10).Formula = "=IF(" & x & r + 7 & "="""","""",EXP(-" & vx & ")*((" & x & r + 8 & "-2*" & _
-            x & r + 7 & ")*COS(" & vx & ")-(" & x & r + 7 & "+2*" & x & r + 8 & ")*SIN(" & vx & ")))"
+        ws.Range(cl & r + 5).Formula = cond0 & "IF(" & vCond & "=""" & TETE_ENC & """," & x & r + 4 & ",-2*" & vLam & _
+            "^2*" & x & r + 3 & "/(" & vEs & "*1000)))"
+        ws.Range(cl & r + 6).Formula = "=IF(" & x & r + 4 & "="""","""",-EXP(-" & vx & ")*(" & x & r + 4 & _
+            "*COS(" & vx & ")+" & x & r + 5 & "*SIN(" & vx & ")))"
+        ws.Range(cl & r + 7).Formula = "=IF(" & x & r + 4 & "="""","""",EXP(-" & vx & ")*((" & x & r + 5 & "-2*" & _
+            x & r + 4 & ")*COS(" & vx & ")-(" & x & r + 4 & "+2*" & x & r + 5 & ")*SIN(" & vx & ")))"
     Next k
-    With ws.Range("B" & r & ":I" & r + 10)
+    With ws.Range("B" & r & ":I" & r + 7)
         .Borders.LineStyle = xlContinuous
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    ws.Range("B" & r + 1 & ":B" & r + 10 & ",D" & r + 1 & ":D" & r + 10).HorizontalAlignment = xlLeft
+    ws.Range("B" & r + 1 & ":B" & r + 7 & ",D" & r + 1 & ":D" & r + 7).HorizontalAlignment = xlLeft
     With ws.Range("B" & r & ":I" & r)
         .Font.Bold = True
         .Interior.Color = VERT_ENTETE
     End With
-    ws.Range("C" & r + 1 & ":C" & r + 10).Font.Bold = True
-    ws.Range("E" & r + 1 & ":H" & r + 10).Interior.Color = JAUNE_CALCUL
-    ws.Range("E" & r + 1 & ":H" & r + 6).NumberFormat = "0.0"
-    ws.Range("E" & r + 7 & ":H" & r + 10).NumberFormat = "0.000E+00"
-    rK = r                                    ' en-tête : A, B, C, E en lignes rK + 7 à rK + 10
+    ws.Range("C" & r + 1 & ":C" & r + 7).Font.Bold = True
+    ws.Range("E" & r + 1 & ":H" & r + 7).Interior.Color = JAUNE_CALCUL
+    ws.Range("E" & r + 1 & ":H" & r + 3).NumberFormat = "0.0"
+    ws.Range("E" & r + 4 & ":H" & r + 7).NumberFormat = "0.000E+00"
+    rK = r                                    ' en-tête : Nc, H0, M0 puis A, B, C, E en lignes rK + 4 à rK + 7
 
     ' --- Y, T et M le long du micropieu (z de 0 à la profondeur réelle D) ---
     ' z = 0, dz, 2 dz, ... (pas de calcul dz saisi) jusqu'à D ; pas = z - z précédent ;
@@ -498,7 +492,7 @@ Public Sub CreerVerificationStructurelle()
     '   T = 2 EI lambda³ {e^(-lambda z)[(A + B) cos + (B - A) sin]
     '                   - e^(-lambda u)[(C + E) cos + (E - C) sin]}, u = D - z
     etape = "Y, T et M le long du micropieu"
-    rP = rK + 10 + 5                          ' en-tête du profil
+    rP = rK + 7 + 5                           ' en-tête du profil
     ' Pas de calcul dz (saisi, conservé) : z = 0, dz, 2 dz, ... jusqu'à D
     ws.Range("B" & rP - 2).Value = LIB_PAS
     ws.Range("B" & rP - 2 & ":C" & rP - 2).Merge
@@ -550,8 +544,8 @@ Public Sub CreerVerificationStructurelle()
         kA = "$C" & r: kB = "$D" & r          ' lambda z, lambda u
         For k = 0 To 3
             cl = Chr(Asc("E") + k)
-            y0s = cl & "$" & rK + 7: hs = cl & "$" & rK + 8     ' A, B
-            ths = cl & "$" & rK + 9: mhs = cl & "$" & rK + 10   ' C, E
+            y0s = cl & "$" & rK + 4: hs = cl & "$" & rK + 5     ' A, B
+            ths = cl & "$" & rK + 6: mhs = cl & "$" & rK + 7    ' C, E
             cond0 = "=IF(OR(" & kA & "=""""," & y0s & "=""""),"""","
             ws.Cells(r, 5 + 3 * k).Formula = cond0 & "1000*(EXP(-" & kA & ")*(" & y0s & "*COS(" & kA & ")+" & hs & _
                 "*SIN(" & kA & "))+EXP(-" & kB & ")*(" & ths & "*COS(" & kB & ")+" & mhs & "*SIN(" & kB & "))))"
