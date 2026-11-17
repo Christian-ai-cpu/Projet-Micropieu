@@ -6,10 +6,12 @@ Option Explicit
 ' vérification de la section du tube du micropieu le plus long, après corrosion, selon
 ' la NF EN 1993-1-1 (6.2). Tableau en 3 colonnes : caractéristique (désignation en B
 ' et symbole en C), valeur (D), unité (E). Toutes les valeurs sont des formules.
-'   1. Caractéristiques de la section : d0, t0 (nominaux), rc, d = d0 - 2 rc,
-'      t = (d - di) / 2, A, I, Wel = 2 I / d, Wpl = (d³ - di³) / 6, fy, gamma M0 ;
+'   1. Caractéristiques de la section : d, di, A et I repris du tableau des
+'      caractéristiques plus haut (non répétés) ; t0, t = (d - di) / 2,
+'      Wel = 2 I / d, Wpl = (d³ - di³) / 6, fy, gamma M0 ;
 '   2. Sollicitations (maximum des combinaisons du tableau des efforts en tête, issus
-'      de la descente de charges) : NEd = Nc, VEd = H0, MEd = M0 ;
+'      de la descente de charges) : Nc (vertical), NEd = Nc / cos(alpha) (effort dans
+'      l'axe du micropieu incliné), VEd = H0, MEd = M0 ;
 '   3. Vérifications, en quatre volets (mini-titre, condition sous le titre, effort
 '      résistant, rapport effort agissant / effort résistant, conclusion) :
 '      3.1 classification du tube (tableau 5.2) : d/t <= 50 eps² (classe 1), 70 eps²
@@ -20,12 +22,13 @@ Option Explicit
 '      3.4 moment fléchissant (6.2.5) : MEd / Mc,Rd <= 1,0 (6.12),
 '          Mc,Rd = Wpl fy / gamma M0 (classes 1 et 2, 6.13) ou Wel fy / gamma M0
 '          (classe 3, 6.14) ;
+'      3.5 interaction (6.2.1(7)) : NEd / Nc,Rd + MEd / Mc,Rd <= 1 ;
 '      conclusion : section vérifiée ou section à changer.
 ' Second tableau (par combinaison) : efforts le long du micropieu (NEd, VEd, MEd, y0,
 ' ymax), vérification des déplacements (ymax <= yadm), contraintes dans le tube
 ' (sigma = N/A + M.v/I, tau max = V.R²/Iy, critère de von Mises pour les poutres
-' sigma VM = racine(sigma² + 3 tau²) <= fy / gamma M0, tau e = fy / racine 3) et
-' interaction NEd/Nc,Rd + MEd/Mc,Rd <= 1.
+' sigma VM = racine(sigma² + 3 tau²) <= fy / gamma M0, tau e = fy / racine 3).
+' NEd = Nc / cos(alpha) si le micropieu est incliné.
 ' Appelée à la fin de CreerVerificationStructurelle ; peut être relancée seule.
 
 Private Const NOM_FEUILLE As String = "Vérification structurelle"
@@ -59,6 +62,7 @@ Public Sub VerificationArmature()
     Dim xYm As Long, xRy As Long, xOkY As Long, xsN As Long, xsM As Long, xsx As Long, xtau As Long
     Dim xsa As Long, xta As Long, xcr As Long, xOkS As Long, xin As Long, xOkI As Long
     Dim xSy As Long, xb As Long, xsv As Long, xR As Long
+    Dim vInc As String, vAng As String, cosA As String, vNc As String, rap5 As String, ok5 As String
 
     On Error Resume Next
     Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
@@ -85,6 +89,14 @@ Public Sub VerificationArmature()
     End If
     rN = CLng(v)
     mN = rN
+    ' Inclinaison du micropieu : composante dans l'axe = effort vertical / cos(alpha)
+    vInc = Valeur(ws, "Micropieu incliné")
+    vAng = Valeur(ws, "Angle d'inclinaison sur la verticale " & ChrW(945))
+    If vInc = "" Or vAng = "" Then
+        cosA = "1"
+    Else
+        cosA = "IF(AND(" & vInc & "=""Oui"",N(" & vAng & ")>0,N(" & vAng & ")<90),COS(RADIANS(" & vAng & ")),1)"
+    End If
     v = Application.Match("z (m)", ws.Range("A1:A1000"), 0)    ' profil Y, T, M
     If Not IsError(v) Then
         hP = CLng(v)
@@ -130,15 +142,16 @@ Public Sub VerificationArmature()
 
     ' --- 1. Caractéristiques de la section ---
     etape = "caractéristiques de la section"
-    MiniTitre "1. Caractéristiques de la section (tube après corrosion)", ""
-    d0 = Lig("Diamètre extérieur nominal", "d0", "=N(" & DONNEES & "$D$" & LIGNE_ACIER + 2 & ")", "mm", "0.0")
+    ' Diamètres d (après corrosion) et di, section As et inertie I : déjà calculés
+    ' dans le tableau des caractéristiques plus haut (cellules reprises directement)
+    MiniTitre "1. Caractéristiques de la section (tube après corrosion)", _
+        "d, di, A = As et I : tableau des caractéristiques de l'armature plus haut dans la feuille"
+    d = rde
+    di = IIf(rdi = "", "0", rdi)
+    A = rAs
+    I = rI
     t0 = Lig("Épaisseur nominale de la paroi", "t0", "=N(" & DONNEES & "$D$" & LIGNE_ACIER + 3 & ")", "mm", "0.0")
-    rc = Lig("Rayon de corrosion retenu", "rc", "=" & IIf(rrc = "", "0", rrc), "mm", "0.00")
-    d = Lig("Diamètre extérieur après corrosion", "d", "=" & rde, "mm", "0.0")
-    di = Lig("Diamètre intérieur", "di", "=" & IIf(rdi = "", "0", rdi), "mm", "0.0")
     t = Lig("Épaisseur de paroi après corrosion", "t", "=(" & d & "-" & di & ")/2", "mm", "0.00")
-    A = Lig("Aire de la section transversale", "A", "=" & rAs, "mm²", "0.0")
-    I = Lig("Moment d'inertie de flexion", "I", "=" & rI, "mm4", "0.000E+00")
     Wel = Lig("Module de flexion élastique", "Wel", "=IF(N(" & d & ")>0,2*" & I & "/" & d & ","""")", "mm³", "0.000E+00")
     Wpl = Lig("Module de flexion plastique", "Wpl", "=(" & d & "^3-" & di & "^3)/6", "mm³", "0.000E+00")
     fy = Lig("Limite d'élasticité de l'acier", "fy", "=N(" & DONNEES & "$D$" & LIGNE_ACIER + 7 & ")", "MPa", "0")
@@ -148,8 +161,11 @@ Public Sub VerificationArmature()
     ' --- 2. Sollicitations (maximum des combinaisons, descente de charges) ---
     etape = "sollicitations"
     MiniTitre "2. Sollicitations de calcul (maximum des combinaisons, descente de charges)", ""
-    NEd = Lig("Effort normal de compression", "NEd", "=MAX(ABS(N(E" & rN & ")),ABS(N(F" & rN & ")),ABS(N(G" & rN & _
-        ")),ABS(N(H" & rN & ")))", "kN", "0.0")
+    ' Effort normal dans l'axe du micropieu : effort vertical / cos(alpha) si incliné
+    vNc = Lig("Effort vertical de compression (descente de charges, maximum)", "Nc", "=MAX(ABS(N(E" & rN & _
+        ")),ABS(N(F" & rN & ")),ABS(N(G" & rN & ")),ABS(N(H" & rN & ")))", "kN", "0.0")
+    NEd = Lig("Effort normal de compression dans l'axe du micropieu", "NEd = Nc / cos " & ChrW(945), _
+        "=" & vNc & "/" & cosA, "kN", "0.0")
     VEd = Lig("Effort tranchant", "VEd", "=MAX(ABS(N(E" & rN + 1 & ")),ABS(N(F" & rN + 1 & ")),ABS(N(G" & rN + 1 & _
         ")),ABS(N(H" & rN + 1 & ")))", "kN", "0.0")
     MEd = Lig("Moment fléchissant", "MEd", "=MAX(ABS(N(E" & rN + 2 & ")),ABS(N(F" & rN + 2 & ")),ABS(N(G" & rN + 2 & _
@@ -204,10 +220,19 @@ Public Sub VerificationArmature()
         McRd & ","""")", "", "0.00")
     ok4 = Lig("Vérification", "", Conclusion(rap4), "", "@")
 
+    ' --- 3.5 Interaction effort normal et moment fléchissant (6.2.1(7)) ---
+    etape = "interaction"
+    MiniTitre "3.5 Interaction effort normal et moment fléchissant (6.2.1(7))", _
+        "Condition (6.2) : NEd / Nc,Rd + MEd / Mc,Rd " & ChrW(8804) & " 1 (Nc,Rd et Mc,Rd de 3.2 et 3.4)"
+    rap5 = Lig("Somme des rapports effort agissant / effort résistant", "NEd/Nc,Rd + MEd/Mc,Rd", _
+        "=IF(OR(N(" & NcRd & ")=0,N(" & McRd & ")=0),""""," & NEd & "/" & NcRd & "+" & MEd & "/" & McRd & ")", _
+        "", "0.00")
+    ok5 = Lig("Vérification", "", Conclusion(rap5), "", "@")
+
     ' --- Conclusion générale ---
     MiniTitre "Conclusion", ""
     Lig "Section du tube", "", "=IF(AND(LEFT(" & ok1 & ",2)=""OK"",LEFT(" & ok2 & ",2)=""OK"",LEFT(" & ok3 & _
-        ",2)=""OK"",LEFT(" & ok4 & ",2)=""OK""),""Section vérifiée : OK"",""Section non vérifiée : changer de section"")", _
+        ",2)=""OK"",LEFT(" & ok4 & ",2)=""OK"",LEFT(" & ok5 & ",2)=""OK""),""Section vérifiée : OK"",""Section non vérifiée : changer de section"")", _
         "", "@"
 
     ' --- Mise en forme ---
@@ -246,7 +271,8 @@ Public Sub VerificationArmature()
 
     ' 4. Efforts et déplacements le long du micropieu (profil Y, T, M)
     MiniTitre2 "4. Efforts et déplacements le long du micropieu (profil, par combinaison)", ""
-    xN = LigC("Effort normal de compression (descente de charges)", "NEd", "=ABS(N(@" & rN & "))", "kN", "0.0")
+    xN = LigC("Effort normal de compression dans l'axe du micropieu", "NEd = Nc / cos " & ChrW(945), _
+        "=ABS(N(@" & rN & "))/" & cosA, "kN", "0.0")
     xV = LigC("Effort tranchant maximal le long du micropieu", "VEd = max|T(z)|", _
         "=IF(COUNT({T})=0,0,MAX(MAX({T}),-MIN({T})))", "kN", "0.0")
     xM = LigC("Moment fléchissant maximal le long du micropieu", "MEd = max|M(z)|", _
@@ -317,19 +343,10 @@ Public Sub VerificationArmature()
         "=IF(OR(#" & xsv & "="""",N(#" & xsa & ")=0),"""",#" & xsv & "/#" & xsa & ")", "", "0.00")
     xOkS = LigC("Vérification", "", ConclusionC(xcr), "", "@")
 
-    ' 7. Interaction effort normal et moment (6.2.1(7))
-    MiniTitre2 "7. Interaction effort normal et moment fléchissant (6.2.1(7))", _
-        "Condition (6.2) : NEd / Nc,Rd + MEd / Mc,Rd " & ChrW(8804) & " 1 (Nc,Rd et Mc,Rd du tableau précédent, " & _
-        "3.2 et 3.4)"
-    xin = LigC("Somme des rapports effort agissant / effort résistant", "NEd/Nc,Rd + MEd/Mc,Rd", _
-        "=IF(OR(N(" & NcRd & ")=0,N(" & McRd & ")=0),"""",#" & xN & "/" & NcRd & "+#" & xM & "/" & McRd & ")", _
-        "", "0.00")
-    xOkI = LigC("Vérification", "", ConclusionC(xin), "", "@")
-
     ' Conclusion par combinaison
     MiniTitre2 "Conclusion", ""
-    LigC "Micropieu (déplacements, contraintes, interaction)", "", "=IF(AND(LEFT(#" & xOkY & ",2)=""OK"",LEFT(#" & _
-        xOkS & ",2)=""OK"",LEFT(#" & xOkI & ",2)=""OK""),""OK"",""Non vérifié : changer de section"")", "", "@"
+    LigC "Micropieu (déplacements, contraintes)", "", "=IF(AND(LEFT(#" & xOkY & ",2)=""OK"",LEFT(#" & _
+        xOkS & ",2)=""OK""),""OK"",""Non vérifié : changer de section"")", "", "@"
 
     With ws.Range("B" & r2 + 1 & ":H" & mR)
         .Borders.LineStyle = xlContinuous
