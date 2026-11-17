@@ -13,11 +13,11 @@ Option Explicit
 '         corrosion, I, EI, EM et alpha (ou qc et beta), rho, Kf selon la méthode de
 '         calcul, Es selon le type de sollicitation, l0 = (4 EI / Es)^(1/4), lambda,
 '         profondeur réelle D, x = D / l0, inclinaison et angle
-'   dessous : butée sur le sol environnant : composante horizontale des contraintes du
-'         sol due à l'ancrage (couches d'ancrage de « Données du projet ») :
-'         sigma h,k = qs sin(alpha), sigma h,d = qs,i sin(alpha), Fh = sigma h pi B hi ;
-'         efforts en tête de la descente de charges (Nc, T0 = Nc sin(alpha), H = T0,
-'         M = 0) et constantes A, B, C, E du pieu long à pointe encastrée, avec leurs
+'   dessous : poussée des terres au repos sur l'ancrage (h = poteau BA + semelle BA,
+'         réparti sur les couches de « Données du projet ») : K0 = 1 - sin phi',
+'         sigma h = K0 sigma v + 2 c' racine(K0), H0,i = (sigma h haut + bas) / 2 hi ;
+'         efforts en tête de la descente de charges (Nc, T0 = Nc sin(alpha), H = T0 + H0,
+'         M0 selon la condition en tête) et constantes A, B, C, E du pieu long à pointe encastrée, avec leurs
 '         symboles et formules ;
 '         profil le long du micropieu par pas de calcul dz (saisi) : z, pas, Y, T et M
 '         de chaque combinaison, graphiques Y, T, M sous le profil, puis vérification de
@@ -183,7 +183,7 @@ Public Sub CreerVerificationStructurelle()
     ' I et EI après corrosion ; Kf selon la méthode de calcul (pressiométrique :
     ' EM x 18 rho / [4 (2,65 rho)^alpha + 3 alpha rho], rho = max(B / B0 ; 1) ;
     ' pénétrométrique : beta qc / 2) ; Es selon le type de sollicitation ;
-    ' l0 = (4 EI / Es)^(1/4) ; poussée des terres au repos H = K0 gamma h² / 2, e = h / 3.
+    ' l0 = (4 EI / Es)^(1/4).
     etape = "longueur de transfert"
     With ws.Range("A3")
         .Value = "LONGUEUR DE TRANSFERT l0 DU MICROPIEU LE PLUS LONG (MP" & iMax & ")"
@@ -283,22 +283,22 @@ Public Sub CreerVerificationStructurelle()
         .Add(xlCellValue, xlEqual, "=""Non efficace""").Font.Color = RGB(192, 0, 0)
     End With
 
-    ' --- Butée sur le sol environnant : poussée horizontale (butée) du terrain sur
-    ' l'ancrage (poteau BA + semelle BA du soubassement), théorie de Rankine ---
+    ' --- Poussée des terres au repos sur l'ancrage (poteau BA + semelle BA du
+    ' soubassement) ---
     '   hauteur de l'ancrage : h = hp (poteau BA) + hs (semelle BA), descente de charges ;
     '   la hauteur h est répartie sur les couches du tableau de « Données du projet »
     '   (épaisseurs depuis le TN) : couche i entre zh = min(z haut ; h) et zb = min(z bas ; h) ;
-    '   coefficient de butée : Kp = tan²(45° + phi'/2) ;
+    '   coefficient des terres au repos : K0 = 1 - sin phi' ;
     '   contrainte verticale : sigma v = somme(gamma j x hj) des couches au-dessus ;
-    '   butée : sigma p = Kp x sigma v + 2 c' racine(Kp) (haut et bas de la couche) ;
-    '   effort par mètre linéaire : Bp,i = (sigma p haut + sigma p bas) / 2 x hi.
-    etape = "butée sur l'ancrage"
+    '   contrainte horizontale : sigma h = K0 x sigma v + 2 c' racine(K0) (haut et bas) ;
+    '   effort par mètre linéaire : H0,i = (sigma h haut + sigma h bas) / 2 x hi.
+    etape = "poussée des terres au repos sur l'ancrage"
     nbC = CLng(N0(ActiveWorkbook.Worksheets("Données du projet").Range(CELLULE_NB_COUCHES).Value))
     If nbC < 1 Then nbC = 1
     If nbC > MAX_COUCHES Then nbC = MAX_COUCHES
     rA = rF + 3
     With ws.Range("A" & rA)
-        .Value = "BUTÉE DU SOL SUR L'ANCRAGE (POTEAU BA + SEMELLE BA) - RANKINE"
+        .Value = "POUSSÉE DES TERRES AU REPOS SUR L'ANCRAGE (POTEAU BA + SEMELLE BA)"
         .Font.Bold = True
         .Font.Size = 14
         .Font.Color = VERT_FONCE
@@ -327,19 +327,19 @@ Public Sub CreerVerificationStructurelle()
     r = rA + 5
     ws.Range("A" & r & ":O" & r).Value = Array("N° de couche", "Nom de couche", "z haut (m)", "z bas (m)", _
         "Épaisseur dans l'ancrage hi (m)", ChrW(947) & " (kN/m3)", "c' (kPa)", ChrW(966) & "' (°)", _
-        "Kp = tan²(45° + " & ChrW(966) & "'/2)", ChrW(963) & "v haut (kPa)", ChrW(963) & "v bas (kPa)", _
-        ChrW(963) & "p haut = Kp." & ChrW(963) & "v + 2c'" & ChrW(8730) & "Kp (kPa)", _
-        ChrW(963) & "p bas = Kp." & ChrW(963) & "v + 2c'" & ChrW(8730) & "Kp (kPa)", _
-        "Bp,i = (" & ChrW(963) & "p haut + " & ChrW(963) & "p bas)/2 . hi (kN/ml)", "Profondeur d'application (m)")
+        "K0 = 1 - sin " & ChrW(966) & "'", ChrW(963) & "v haut (kPa)", ChrW(963) & "v bas (kPa)", _
+        ChrW(963) & "h haut = K0." & ChrW(963) & "v + 2c'" & ChrW(8730) & "K0 (kPa)", _
+        ChrW(963) & "h bas = K0." & ChrW(963) & "v + 2c'" & ChrW(8730) & "K0 (kPa)", _
+        "H0,i = (" & ChrW(963) & "h haut + " & ChrW(963) & "h bas)/2 . hi (kN/ml)", "Profondeur d'application (m)")
     Commentaire ws.Range("C" & r), "z haut = min(profondeur du haut de la couche depuis le TN ; h)"
     Commentaire ws.Range("D" & r), "z bas = min(profondeur du bas de la couche depuis le TN ; h) ; " & _
         "épaisseurs du tableau des couches de « Données du projet »"
-    Commentaire ws.Range("I" & r), "Coefficient de butée de Rankine (écran vertical, terrain horizontal, " & _
-        "sans frottement sol-ancrage)"
+    Commentaire ws.Range("I" & r), "Coefficient des terres au repos de Jaky : K0 = 1 - sin " & ChrW(966) & _
+        "' (sol normalement consolidé, terrain horizontal)"
     Commentaire ws.Range("J" & r), ChrW(963) & "v haut = somme des " & ChrW(947) & "j.hj des couches au-dessus"
-    Commentaire ws.Range("O" & r), "Centre de gravité du diagramme trapézoïdal de butée de la couche : " & _
-        "z haut + hi (" & ChrW(963) & "p haut + 2 " & ChrW(963) & "p bas) / (3 (" & ChrW(963) & "p haut + " & _
-        ChrW(963) & "p bas))"
+    Commentaire ws.Range("O" & r), "Centre de gravité du diagramme trapézoïdal de poussée de la couche : " & _
+        "z haut + hi (" & ChrW(963) & "h haut + 2 " & ChrW(963) & "h bas) / (3 (" & ChrW(963) & "h haut + " & _
+        ChrW(963) & "h bas))"
     For i = 1 To nbC
         r = rA + 5 + i
         k = LIGNE_COUCHES + i - 1             ' ligne de la couche dans « Données du projet »
@@ -358,7 +358,7 @@ Public Sub CreerVerificationStructurelle()
         ws.Range("F" & r).Formula = "=N(" & DONNEES & "$J$" & k & ")"
         ws.Range("G" & r).Formula = "=N(" & DONNEES & "$K$" & k & ")"
         ws.Range("H" & r).Formula = "=N(" & DONNEES & "$L$" & k & ")"
-        ws.Range("I" & r).Formula = "=TAN(RADIANS(45+H" & r & "/2))^2"
+        ws.Range("I" & r).Formula = "=1-SIN(RADIANS(H" & r & "))"
         ws.Range("K" & r).Formula = "=J" & r & "+F" & r & "*E" & r
         ws.Range("L" & r).Formula = "=I" & r & "*J" & r & "+2*G" & r & "*SQRT(I" & r & ")"
         ws.Range("M" & r).Formula = "=I" & r & "*K" & r & "+2*G" & r & "*SQRT(I" & r & ")"
@@ -367,7 +367,7 @@ Public Sub CreerVerificationStructurelle()
             "+2*M" & r & ")/(3*(L" & r & "+M" & r & ")),0)"
     Next i
     r = rA + 6 + nbC
-    ws.Range("A" & r).Value = "Butée totale sur l'ancrage " & ChrW(931) & "Bp et profondeur d'application"
+    ws.Range("A" & r).Value = "Poussée totale au repos sur l'ancrage " & ChrW(931) & "H0,i et profondeur d'application"
     ws.Range("A" & r & ":M" & r).Merge
     ws.Range("N" & r).Formula = "=SUM(N" & rA + 6 & ":N" & r - 1 & ")"
     ws.Range("O" & r).Formula = "=IF(N" & r & ">0,SUMPRODUCT(N" & rA + 6 & ":N" & r - 1 & ",O" & rA + 6 & ":O" & _
@@ -445,6 +445,10 @@ Public Sub CreerVerificationStructurelle()
         ws.Range("D" & r + 1 + j).Value = entete(j)(2)
         ws.Range("I" & r + 1 + j).Value = entete(j)(3)
     Next j
+    Commentaire ws.Range("C" & r + 4), "Micropieu libre en tête : M0 = M0,talus (moment de la charge du talus, " & _
+        "descente de charges)." & vbLf & "Micropieu encastré en tête : on garde M0 = -H/(2" & ChrW(955) & _
+        ") = -H.l0/2, qui inclut maintenant H0 puisque H = T0 + H0. Le moment du talus M0,talus n'y est " & _
+        "pas ajouté, car on considère qu'il est repris par l'encastrement."
     For k = 0 To 3
         cl = Chr(Asc("E") + k)
         x = cl & "$"                          ' colonne de la combinaison (ligne absolue)
