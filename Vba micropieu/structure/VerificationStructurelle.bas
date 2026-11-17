@@ -20,7 +20,7 @@ Option Explicit
 '         M0 = M talus ou -H0/(2 lambda) si encastré) et constantes A, B, C, E du pieu long à pointe encastrée, avec leurs
 '         symboles et formules ;
 '         vérification de la résistance frontale de la fondation : H0 / Bp par
-'         combinaison (Bp = butée totale x longueur de mur reprise par le micropieu) ;
+'         combinaison (Bp = butée totale x plus grande largeur de mur du micropieu) ;
 '         si H0 / Bp < 1 pour toutes les combinaisons, profil Y, T, M et graphiques
 '         non calculés ;
 '         profil le long du micropieu par pas de calcul dz (saisi) : z, pas, Y, T et M
@@ -494,8 +494,8 @@ Public Sub CreerVerificationStructurelle()
 
     ' --- Vérification de la résistance frontale de la fondation : effort horizontal en
     ' tête H0 de chaque combinaison comparé à la butée des terres reprise par l'ancrage
-    ' du micropieu (butée totale par mètre linéaire x longueur de mur reprise par le
-    ' micropieu). Rapport H0 / Bp < 1 pour toutes les combinaisons : la butée reprend
+    ' du micropieu (butée totale par mètre linéaire x plus grande largeur de mur reprise
+    ' par le micropieu). Rapport H0 / Bp < 1 pour toutes les combinaisons : la butée reprend
     ' l'effort horizontal, le calcul de Y, T et M du micropieu n'est pas nécessaire. ---
     etape = "résistance frontale de la fondation"
     rV = rK + 9
@@ -510,8 +510,9 @@ Public Sub CreerVerificationStructurelle()
         "ELU FOND", "ELU ACC", "Unité")
     ws.Range("B" & r + 1 & ":D" & r + 1).Value = Array("Butée des terres totale sur l'ancrage (par mètre linéaire)", _
         ChrW(931) & "Bp,i", "tableau « Butée des terres sur l'ancrage »")
-    ws.Range("B" & r + 2 & ":D" & r + 2).Value = Array("Longueur de mur reprise par le micropieu", "L", _
-        "descente de charges : somme des longueurs de murs de la ligne du micropieu (matrice des micropieux)")
+    ws.Range("B" & r + 2 & ":D" & r + 2).Value = Array("Largeur de mur la plus grande reprise par le micropieu", _
+        "L", "descente de charges : plus grande des longueurs de murs de la ligne du micropieu (matrice des " & _
+        "micropieux)")
     ws.Range("B" & r + 3 & ":D" & r + 3).Value = Array("Butée des terres reprise par le micropieu", "Bp", _
         "Bp = " & ChrW(931) & "Bp,i x L")
     ws.Range("B" & r + 4 & ":D" & r + 4).Value = Array("Effort horizontal en tête", "H0", _
@@ -525,7 +526,7 @@ Public Sub CreerVerificationStructurelle()
         cl = Chr(Asc("E") + k)
         ws.Range(cl & r + 1).Formula = "=N(" & vBut & ")"
         If Not wd Is Nothing And n > 0 Then
-            ws.Range(cl & r + 2).Formula = "=SUM(" & dn & wd.Range(wd.Cells(rd + iMax - 1, 3), _
+            ws.Range(cl & r + 2).Formula = "=MAX(" & dn & wd.Range(wd.Cells(rd + iMax - 1, 3), _
                 wd.Cells(rd + iMax - 1, 2 + n)).Address & ")"
         Else
             ws.Range(cl & r + 2).Formula = "=0"
