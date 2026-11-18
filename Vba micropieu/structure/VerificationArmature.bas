@@ -11,7 +11,9 @@ Option Explicit
 '      Wel = 2 I / d, Wpl = (d³ - di³) / 6, fy, gamma M0 ;
 '   2. Sollicitations (maximum des combinaisons du tableau des efforts en tête, issus
 '      de la descente de charges) : Nc (vertical), NEd = Nc / cos(alpha) (effort dans
-'      l'axe du micropieu incliné), VEd = H0, MEd = M0 ;
+'      l'axe du micropieu incliné) ; après le calcul du micropieu : VEd = max|T(z)|,
+'      MEd = max|M(z)| le long du micropieu (toutes combinaisons) ; si ce calcul n'est
+'      pas nécessaire (H0 / butée < 1) : VEd = H0, MEd = M0 en tête ;
 '   3. Vérifications, en quatre volets (mini-titre, condition sous le titre, effort
 '      résistant, rapport effort agissant / effort résistant, conclusion) :
 '      3.1 classification du tube (tableau 5.2) : d/t <= 50 eps² (classe 1), 70 eps²
@@ -62,6 +64,7 @@ Public Sub VerificationArmature()
     Dim xYm As Long, xRy As Long, xOkY As Long, xsN As Long, xsM As Long, xsx As Long, xtau As Long
     Dim xsa As Long, xta As Long, xcr As Long, xOkS As Long, xin As Long, xOkI As Long
     Dim xSy As Long, xb As Long, xsv As Long, xR As Long
+    Dim fT As String, fM As String, k As Long
     Dim vInc As String, vAng As String, cosA As String, vNc As String, rap5 As String, ok5 As String
 
     On Error Resume Next
@@ -164,16 +167,31 @@ Public Sub VerificationArmature()
 
     ' --- 2. Sollicitations (maximum des combinaisons, descente de charges) ---
     etape = "sollicitations"
-    MiniTitre "2. Sollicitations de calcul (maximum des combinaisons, descente de charges)", ""
+    MiniTitre "2. Sollicitations de calcul (maximum des combinaisons, après le calcul du micropieu)", ""
     ' Effort normal dans l'axe du micropieu : effort vertical / cos(alpha) si incliné
     vNc = Lig("Effort vertical de compression (descente de charges, maximum)", "Nc", "=MAX(ABS(N(E" & rN & _
         ")),ABS(N(F" & rN & ")),ABS(N(G" & rN & ")),ABS(N(H" & rN & ")))", "kN", "0.0")
     NEd = Lig("Effort normal de compression dans l'axe du micropieu", "NEd = Nc / cos " & ChrW(945), _
         "=" & vNc & "/" & cosA, "kN", "0.0")
-    VEd = Lig("Effort tranchant", "VEd", "=MAX(ABS(N(E" & rN + 1 & ")),ABS(N(F" & rN + 1 & ")),ABS(N(G" & rN + 1 & _
-        ")),ABS(N(H" & rN + 1 & ")))", "kN", "0.0")
-    MEd = Lig("Moment fléchissant", "MEd", "=MAX(ABS(N(E" & rN + 2 & ")),ABS(N(F" & rN + 2 & ")),ABS(N(G" & rN + 2 & _
-        ")),ABS(N(H" & rN + 2 & ")))", "kN.m", "0.0")
+    If hP > 0 Then
+        ' Après le calcul du micropieu : maximum le long du micropieu (profil Y, T, M),
+        ' toutes combinaisons
+        fT = "": fM = ""
+        For k = 0 To 3
+            fT = fT & IIf(k > 0, ",", "") & ws.Range(ws.Cells(mP1, 6 + 3 * k), ws.Cells(mP1 + mPn - 1, 6 + 3 * k)).Address
+            fM = fM & IIf(k > 0, ",", "") & ws.Range(ws.Cells(mP1, 7 + 3 * k), ws.Cells(mP1 + mPn - 1, 7 + 3 * k)).Address
+        Next k
+        VEd = Lig("Effort tranchant maximal le long du micropieu (calcul Y, T, M)", "VEd = max|T(z)|", _
+            "=MAX(MAX(" & fT & "),-MIN(" & fT & "))", "kN", "0.0")
+        MEd = Lig("Moment fléchissant maximal le long du micropieu (calcul Y, T, M)", "MEd = max|M(z)|", _
+            "=MAX(MAX(" & fM & "),-MIN(" & fM & "))", "kN.m", "0.00")
+    Else
+        ' Calcul du micropieu non nécessaire (H0 / butée < 1) : efforts en tête
+        VEd = Lig("Effort tranchant en tête", "VEd = H0", "=MAX(ABS(N(E" & rN + 1 & ")),ABS(N(F" & rN + 1 & _
+            ")),ABS(N(G" & rN + 1 & ")),ABS(N(H" & rN + 1 & ")))", "kN", "0.0")
+        MEd = Lig("Moment fléchissant en tête", "MEd = M0", "=MAX(ABS(N(E" & rN + 2 & ")),ABS(N(F" & rN + 2 & _
+            ")),ABS(N(G" & rN + 2 & ")),ABS(N(H" & rN + 2 & ")))", "kN.m", "0.00")
+    End If
 
     ' --- 3.1 Classification du tube (tableau 5.2) ---
     etape = "classification"
