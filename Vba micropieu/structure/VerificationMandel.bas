@@ -14,7 +14,8 @@ Option Explicit
 '   enrobage c = (B - d) / 2, rayon de corrosion retenu (0 si protection par le coulis
 '   efficace : c >= 50 mm, C > 500 kg/m3, E/C < 0,5, compression), d après corrosion,
 '   inertie corrodée I, raideur de flexion EI = E x I ;
-'   Kf (NF P94-262, annexe I, B0 = 0,60 m) : courte durée
+'   Kf (NF P94-262, annexe I, B0 = 0,60 m), seulement pour la durée des charges de
+'   « Données du projet » : courte durée
 '   12 EM / [4/3 (B0/B)(2,65 B/B0)^alpha + alpha] (B > B0) ou
 '   12 EM / [4/3 (2,65)^alpha + alpha] (B <= B0) ; pénétrométrique beta qc ;
 '   longue durée (« Données du projet », durée des charges) : Kf / 2 ;
@@ -48,7 +49,7 @@ Public Sub VerificationMandel()
     Dim eA As String, rc As String, pen As String, emq As String, alp As String, nat As String
     Dim bet As String, b0 As String, sol As String, coulis As String, vF As String, x As String
     Dim entetes As Variant, formules As Variant, unites As Variant, ci As Long, fr As Range
-    Dim enc As String, lt As String
+    Dim enc As String, lt As String, dur As String, longue As Boolean
 
     On Error Resume Next
     Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
@@ -122,6 +123,9 @@ Public Sub VerificationMandel()
     Else
         enc = "(" & DONNEES & "$D$" & lp + 18 & "=""Encastré en tête"")"
     End If
+    ' Durée des charges (« Données du projet ») : seul le Kf de cette durée est calculé
+    longue = (CStr(ActiveWorkbook.Worksheets("Données du projet").Range("D" & lp + 23).Value) <> "Courte durée")
+    dur = "IF(" & DONNEES & "$D$" & lp + 23 & "=""Courte durée"",1,2)"
     lt = "IF(" & enc & ",1.75,1)"             ' limite de la formule pour lambda voisin de 0
     coulis = "N(" & DONNEES & "D" & lp + 28 & ")>500,N(" & DONNEES & "D" & lp + 27 & ")>0,N(" & DONNEES & "D" & _
         lp + 27 & ")<0.5," & DONNEES & "D" & lp + 12 & "<>""Traction"""
@@ -177,21 +181,22 @@ Public Sub VerificationMandel()
     entetes = Array("N° micropieu", "Diamètre extérieur de l'armature", "Épaisseur de l'armature", _
         "Diamètre du forage", "Enrobage", "Rayon de corrosion retenu", "Diamètre après corrosion", _
         "Inertie corrodée", "Raideur de flexion", "Module EM (ou qc) de la couche molle", _
-        "Coefficient rhéologique " & ChrW(945) & " (ou " & ChrW(946) & ")", "Kf de courte durée", _
-        "Kf retenu (longue durée : Kf / 2)", "Profondeur réelle", "Demi-longueur", _
+        "Coefficient rhéologique " & ChrW(945) & " (ou " & ChrW(946) & ")", "Kf (durée des charges : " & _
+        LCase(CStr(ActiveWorkbook.Worksheets("Données du projet").Range("D" & lp + 23).Value)) & ")", "Profondeur réelle", "Demi-longueur", _
         "Demi-longueur réduite", ChrW(966) & " (" & ChrW(955) & " voisin de 0)", ChrW(966) & " (" & ChrW(955) & _
         " assez grand)", ChrW(966) & " retenu", "Charge critique", "Charge critique admissible", _
         "Effort de compression ELS dans l'axe", "Rapport", "Vérification")
     formules = Array("", "d", "t0", "B (" & ChrW(934) & " retenu)", "c = (B - d)/2", _
         "rc (0 si c " & ChrW(8805) & " 50 mm et coulis conforme)", "dc = d - 2rc", _
         "I = " & ChrW(960) & "/64 (dc^4 - di^4)", "EI = E.I", "EM", ChrW(945), _
-        "12 EM / [4/3 (B0/B)(2,65 B/B0)^" & ChrW(945) & " + " & ChrW(945) & "]", "Kf", "D", "l = D/2", _
+        IIf(longue, "Kf = 12 EM / [4/3 (B0/B)(2,65 B/B0)^" & ChrW(945) & " + " & ChrW(945) & "] / 2", _
+        "Kf = 12 EM / [4/3 (B0/B)(2,65 B/B0)^" & ChrW(945) & " + " & ChrW(945) & "]"), "D", "l = D/2", _
         ChrW(955) & " = l (Kf/EI)^(1/4)", "courbe 4 ou 2 (voir ci-dessus)", "courbe 4 ou 2 (voir ci-dessus)", _
         ChrW(955) & " " & ChrW(8804) & " 1 (courbe 4) ou 1,75 (courbe 2) : " & ChrW(955) & " voisin de 0", "Ncr = " & ChrW(966) & ChrW(8730) & "(EI.Kf)", _
         "Fcr = Ncr / F", "N = max(Vmax ELS) / cos " & ChrW(945), "N / Fcr", "")
-    unites = Array("", "mm", "mm", "m", "mm", "mm", "mm", "mm4", "kN.m²", "MPa", "", "MPa", "MPa", "m", "m", _
+    unites = Array("", "mm", "mm", "m", "mm", "mm", "mm", "mm4", "kN.m²", "MPa", "", "MPa", "m", "m", _
         "", "", "", "", "kN", "kN", "kN", "", "")
-    For k = 0 To 23
+    For k = 0 To 22
         ws.Cells(rH, 1 + k).Value = entetes(k)
         ws.Cells(rH + 1, 1 + k).Value = formules(k)
         ws.Cells(rH + 2, 1 + k).Value = unites(k)
@@ -215,62 +220,61 @@ Public Sub VerificationMandel()
         ws.Range("J" & r).Formula = "=" & emq
         ws.Range("K" & r).Formula = "=IF(" & pen & "," & bet & "," & alp & ")"
         x = "MAX(D" & r & "/" & b0 & ",1)"   ' rho = max(B / B0 ; 1)
+        ' Kf de la seule durée choisie (« Données du projet ») : longue durée = Kf / 2
         ws.Range("L" & r).Formula = "=IF(OR(N(J" & r & ")<=0,N(D" & r & ")<=0),"""",IF(" & pen & ",K" & r & "*J" & r & _
-            ",12*J" & r & "/(4/3*(2.65*" & x & ")^K" & r & "/" & x & "+K" & r & ")))"
-        ws.Range("M" & r).Formula = "=IF(L" & r & "="""","""",L" & r & "/IF(" & DONNEES & "$D$" & lp + 23 & _
-            "=""Courte durée"",1,2))"
+            ",12*J" & r & "/(4/3*(2.65*" & x & ")^K" & r & "/" & x & "+K" & r & "))/" & dur & ")"
         If cDr > 0 Then
-            ws.Range("N" & r).Formula = "=N(" & CALCUL & wc.Cells(ci, cDr).Address & ")"
+            ws.Range("M" & r).Formula = "=N(" & CALCUL & wc.Cells(ci, cDr).Address & ")"
         Else
-            ws.Range("N" & r).Formula = "=0"
+            ws.Range("M" & r).Formula = "=0"
         End If
-        ws.Range("O" & r).Formula = "=N" & r & "/2"
-        ws.Range("P" & r).Formula = "=IF(OR(M" & r & "="""",N(I" & r & ")<=0),"""",O" & r & "*(1000*M" & r & "/I" & _
+        ws.Range("N" & r).Formula = "=M" & r & "/2"
+        ws.Range("O" & r).Formula = "=IF(OR(L" & r & "="""",N(I" & r & ")<=0),"""",N" & r & "*(1000*L" & r & "/I" & _
             r & ")^0.25)"
-        x = "P" & r                           ' lambda
-        ws.Range("Q" & r).Formula = "=IF(N(" & x & ")<=0,"""",IF(" & enc & ",PI()^2/" & x & "^2+3*" & x & "^2/PI()^2," & _
+        x = "O" & r                           ' lambda
+        ws.Range("P" & r).Formula = "=IF(N(" & x & ")<=0,"""",IF(" & enc & ",PI()^2/" & x & "^2+3*" & x & "^2/PI()^2," & _
             "PI()^2/(16*" & x & "^2)+16*" & x & "^2/PI()^2*(3-8/PI())))"
-        ws.Range("R" & r).Formula = "=IF(N(" & x & ")<=0,"""",IF(" & enc & ",2+PI()^2/" & x & "^2*(1-ABS(SIN(2*" & x & _
+        ws.Range("Q" & r).Formula = "=IF(N(" & x & ")<=0,"""",IF(" & enc & ",2+PI()^2/" & x & "^2*(1-ABS(SIN(2*" & x & _
             "))/" & x & ")^2,1+4/SQRT(3)*(2+COS(2*" & x & "*SQRT(3)))/EXP(2*" & x & ")))"
-        ws.Range("S" & r).Formula = "=IF(Q" & r & "="""","""",IF(" & x & "<=" & lt & ",Q" & r & ",R" & r & "))"
-        ws.Range("T" & r).Formula = "=IF(S" & r & "="""","""",S" & r & "*SQRT(I" & r & "*1000*M" & r & "))"
-        ws.Range("U" & r).Formula = "=IF(OR(T" & r & "="""",N(" & vF & ")<=0),"""",T" & r & "/" & vF & ")"
+        ws.Range("R" & r).Formula = "=IF(P" & r & "="""","""",IF(" & x & "<=" & lt & ",P" & r & ",Q" & r & "))"
+        ws.Range("S" & r).Formula = "=IF(R" & r & "="""","""",R" & r & "*SQRT(I" & r & "*1000*L" & r & "))"
+        ws.Range("T" & r).Formula = "=IF(OR(S" & r & "="""",N(" & vF & ")<=0),"""",S" & r & "/" & vF & ")"
         If cC > 0 Then
-            ws.Range("V" & r).Formula = "=MAX(ABS(N(" & CALCUL & wc.Cells(ci, cC).Address & ")),ABS(N(" & CALCUL & _
+            ws.Range("U" & r).Formula = "=MAX(ABS(N(" & CALCUL & wc.Cells(ci, cC).Address & ")),ABS(N(" & CALCUL & _
                 wc.Cells(ci, cC + 2).Address & ")))" & IIf(cIn > 0 And cAn > 0, "/IF(AND(" & CALCUL & _
                 wc.Cells(ci, cIn).Address & "=""Oui"",N(" & CALCUL & wc.Cells(ci, cAn).Address & ")>0,N(" & CALCUL & _
                 wc.Cells(ci, cAn).Address & ")<90),COS(RADIANS(" & CALCUL & wc.Cells(ci, cAn).Address & ")),1)", "")
         Else
-            ws.Range("V" & r).Formula = "=0"
+            ws.Range("U" & r).Formula = "=0"
         End If
-        ws.Range("W" & r).Formula = "=IF(N(U" & r & ")>0,V" & r & "/U" & r & ","""")"
-        ws.Range("X" & r).Formula = "=IF(W" & r & "="""",""-"",IF(W" & r & "<=1,""OK (taux ""&TEXT(W" & r & _
+        ws.Range("V" & r).Formula = "=IF(N(T" & r & ")>0,U" & r & "/T" & r & ","""")"
+        ws.Range("W" & r).Formula = "=IF(V" & r & "="""",""-"",IF(V" & r & "<=1,""OK (taux ""&TEXT(V" & r & _
             ",""0%"")&"")"",""Non vérifié : flambement""))"
     Next i
 
     ' --- Mise en forme ---
     etape = "mise en forme"
     r = rH + 2 + m
-    With ws.Range("A" & rH & ":X" & r)
+    With ws.Range("A" & rH & ":W" & r)
         .Borders.LineStyle = xlContinuous
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    With ws.Range("A" & rH & ":X" & rH + 2)
+    With ws.Range("A" & rH & ":W" & rH + 2)
         .Font.Bold = True
         .Interior.Color = VERT_ENTETE
     End With
-    ws.Range("A" & rH + 1 & ":X" & rH + 1).Font.Bold = False
-    ws.Range("A" & rH + 1 & ":X" & rH + 1).Font.Italic = True
-    ws.Range("B" & rH + 3 & ":X" & r).Interior.Color = JAUNE_CALCUL
-    ws.Range("A" & rH + 3 & ":A" & r & ",X" & rH + 3 & ":X" & r).Font.Bold = True
+    ws.Range("A" & rH + 1 & ":W" & rH + 1).Font.Bold = False
+    ws.Range("A" & rH + 1 & ":W" & rH + 1).Font.Italic = True
+    ws.Range("B" & rH + 3 & ":W" & r).Interior.Color = JAUNE_CALCUL
+    ws.Range("A" & rH + 3 & ":A" & r & ",W" & rH + 3 & ":W" & r).Font.Bold = True
     ws.Range("B" & rH + 3 & ":C" & r & ",E" & rH + 3 & ":G" & r).NumberFormat = "0.0"
-    ws.Range("D" & rH + 3 & ":D" & r & ",N" & rH + 3 & ":S" & r & ",W" & rH + 3 & ":W" & r).NumberFormat = "0.00"
+    ws.Range("D" & rH + 3 & ":D" & r & ",M" & rH + 3 & ":R" & r & ",V" & rH + 3 & ":V" & r).NumberFormat = "0.00"
     ws.Range("H" & rH + 3 & ":H" & r).NumberFormat = "0.000E+00"
-    ws.Range("I" & rH + 3 & ":J" & r & ",L" & rH + 3 & ":M" & r & ",T" & rH + 3 & ":V" & r).NumberFormat = "0.0"
+    ws.Range("I" & rH + 3 & ":J" & r & ",L" & rH + 3 & ":L" & r & ",S" & rH + 3 & ":U" & r).NumberFormat = "0.0"
     ws.Range("K" & rH + 3 & ":K" & r).NumberFormat = "0.000"
-    With ws.Range("X" & rH + 3 & ":X" & r).FormatConditions
+    With ws.Range("W" & rH + 3 & ":W" & r).FormatConditions
         .Delete
         .Add(xlTextString, String:="Non vérifié", TextOperator:=xlContains).Font.Color = RGB(192, 0, 0)
     End With
