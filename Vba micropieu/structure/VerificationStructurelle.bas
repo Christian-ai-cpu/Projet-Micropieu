@@ -64,6 +64,7 @@ Public Sub CreerVerificationStructurelle()
     Dim vRho As String, vKf As String, vEs As String, vl0 As String, vLam As String, vD As String
     Dim vx As String, vInc As String, vAng As String, vCond As String, vLm As String, vHp As String
     Dim vEx As String, vPas As String, pasZ As Variant, hF As Variant, nbC As Long, rA As Long
+    Dim vKc As String, vDur As String
     Dim vBut As String, rV As Long, calcY As Boolean, v As Variant
     Dim libre As Variant, cTal As Long, fH0 As String, fM0 As String
 
@@ -186,9 +187,10 @@ Public Sub CreerVerificationStructurelle()
     ' autre valeur saisie ; enrobage c = (B - d) / 2 ; protection par le coulis (acier en
     ' compression) si c >= 5 cm, dosage > 500 kg/m3 et E/C < 0,5 : pas de corrosion ;
     ' armature après corrosion (tube : face extérieure, barre : tout le pourtour) ;
-    ' I et EI après corrosion ; Kf selon la méthode de calcul (pressiométrique :
-    ' EM x 18 rho / [4 (2,65 rho)^alpha + 3 alpha rho], rho = max(B / B0 ; 1) ;
-    ' pénétrométrique : beta qc / 2) ; Es selon le type de sollicitation ;
+    ' I et EI après corrosion ; Kf de courte durée selon la méthode de calcul
+    ' (pressiométrique : 12 EM / [4/3 (B0/B)(2,65 B/B0)^alpha + alpha] si B > B0,
+    ' 12 EM / [4/3 (2,65)^alpha + alpha] si B <= B0 ; pénétrométrique : beta qc) ;
+    ' longue durée (sollicitations a, b) : Kf / 2 ; Es = Kf retenu ;
     ' l0 = (4 EI / Es)^(1/4).
     etape = "longueur de transfert"
     With ws.Range("A3")
@@ -238,12 +240,20 @@ Public Sub CreerVerificationStructurelle()
     r = r + 1: Ligne ws, r, "Diamètre de référence B0", "=" & b0, "m": vB0 = "$D$" & r
     r = r + 1: Ligne ws, r, ChrW(961) & " = max(B / B0 ; 1)", "=IF(" & vB0 & "<=0,"""",MAX(" & vB & "/" & vB0 & ",1))", _
         "": vRho = "$D$" & r
-    r = r + 1: Ligne ws, r, "Module de réaction Kf (selon la méthode de calcul)", "=IF(OR(N(" & vEM & ")<=0," & vRho & _
-        "=""""),"""",IF(" & pen & "," & vAl & "*" & vEM & "/2," & vEM & "*18*" & vRho & "/(4*(2.65*" & vRho & ")^" & _
-        vAl & "+3*" & vAl & "*" & vRho & ")))", "MPa": vKf = "$D$" & r
+    ' Kf de courte durée (annexe I) : B <= B0 : 12 EM / [4/3 (2,65)^alpha + alpha] ;
+    ' B > B0 : 12 EM / [4/3 (B0/B)(2,65 B/B0)^alpha + alpha] (rho = max(B/B0 ; 1)) ;
+    ' pénétrométrique : beta qc ; longue durée : Kf / 2
+    r = r + 1: Ligne ws, r, "Module de réaction Kf de courte durée (B " & ChrW(8804) & " B0 : 12 EM / [4/3 (2,65)^" & _
+        ChrW(945) & " + " & ChrW(945) & "] ; B > B0 : 12 EM / [4/3 (B0/B)(2,65 B/B0)^" & ChrW(945) & " + " & _
+        ChrW(945) & "])", "=IF(OR(N(" & vEM & ")<=0," & vRho & "=""""),"""",IF(" & pen & "," & vAl & "*" & vEM & _
+        ",12*" & vEM & "/(4/3*(2.65*" & vRho & ")^" & vAl & "/" & vRho & "+" & vAl & ")))", "MPa": vKc = "$D$" & r
     r = r + 1: Ligne ws, r, "Type de sollicitation", "=" & sol, ""
-    r = r + 1: Ligne ws, r, "Module Es (a, b : Kf ; c, d : 2 Kf)", "=IF(" & vKf & "="""",""""," & _
-        "IF(OR(LEFT(" & sol & ",1)=""c"",LEFT(" & sol & ",1)=""d""),2,1)*" & vKf & ")", "MPa": vEs = "$D$" & r
+    r = r + 1: Ligne ws, r, "Durée des charges (a, b : longue durée ; c, d : courte durée)", _
+        "=IF(OR(LEFT(" & sol & ",1)=""c"",LEFT(" & sol & ",1)=""d""),""Courte durée"",""Longue durée"")", "": _
+        vDur = "$D$" & r
+    r = r + 1: Ligne ws, r, "Module de réaction Kf retenu (courte durée : Kf ; longue durée : Kf / 2)", _
+        "=IF(" & vKc & "="""",""""," & vKc & "/IF(" & vDur & "=""Longue durée"",2,1))", "MPa": vKf = "$D$" & r
+    r = r + 1: Ligne ws, r, "Module Es = Kf retenu", "=" & vKf, "MPa": vEs = "$D$" & r
     r = r + 1: Ligne ws, r, "Longueur de transfert l0 = (4 EI / Es)^(1/4)", "=IF(OR(" & vEs & "="""",N(" & vEs & _
         ")=0),"""",(4*" & vEI & "/(" & vEs & "*1000))^0.25)", "m": vl0 = "$D$" & r
     r = r + 1: Ligne ws, r, ChrW(955) & " = 1 / l0", "=IF(N(" & vl0 & ")<=0,"""",1/" & vl0 & ")", "1/m": vLam = "$D$" & r

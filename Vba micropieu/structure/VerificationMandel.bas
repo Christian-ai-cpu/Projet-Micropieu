@@ -1,0 +1,256 @@
+Attribute VB_Name = "VerificationMandel"
+Option Explicit
+
+' Module « Vérification au flambement (Mandel) » : ajoute, sous la vérification de
+' l'armature de la feuille « Vérification structurelle », l'étude du flambement de
+' chaque micropieu de « Calcul et vérification » selon l'abaque de Mandel (pieu dans
+' un sol à raideur constante), courbe 3 : micropieu libre (NF P94-262, 8.4.2(2)).
+' Une ligne par micropieu, toutes les valeurs sont des formules :
+'   armature : diamètre extérieur d, épaisseur t0 (« Données du projet ») ;
+'   diamètre du forage B (Phi retenu de « Calcul et vérification ») ;
+'   enrobage c = (B - d) / 2, rayon de corrosion retenu (0 si protection par le coulis
+'   efficace : c >= 50 mm, C > 500 kg/m3, E/C < 0,5, compression), d après corrosion,
+'   inertie corrodée I, raideur de flexion EI = E x I ;
+'   Kf (NF P94-262, annexe I, B0 = 0,60 m) : courte durée
+'   12 EM / [4/3 (B0/B)(2,65 B/B0)^alpha + alpha] (B > B0) ou
+'   12 EM / [4/3 (2,65)^alpha + alpha] (B <= B0) ; pénétrométrique beta qc ;
+'   longue durée (sollicitations a, b) : Kf / 2 ;
+'   demi-longueur l = D / 2 (D profondeur réelle), lambda = l (Kf / EI)^(1/4) ;
+'   phi (courbe 3) : lambda voisin de 0 : phi = lambda² / 3 ; lambda assez grand :
+'   phi = 1 - (4 / racine 3) |sin(lambda racine 3)| / e^lambda ; phi retenu :
+'   lambda <= 1,5 : lambda² / 3, sinon formule pour lambda assez grand ;
+'   charge critique Ncr = phi racine(EI Kf), charge admissible Fcr = Ncr / F (F = 2,5
+'   à l'ELS, saisi) ; effort ELS dans l'axe N = max(Vmax ELS CARA, ELS QP) / cos(alpha)
+'   (micropieu incliné) ; condition N / Fcr <= 1.
+' Appelée à la fin de VerificationArmature ; peut être relancée seule.
+
+Private Const NOM_FEUILLE As String = "Vérification structurelle"
+Private Const DONNEES As String = "'Données du projet'!"
+Private Const CALCUL As String = "'Calcul et vérification'!"
+Private Const TITRE As String = "VÉRIFICATION AU FLAMBEMENT DES MICROPIEUX - ABAQUE DE MANDEL (COURBE 3 : MICROPIEU LIBRE)"
+Private Const LIB_F As String = "Coefficient de sécurité sur la charge critique à l'ELS (à saisir)"
+Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
+Private Const JAUNE_CALCUL As Long = 13434879  ' RGB(255, 255, 204)
+Private Const VERT_ENTETE As Long = 14348258   ' RGB(226, 239, 218)
+Private Const VERT_FONCE As Long = 2315831     ' RGB(55, 86, 35)
+
+Public Sub VerificationMandel()
+    Dim ws As Worksheet, wc As Worksheet, co As ChartObject, v As Variant, etape As String
+    Dim r0 As Long, m As Long, i As Long, k As Long, r As Long, rT As Long, rH As Long, rL As Long
+    Dim cPhi As Long, cDr As Long, cIn As Long, cAn As Long, cC As Long, bas As Double, fSec As Variant
+    Dim a As Long, lp As Long, lm As Long, tube As String, dA As String, dI As String, t0 As String
+    Dim eA As String, rc As String, pen As String, emq As String, alp As String, nat As String
+    Dim bet As String, b0 As String, sol As String, coulis As String, vF As String, x As String
+    Dim entetes As Variant, formules As Variant, unites As Variant, ci As Long, fr As Range
+
+    On Error Resume Next
+    Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
+    Set wc = ActiveWorkbook.Worksheets("Calcul et vérification")
+    On Error GoTo Erreur
+    If ws Is Nothing Or wc Is Nothing Then
+        MsgBox "Créez d'abord les feuilles « Calcul et vérification » et « " & NOM_FEUILLE & " ».", vbExclamation
+        Exit Sub
+    End If
+    a = LIGNE_ACIER: lp = LIGNE_PIEU: lm = LIGNE_COUCHE_MOLLE
+
+    ' --- Micropieux de la vérification de la profondeur (« Calcul et vérification ») ---
+    etape = "micropieux de « Calcul et vérification »"
+    v = Application.Match("N° MICROPIEU", wc.Range("A1:A5000"), 0)
+    If IsError(v) Then
+        MsgBox "Tableau des micropieux introuvable dans « Calcul et vérification ».", vbExclamation
+        Exit Sub
+    End If
+    r0 = CLng(v)
+    Do While Left(CStr(wc.Range("A" & r0 + 3 + m).Value), 2) = "MP"
+        m = m + 1
+    Loop
+    For i = 1 To 80
+        If CStr(wc.Cells(r0 + 1, i).Value) = ChrW(934) & " RETENU" Then cPhi = i
+        If CStr(wc.Cells(r0, i).Value) = "PROFONDEUR RÉELLE (m)" Then cDr = i
+        If cDr = 0 And CStr(wc.Cells(r0, i).Value) = "PROFONDEUR RETENUE (m)" Then cDr = i
+        If CStr(wc.Cells(r0 + 1, i).Value) = "Incliné" Then cIn = i
+        If CStr(wc.Cells(r0 + 1, i).Value) = "Angle (°)" Then cAn = i
+        If CStr(wc.Cells(r0, i).Value) = "COMBINAISONS DE CHARGES VERTICALES (kN)" Then cC = i
+    Next i
+    If m = 0 Then Exit Sub
+
+    ' --- Position : sous la vérification de l'armature (ancien tableau effacé) ---
+    etape = "position du tableau"
+    v = Application.Match(LIB_F, ws.Range("B1:B5000"), 0)
+    If Not IsError(v) Then fSec = ws.Range("D" & CLng(v)).Value      ' saisie conservée
+    v = Application.Match(TITRE, ws.Range("A1:A5000"), 0)
+    If Not IsError(v) Then ws.Range(ws.Rows(CLng(v)), ws.Rows(CLng(v) + m + 20)).Clear
+    Set fr = ws.Cells.Find("*", LookIn:=xlFormulas, SearchOrder:=xlByRows, SearchDirection:=xlPrevious)
+    r = 1
+    If Not fr Is Nothing Then r = fr.Row      ' dernière ligne remplie (vérification de l'armature)
+    bas = ws.Cells(r, 1).Top
+    For Each co In ws.ChartObjects
+        If co.Top + co.Height > bas Then bas = co.Top + co.Height
+    Next co
+    rT = r
+    Do While ws.Cells(rT, 1).Top < bas + 10
+        rT = rT + 1
+    Loop
+    rT = rT + 2
+
+    ' --- Paramètres (« Données du projet ») ---
+    tube = DONNEES & "$D$" & a & "=""Tube N80"""
+    dA = "N(" & DONNEES & "$D$" & a + 2 & ")"
+    t0 = "N(" & DONNEES & "$D$" & a + 3 & ")"
+    dI = "IF(" & tube & ",N(" & DONNEES & "$D$" & a + 4 & "),0)"
+    eA = "N(" & DONNEES & "$D$" & a + 6 & ")"
+    rc = "N(" & DONNEES & "$D$" & a + 13 & ")"
+    pen = "(" & DONNEES & CELLULE_METHODE & "=""Méthode pénétrométrique"")"
+    emq = "N(" & DONNEES & "$D$" & lm + 1 & ")"
+    alp = "N(" & DONNEES & "$D$" & lm + 6 & ")"
+    nat = DONNEES & "$D$" & lm + 5
+    bet = "IF(OR(" & nat & "=""Tourbe""," & nat & "=""Argile""),12,IF(" & nat & "=""Limon"",7.5,4.5))"
+    b0 = "IF(N(" & DONNEES & "$D$" & lp + 22 & ")>0,N(" & DONNEES & "$D$" & lp + 22 & "),0.6)"
+    sol = DONNEES & "$D$" & lp + 21
+    coulis = "N(" & DONNEES & "D" & lp + 28 & ")>500,N(" & DONNEES & "D" & lp + 27 & ")>0,N(" & DONNEES & "D" & _
+        lp + 27 & ")<0.5," & DONNEES & "D" & lp + 12 & "<>""Traction"""
+
+    ' --- Titre, rappel de la méthode, coefficient de sécurité ---
+    etape = "titre"
+    With ws.Range("A" & rT)
+        .Value = TITRE
+        .Font.Bold = True
+        .Font.Size = 14
+        .Font.Color = VERT_FONCE
+    End With
+    With ws.Range("B" & rT + 1 & ":L" & rT + 1)
+        .Merge
+        .Value = "Charge critique Ncr = " & ChrW(966) & "." & ChrW(8730) & "(EI.Kf) ; demi-longueur réduite " & _
+            ChrW(955) & " = l.(Kf/EI)^(1/4), l = D/2 ; courbe 3 (micropieu libre) : " & ChrW(955) & _
+            " voisin de 0 : " & ChrW(966) & " = " & ChrW(955) & "²/3 ; " & ChrW(955) & " assez grand : " & _
+            ChrW(966) & " = 1 - (4/" & ChrW(8730) & "3).|sin(" & ChrW(955) & ChrW(8730) & "3)|/e^" & ChrW(955) & _
+            " ; " & ChrW(966) & " retenu : " & ChrW(955) & " " & ChrW(8804) & " 1,5 : " & ChrW(955) & _
+            "²/3, sinon formule pour " & ChrW(955) & " assez grand. Condition : N,ELS / Fcr " & ChrW(8804) & _
+            " 1 avec Fcr = Ncr / F."
+        .Font.Italic = True
+        .WrapText = True
+    End With
+    ws.Rows(rT + 1).RowHeight = 45
+    rL = rT + 2
+    ws.Range("B" & rL).Value = LIB_F
+    ws.Range("C" & rL).Value = "F"
+    With ws.Range("D" & rL)
+        .Value = IIf(IsNumeric(fSec) And Not IsEmpty(fSec), fSec, 2.5)
+        If N0(.Value) <= 0 Then .Value = 2.5
+        .Interior.Color = VERT_SAISIE
+        .NumberFormat = "0.00"
+        .HorizontalAlignment = xlCenter
+    End With
+    ws.Range("B" & rL & ":D" & rL).Borders.LineStyle = xlContinuous
+    vF = "$D$" & rL
+
+    ' --- Tableau : une ligne par micropieu ---
+    etape = "tableau des micropieux"
+    rH = rL + 2
+    entetes = Array("N° micropieu", "Diamètre extérieur de l'armature", "Épaisseur de l'armature", _
+        "Diamètre du forage", "Enrobage", "Rayon de corrosion retenu", "Diamètre après corrosion", _
+        "Inertie corrodée", "Raideur de flexion", "Module EM (ou qc) de la couche molle", _
+        "Coefficient rhéologique " & ChrW(945) & " (ou " & ChrW(946) & ")", "Kf de courte durée", _
+        "Kf retenu (longue durée : Kf / 2)", "Profondeur réelle", "Demi-longueur", _
+        "Demi-longueur réduite", ChrW(966) & " (" & ChrW(955) & " voisin de 0)", ChrW(966) & " (" & ChrW(955) & _
+        " assez grand)", ChrW(966) & " retenu", "Charge critique", "Charge critique admissible", _
+        "Effort de compression ELS dans l'axe", "Rapport", "Vérification")
+    formules = Array("", "d", "t0", "B (" & ChrW(934) & " retenu)", "c = (B - d)/2", _
+        "rc (0 si c " & ChrW(8805) & " 50 mm et coulis conforme)", "dc = d - 2rc", _
+        "I = " & ChrW(960) & "/64 (dc^4 - di^4)", "EI = E.I", "EM", ChrW(945), _
+        "12 EM / [4/3 (B0/B)(2,65 B/B0)^" & ChrW(945) & " + " & ChrW(945) & "]", "Kf", "D", "l = D/2", _
+        ChrW(955) & " = l (Kf/EI)^(1/4)", ChrW(955) & "²/3", "1 - (4/" & ChrW(8730) & "3)|sin " & ChrW(955) & _
+        ChrW(8730) & "3|/e^" & ChrW(955), ChrW(966), "Ncr = " & ChrW(966) & ChrW(8730) & "(EI.Kf)", _
+        "Fcr = Ncr / F", "N = max(Vmax ELS) / cos " & ChrW(945), "N / Fcr", "")
+    unites = Array("", "mm", "mm", "m", "mm", "mm", "mm", "mm4", "kN.m²", "MPa", "", "MPa", "MPa", "m", "m", _
+        "", "", "", "", "kN", "kN", "kN", "", "")
+    For k = 0 To 23
+        ws.Cells(rH, 1 + k).Value = entetes(k)
+        ws.Cells(rH + 1, 1 + k).Value = formules(k)
+        ws.Cells(rH + 2, 1 + k).Value = unites(k)
+    Next k
+    For i = 1 To m
+        r = rH + 2 + i
+        ci = r0 + 2 + i                       ' ligne du micropieu dans « Calcul et vérification »
+        ws.Range("A" & r).Formula = "=" & CALCUL & "$A$" & ci & "&"""""
+        ws.Range("B" & r).Formula = "=" & dA
+        ws.Range("C" & r).Formula = "=IF(" & tube & "," & t0 & ",""-"")"
+        If cPhi > 0 Then
+            ws.Range("D" & r).Formula = "=N(" & CALCUL & wc.Cells(ci, cPhi).Address & ")"
+        Else
+            ws.Range("D" & r).Formula = "=0"
+        End If
+        ws.Range("E" & r).Formula = "=MAX(0,(1000*D" & r & "-B" & r & ")/2)"
+        ws.Range("F" & r).Formula = "=IF(AND(E" & r & ">=50," & coulis & "),0," & rc & ")"
+        ws.Range("G" & r).Formula = "=MAX(0,B" & r & "-2*F" & r & ")"
+        ws.Range("H" & r).Formula = "=MAX(0,PI()/64*(G" & r & "^4-" & dI & "^4))"
+        ws.Range("I" & r).Formula = "=" & eA & "*H" & r & "*1E-9"
+        ws.Range("J" & r).Formula = "=" & emq
+        ws.Range("K" & r).Formula = "=IF(" & pen & "," & bet & "," & alp & ")"
+        x = "MAX(D" & r & "/" & b0 & ",1)"   ' rho = max(B / B0 ; 1)
+        ws.Range("L" & r).Formula = "=IF(OR(N(J" & r & ")<=0,N(D" & r & ")<=0),"""",IF(" & pen & ",K" & r & "*J" & r & _
+            ",12*J" & r & "/(4/3*(2.65*" & x & ")^K" & r & "/" & x & "+K" & r & ")))"
+        ws.Range("M" & r).Formula = "=IF(L" & r & "="""","""",L" & r & "/IF(OR(LEFT(" & sol & ",1)=""c"",LEFT(" & _
+            sol & ",1)=""d""),1,2))"
+        If cDr > 0 Then
+            ws.Range("N" & r).Formula = "=N(" & CALCUL & wc.Cells(ci, cDr).Address & ")"
+        Else
+            ws.Range("N" & r).Formula = "=0"
+        End If
+        ws.Range("O" & r).Formula = "=N" & r & "/2"
+        ws.Range("P" & r).Formula = "=IF(OR(M" & r & "="""",N(I" & r & ")<=0),"""",O" & r & "*(1000*M" & r & "/I" & _
+            r & ")^0.25)"
+        ws.Range("Q" & r).Formula = "=IF(P" & r & "="""","""",P" & r & "^2/3)"
+        ws.Range("R" & r).Formula = "=IF(P" & r & "="""","""",1-4/SQRT(3)*ABS(SIN(P" & r & "*SQRT(3)))/EXP(P" & r & "))"
+        ws.Range("S" & r).Formula = "=IF(P" & r & "="""","""",IF(P" & r & "<=1.5,Q" & r & ",R" & r & "))"
+        ws.Range("T" & r).Formula = "=IF(S" & r & "="""","""",S" & r & "*SQRT(I" & r & "*1000*M" & r & "))"
+        ws.Range("U" & r).Formula = "=IF(OR(T" & r & "="""",N(" & vF & ")<=0),"""",T" & r & "/" & vF & ")"
+        If cC > 0 Then
+            ws.Range("V" & r).Formula = "=MAX(ABS(N(" & CALCUL & wc.Cells(ci, cC).Address & ")),ABS(N(" & CALCUL & _
+                wc.Cells(ci, cC + 2).Address & ")))" & IIf(cIn > 0 And cAn > 0, "/IF(AND(" & CALCUL & _
+                wc.Cells(ci, cIn).Address & "=""Oui"",N(" & CALCUL & wc.Cells(ci, cAn).Address & ")>0,N(" & CALCUL & _
+                wc.Cells(ci, cAn).Address & ")<90),COS(RADIANS(" & CALCUL & wc.Cells(ci, cAn).Address & ")),1)", "")
+        Else
+            ws.Range("V" & r).Formula = "=0"
+        End If
+        ws.Range("W" & r).Formula = "=IF(N(U" & r & ")>0,V" & r & "/U" & r & ","""")"
+        ws.Range("X" & r).Formula = "=IF(W" & r & "="""",""-"",IF(W" & r & "<=1,""OK (taux ""&TEXT(W" & r & _
+            ",""0%"")&"")"",""Non vérifié : flambement""))"
+    Next i
+
+    ' --- Mise en forme ---
+    etape = "mise en forme"
+    r = rH + 2 + m
+    With ws.Range("A" & rH & ":X" & r)
+        .Borders.LineStyle = xlContinuous
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .WrapText = True
+    End With
+    With ws.Range("A" & rH & ":X" & rH + 2)
+        .Font.Bold = True
+        .Interior.Color = VERT_ENTETE
+    End With
+    ws.Range("A" & rH + 1 & ":X" & rH + 1).Font.Bold = False
+    ws.Range("A" & rH + 1 & ":X" & rH + 1).Font.Italic = True
+    ws.Range("B" & rH + 3 & ":X" & r).Interior.Color = JAUNE_CALCUL
+    ws.Range("A" & rH + 3 & ":A" & r & ",X" & rH + 3 & ":X" & r).Font.Bold = True
+    ws.Range("B" & rH + 3 & ":C" & r & ",E" & rH + 3 & ":G" & r).NumberFormat = "0.0"
+    ws.Range("D" & rH + 3 & ":D" & r & ",N" & rH + 3 & ":S" & r & ",W" & rH + 3 & ":W" & r).NumberFormat = "0.00"
+    ws.Range("H" & rH + 3 & ":H" & r).NumberFormat = "0.000E+00"
+    ws.Range("I" & rH + 3 & ":J" & r & ",L" & rH + 3 & ":M" & r & ",T" & rH + 3 & ":V" & r).NumberFormat = "0.0"
+    ws.Range("K" & rH + 3 & ":K" & r).NumberFormat = "0.000"
+    With ws.Range("X" & rH + 3 & ":X" & r).FormatConditions
+        .Delete
+        .Add(xlTextString, String:="Non vérifié", TextOperator:=xlContains).Font.Color = RGB(192, 0, 0)
+    End With
+    Exit Sub
+Erreur:
+    MsgBox "Erreur pendant la vérification au flambement (Mandel), partie « " & etape & " » : " & _
+        Err.Description & " (n° " & Err.Number & ")", vbExclamation
+End Sub
+
+' Valeur numérique (0 si vide ou texte)
+Private Function N0(v As Variant) As Double
+    If Not IsEmpty(v) And IsNumeric(v) Then N0 = CDbl(v)
+End Function

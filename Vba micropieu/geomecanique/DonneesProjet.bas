@@ -270,12 +270,17 @@ Public Sub CreerDonneesProjet()
     ws.Range("D" & r + 5).Value = "Argile"
     ' alpha : rocher (tableau I.1.3.2) ou sol (tableau I.1.3.1, nature x catégorie ;
     ' tourbe : 1, grave sous-consolidée : 1/4)
-    ws.Range("D" & r + 6).Formula = "=IFERROR(IF(OR(D" & r + 3 & "=""Oui"",LEFT(D" & r + 5 & _
+    ' Lecture dans la feuille « Tableaux NF P94-262 » (plages nommées NF_Rheo_* et
+    ' NF_RheoRoc_*) ; à défaut (feuille absente), valeurs de la norme de la formule
+    ws.Range("D" & r + 6).Formula = "=IFERROR(IF(OR(D" & r + 3 & "=""Oui"",LEFT(D" & r + 5 & ",6)=""Rocher"")," & _
+        "INDEX(NF_RheoRoc_Alpha,MATCH(D" & r + 5 & ",NF_RheoRoc_Nature,0)),INDEX(CHOOSE(MATCH(D" & r + 4 & _
+        ",{""" & Replace(CATEGORIES_RHEO, ",", """,""") & """},0),NF_Rheo_Alpha1,NF_Rheo_Alpha2,NF_Rheo_Alpha3)," & _
+        "MATCH(D" & r + 5 & ",NF_Rheo_Nature,0))),IFERROR(IF(OR(D" & r + 3 & "=""Oui"",LEFT(D" & r + 5 & _
         ",6)=""Rocher""),CHOOSE(MATCH(D" & r + 5 & ",{""Rocher très peu fracturé"",""Rocher normal""," & _
         """Rocher très fracturé"",""Rocher très altéré""},0),2/3,1/2,1/3,2/3)," & _
         "INDEX({1,1,1;1,0.6667,0.5;0.6667,0.5,0.5;0.5,0.3333,0.3333;0.3333,0.25,0.25},MATCH(D" & r + 5 & _
         ",{""Tourbe"",""Argile"",""Limon"",""Sable"",""Grave""},0),MATCH(D" & r + 4 & ",{""" & _
-        Replace(CATEGORIES_RHEO, ",", """,""") & """},0))),"""")"
+        Replace(CATEGORIES_RHEO, ",", """,""") & """},0))),""""))"
     ws.Range("D" & r & ":D" & r + 2 & ",D" & r + 6).NumberFormat = "0.00"
     ws.Range("D" & r & ":E" & r + 6).HorizontalAlignment = xlCenter
     ws.Range("D" & r & ":D" & r + 2 & ",D" & r + 6).Interior.Color = JAUNE_CALCUL
@@ -405,13 +410,13 @@ Public Sub CreerDonneesProjet()
     Liste ws.Range("D" & lp + 18), "Libre en tête,Encastré en tête"
     Liste ws.Range("D" & lp + 19), "Non,Oui"
     ' Durée d'utilisation (perte d'épaisseur par corrosion, NF EN 1993-5), type de
-    ' sollicitation (courbe de réaction du sol) et largeur de référence B0 (0,30 m pour un
-    ' micropieu)
+    ' sollicitation (courbe de réaction du sol) et largeur de référence B0 (0,60 m,
+    ' NF P94-262 annexe I)
     Liste ws.Range("D" & lp + 20), DUREES
     ws.Range("D" & lp + 20).Value = 50
     ' Type de sollicitation : choix de la courbe de réaction (situations a à d)
     Liste ws.Range("D" & lp + 21), TYPES_SOLLICITATION
-    ws.Range("D" & lp + 22).Value = 0.3
+    ws.Range("D" & lp + 22).Value = 0.6
     ws.Range("D" & lp + 22).NumberFormat = "0.000"
     ws.Range("D" & lp & ":D" & lp + 22).HorizontalAlignment = xlCenter
     For r = lp To lp + 22

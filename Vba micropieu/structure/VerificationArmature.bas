@@ -31,7 +31,8 @@ Option Explicit
 ' (sigma = N/A + M.v/I, tau max = V.R²/Iy, critère de von Mises pour les poutres
 ' sigma VM = racine(sigma² + 3 tau²) <= fy / gamma M0, tau e = fy / racine 3).
 ' NEd = Nc / cos(alpha) si le micropieu est incliné.
-' Appelée à la fin de CreerVerificationStructurelle ; peut être relancée seule.
+' Appelée à la fin de CreerVerificationStructurelle ; peut être relancée seule. Lance
+' ensuite la vérification au flambement (module VerificationMandel), en dessous.
 
 Private Const NOM_FEUILLE As String = "Vérification structurelle"
 Private Const DONNEES As String = "'Données du projet'!"
@@ -380,6 +381,9 @@ Public Sub VerificationArmature()
         .Add(xlTextString, String:="changer", TextOperator:=xlContains).Font.Color = RGB(192, 0, 0)
     End With
 Fin2:
+    ' Vérification au flambement (Mandel) de tous les micropieux, juste en dessous
+    On Error Resume Next
+    Application.Run "VerificationMandel"
     Exit Sub
 Erreur:
     MsgBox "Erreur pendant la vérification de l'armature, partie « " & etape & " » : " & Err.Description & _

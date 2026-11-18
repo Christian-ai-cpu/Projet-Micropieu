@@ -18,6 +18,9 @@ Option Explicit
 '   4.1 / 4.2 (NF EN 1993-5) : perte d'épaisseur due à la corrosion (sols / eau)
 '   G.5.2.1, G.5.2.2, G.5.2.3 : méthode pénétrométrique (alpha pieu-sol, paramètres
 '                       de fsol, qs max)
+'   I.1.3.1 / I.1.3.2 : coefficient rhéologique alpha (sols / rochers), plages
+'                       nommées NF_Rheo_* et NF_RheoRoc_* ; module de réaction Kf
+'                       (B0 = 0,60 m, courte durée Kf, longue durée Kf / 2)
 ' Disposition : 3 groupes (généralités ; facteurs partiels, de corrélation et de
 ' modèle ; méthodes de calcul) et, dans chaque groupe, 3 tableaux côte à côte.
 ' « - » : pas de valeur dans la norme. Les notes des tableaux sont résumées sous
@@ -226,6 +229,41 @@ Public Sub CreerTableauxNFP94262()
         "Remblais compactés : valeurs des remblais non compactés divisées par 2 (note du " & _
         "tableau 4.1). Valeur retenue dans « Données du projet » (caractéristiques de " & _
         "l'acier) : durée d'utilisation du projet x environnement de l'armature."
+
+    NouveauGroupe ws, "5. RÉACTION DU SOL - MODULE DE RÉACTION Kf (ANNEXE I)", 1
+    ' --- Coefficient rhéologique alpha (tableaux I.1.3.1 sols et I.1.3.2 rochers) :
+    ' plages nommées NF_Rheo_* et NF_RheoRoc_* lues par « Données du projet » ---
+    g = "0.666666666666667"
+    s = "Tourbe|-|1|-|1|-|1;" & _
+        "Argile|> 16|1|9 à 16|" & g & "|7 à 9|0.5;" & _
+        "Limon|> 14|" & g & "|8 à 14|0.5|-|0.5;" & _
+        "Sable|> 12|0.5|7 à 12|0.333333333333333|-|0.333333333333333;" & _
+        "Grave|> 10|0.333333333333333|6 à 10|0.25|-|0.25"
+    Placer ws, "Tableau I.1.3.1 - Coefficient rhéologique " & ChrW(945) & " des sols", _
+        "Type de sol|I - surconsolidé ou très serré : EM/pl*|" & ChrW(945) & _
+        "|II - normalement consolidé ou normalement serré : EM/pl*|" & ChrW(945) & _
+        "|III - sous-consolidé altéré et remanié ou lâche : EM/pl*|" & ChrW(945), s, _
+        "Catégorie du sol choisie d'après le rapport EM/pl* ; " & ChrW(945) & " retenu dans « Données du " & _
+        "projet » (couche molle : catégorie et nature du sol)."
+    mDonnees.Columns(3).NumberFormat = "# ?/?"
+    mDonnees.Columns(5).NumberFormat = "# ?/?"
+    mDonnees.Columns(7).NumberFormat = "# ?/?"
+    NommerColonnes "NF_Rheo", Array("Nature", "EMpl1", "Alpha1", "EMpl2", "Alpha2", "EMpl3", "Alpha3")
+    s = "Rocher très peu fracturé|" & g & ";Rocher normal|0.5;Rocher très fracturé|0.333333333333333;" & _
+        "Rocher très altéré|" & g
+    Placer ws, "Tableau I.1.3.2 - Coefficient rhéologique " & ChrW(945) & " des rochers", _
+        "Type de rocher|" & ChrW(945), s, ""
+    mDonnees.Columns(2).NumberFormat = "# ?/?"
+    NommerColonnes "NF_RheoRoc", Array("Nature", "Alpha")
+    ' --- Module de réaction Kf (méthode pressiométrique) et durée des charges ---
+    s = "B " & ChrW(8804) & " B0|Kf = 12 EM / [4/3 x (2,65)^" & ChrW(945) & " + " & ChrW(945) & "];" & _
+        "B > B0|Kf = 12 EM / [4/3 x (B0/B) x (2,65 B/B0)^" & ChrW(945) & " + " & ChrW(945) & "];" & _
+        "Diamètre de référence|B0 = 0,60 m;" & _
+        "Charges de courte durée (sollicitations c, d)|Kf;" & _
+        "Charges de longue durée (sollicitations a, b)|Kf / 2;" & _
+        "Méthode pénétrométrique|Kf = " & ChrW(946) & " qc (courte durée), " & ChrW(946) & " qc / 2 (longue durée)"
+    Placer ws, "Module linéique de réaction du sol Kf (annexe I)", "Condition|Expression", s, _
+        "EM en MPa, B et B0 en m ; Kf en MPa (kN/m par m de déplacement x 10^-3)."
 
     ' Largeurs : 1re colonne de chaque emplacement large (intitulés), colonnes de
     ' valeurs étroites, colonne vide entre deux tableaux
