@@ -190,7 +190,7 @@ Public Sub CreerVerificationStructurelle()
     ' I et EI après corrosion ; Kf de courte durée selon la méthode de calcul
     ' (pressiométrique : 12 EM / [4/3 (B0/B)(2,65 B/B0)^alpha + alpha] si B > B0,
     ' 12 EM / [4/3 (2,65)^alpha + alpha] si B <= B0 ; pénétrométrique : beta qc) ;
-    ' longue durée (sollicitations a, b) : Kf / 2 ; Es = Kf retenu ;
+    ' longue durée (cellule de « Données du projet ») : Kf / 2 ; Es = Kf retenu ;
     ' l0 = (4 EI / Es)^(1/4).
     etape = "longueur de transfert"
     With ws.Range("A3")
@@ -248,8 +248,8 @@ Public Sub CreerVerificationStructurelle()
         ChrW(945) & "])", "=IF(OR(N(" & vEM & ")<=0," & vRho & "=""""),"""",IF(" & pen & "," & vAl & "*" & vEM & _
         ",12*" & vEM & "/(4/3*(2.65*" & vRho & ")^" & vAl & "/" & vRho & "+" & vAl & ")))", "MPa": vKc = "$D$" & r
     r = r + 1: Ligne ws, r, "Type de sollicitation", "=" & sol, ""
-    r = r + 1: Ligne ws, r, "Durée des charges (a, b : longue durée ; c, d : courte durée)", _
-        "=IF(OR(LEFT(" & sol & ",1)=""c"",LEFT(" & sol & ",1)=""d""),""Courte durée"",""Longue durée"")", "": _
+    r = r + 1: Ligne ws, r, "Durée des charges pour le calcul de Kf (« Données du projet »)", _
+        "=IF(" & DONNEES & "$D$" & lp + 23 & "=""Courte durée"",""Courte durée"",""Longue durée"")", "": _
         vDur = "$D$" & r
     r = r + 1: Ligne ws, r, "Module de réaction Kf retenu (courte durée : Kf ; longue durée : Kf / 2)", _
         "=IF(" & vKc & "="""",""""," & vKc & "/IF(" & vDur & "=""Longue durée"",2,1))", "MPa": vKf = "$D$" & r

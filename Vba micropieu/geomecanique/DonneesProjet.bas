@@ -340,7 +340,7 @@ Public Sub CreerDonneesProjet()
     ' Les hauteurs de la fondation sont calculées dans « Calcul et vérification ».
     lp = LIGNE_PIEU
     SousTitre ws, lp - 1, "Caractéristiques de la fondation"
-    ws.Range("B" & lp & ":B" & lp + 22).Value = Application.Transpose(Array( _
+    ws.Range("B" & lp & ":B" & lp + 23).Value = Application.Transpose(Array( _
         "Type de pieu - technique de mise en oeuvre (NF P94-262, tableau A.1)", _
         "Diamètre constant", "Incliné", "Angle d'inclinaison sur la verticale (°)", _
         "Effet de groupe", "Nombre de lignes de pieux m", "Nombre de pieux par ligne n", _
@@ -352,7 +352,8 @@ Public Sub CreerDonneesProjet()
         "Nombre de fondations / appui du bâtiment", "Nombre total de fondations", _
         "Conditions en tête de la fondation", "Essai de contrôle", _
         "Durée d'utilisation de l'ouvrage (ans)", "Type de sollicitation (courbe de réaction)", _
-        "Largeur de référence B0 pour la réaction du sol (m)"))
+        "Largeur de référence B0 pour la réaction du sol (m)", _
+        "Durée des charges pour le calcul de Kf (courte durée : Kf ; longue durée : Kf / 2)"))
     ListeLongue ws.Range("D" & lp), TypesPieux(), "Pieux NF P94-262"
     ws.Range("D" & lp).Value = Split(TypesPieux(), ",")(0)    ' micropieu type I (cat. 17)
     Liste ws.Range("D" & lp + 1), "Oui,Non"
@@ -418,8 +419,12 @@ Public Sub CreerDonneesProjet()
     Liste ws.Range("D" & lp + 21), TYPES_SOLLICITATION
     ws.Range("D" & lp + 22).Value = 0.6
     ws.Range("D" & lp + 22).NumberFormat = "0.000"
-    ws.Range("D" & lp & ":D" & lp + 22).HorizontalAlignment = xlCenter
-    For r = lp To lp + 22
+    ' Durée des charges : module de réaction Kf (NF P94-262, annexe I) de courte durée ou
+    ' de longue durée (Kf / 2), « Vérification structurelle » et flambement (Mandel)
+    Liste ws.Range("D" & lp + 23), "Longue durée,Courte durée"
+    ws.Range("D" & lp + 23).Value = "Longue durée"
+    ws.Range("D" & lp & ":D" & lp + 23).HorizontalAlignment = xlCenter
+    For r = lp To lp + 23
         ws.Range("B" & r & ":C" & r).Merge
     Next r
 
@@ -523,7 +528,7 @@ Public Sub CreerDonneesProjet()
     ' --- Mise en forme ---
     With ws.Range("B4:C9,B12:C16,B19:I26,B28:E29,B" & LIGNE_COUCHES - 2 & ":C" & LIGNE_COUCHES - 2 & _
             ",B" & LIGNE_COUCHES - 1 & ":N" & lc & _
-            ",B" & lm + 1 & ":E" & LIGNE_COUCHE_MOLLE + 6 & ",B" & lp & ":D" & lp + 22 & _
+            ",B" & lm + 1 & ":E" & LIGNE_COUCHE_MOLLE + 6 & ",B" & lp & ":D" & lp + 23 & _
             ",B" & la + 3 & ":E" & la + 9 & ",B" & LIGNE_ACIER & ":E" & LIGNE_ACIER + 21)
         .Borders.LineStyle = xlContinuous
         .VerticalAlignment = xlCenter
@@ -535,7 +540,7 @@ Public Sub CreerDonneesProjet()
     ' Cases à remplir en vert, valeurs calculées en jaune (caractéristiques de la
     ' fondation comprises) ; sans couleur : données géotechniques (laboratoire) et
     ' données de la fondation
-    ws.Range("D" & lp & ":D" & lp + 7 & ",D" & lp + 12 & ",D" & lp + 16 & ":D" & lp + 22 _
+    ws.Range("D" & lp & ":D" & lp + 7 & ",D" & lp + 12 & ",D" & lp + 16 & ":D" & lp + 23 _
         ).Interior.Color = VERT_SAISIE
     ws.Range("D" & lp + 8 & ":D" & lp + 11 & ",D" & lp + 13 & ":D" & lp + 15).Interior.Color = JAUNE_CALCUL
     ws.Range("C4:C9,C12:C16,D28:D29," & CELLULE_NB_COUCHES & ",D" & la + 3 & ":D" & la + 4 & _

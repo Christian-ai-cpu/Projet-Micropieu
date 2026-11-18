@@ -259,11 +259,12 @@ Public Sub CreerTableauxNFP94262()
     s = "B " & ChrW(8804) & " B0|Kf = 12 EM / [4/3 x (2,65)^" & ChrW(945) & " + " & ChrW(945) & "];" & _
         "B > B0|Kf = 12 EM / [4/3 x (B0/B) x (2,65 B/B0)^" & ChrW(945) & " + " & ChrW(945) & "];" & _
         "Diamètre de référence|B0 = 0,60 m;" & _
-        "Charges de courte durée (sollicitations c, d)|Kf;" & _
-        "Charges de longue durée (sollicitations a, b)|Kf / 2;" & _
+        "Charges de courte durée|Kf;" & _
+        "Charges de longue durée|Kf / 2;" & _
         "Méthode pénétrométrique|Kf = " & ChrW(946) & " qc (courte durée), " & ChrW(946) & " qc / 2 (longue durée)"
     Placer ws, "Module linéique de réaction du sol Kf (annexe I)", "Condition|Expression", s, _
-        "EM en MPa, B et B0 en m ; Kf en MPa (kN/m par m de déplacement x 10^-3)."
+        "EM en MPa, B et B0 en m ; Kf en MPa. Durée des charges choisie dans « Données du projet » " & _
+        "(caractéristiques de la fondation)."
 
     ' Largeurs : 1re colonne de chaque emplacement large (intitulés), colonnes de
     ' valeurs étroites, colonne vide entre deux tableaux

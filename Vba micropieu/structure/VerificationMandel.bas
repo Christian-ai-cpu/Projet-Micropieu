@@ -4,7 +4,10 @@ Option Explicit
 ' Module « Vérification au flambement (Mandel) » : ajoute, sous la vérification de
 ' l'armature de la feuille « Vérification structurelle », l'étude du flambement de
 ' chaque micropieu de « Calcul et vérification » selon l'abaque de Mandel (pieu dans
-' un sol à raideur constante), courbe 3 : micropieu libre (NF P94-262, 8.4.2(2)).
+' un sol à raideur constante). Pointe toujours encastrée ; courbe selon la condition
+' en tête (« Vérification structurelle », « Condition en tête ») :
+'   tête libre    : courbe 4 (une extrémité encastrée, l'autre libre) ;
+'   tête encastrée : courbe 2 (pieu encastré aux deux extrémités).
 ' Une ligne par micropieu, toutes les valeurs sont des formules :
 '   armature : diamètre extérieur d, épaisseur t0 (« Données du projet ») ;
 '   diamètre du forage B (Phi retenu de « Calcul et vérification ») ;
@@ -14,11 +17,14 @@ Option Explicit
 '   Kf (NF P94-262, annexe I, B0 = 0,60 m) : courte durée
 '   12 EM / [4/3 (B0/B)(2,65 B/B0)^alpha + alpha] (B > B0) ou
 '   12 EM / [4/3 (2,65)^alpha + alpha] (B <= B0) ; pénétrométrique beta qc ;
-'   longue durée (sollicitations a, b) : Kf / 2 ;
+'   longue durée (« Données du projet », durée des charges) : Kf / 2 ;
 '   demi-longueur l = D / 2 (D profondeur réelle), lambda = l (Kf / EI)^(1/4) ;
-'   phi (courbe 3) : lambda voisin de 0 : phi = lambda² / 3 ; lambda assez grand :
-'   phi = 1 - (4 / racine 3) |sin(lambda racine 3)| / e^lambda ; phi retenu :
-'   lambda <= 1,5 : lambda² / 3, sinon formule pour lambda assez grand ;
+'   phi, courbe 4 : lambda voisin de 0 : pi²/(16 lambda²) + (16 lambda²/pi²)(3 - 8/pi) ;
+'     lambda assez grand : 1 + (4/racine 3)(2 + cos 2 lambda racine 3) / e^(2 lambda) ;
+'     formule de lambda voisin de 0 retenue jusqu'à lambda = 1 ;
+'   phi, courbe 2 : lambda voisin de 0 : pi²/lambda² + 3 lambda²/pi² ;
+'     lambda assez grand : 2 + (pi²/lambda²)(1 - |sin 2 lambda| / lambda)² ;
+'     formule de lambda voisin de 0 retenue jusqu'à lambda = 1,75 ;
 '   charge critique Ncr = phi racine(EI Kf), charge admissible Fcr = Ncr / F (F = 2,5
 '   à l'ELS, saisi) ; effort ELS dans l'axe N = max(Vmax ELS CARA, ELS QP) / cos(alpha)
 '   (micropieu incliné) ; condition N / Fcr <= 1.
@@ -27,7 +33,7 @@ Option Explicit
 Private Const NOM_FEUILLE As String = "Vérification structurelle"
 Private Const DONNEES As String = "'Données du projet'!"
 Private Const CALCUL As String = "'Calcul et vérification'!"
-Private Const TITRE As String = "VÉRIFICATION AU FLAMBEMENT DES MICROPIEUX - ABAQUE DE MANDEL (COURBE 3 : MICROPIEU LIBRE)"
+Private Const TITRE As String = "VÉRIFICATION AU FLAMBEMENT DES MICROPIEUX - ABAQUE DE MANDEL"
 Private Const LIB_F As String = "Coefficient de sécurité sur la charge critique à l'ELS (à saisir)"
 Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
 Private Const JAUNE_CALCUL As Long = 13434879  ' RGB(255, 255, 204)
@@ -42,6 +48,7 @@ Public Sub VerificationMandel()
     Dim eA As String, rc As String, pen As String, emq As String, alp As String, nat As String
     Dim bet As String, b0 As String, sol As String, coulis As String, vF As String, x As String
     Dim entetes As Variant, formules As Variant, unites As Variant, ci As Long, fr As Range
+    Dim enc As String, lt As String
 
     On Error Resume Next
     Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
@@ -107,6 +114,15 @@ Public Sub VerificationMandel()
     bet = "IF(OR(" & nat & "=""Tourbe""," & nat & "=""Argile""),12,IF(" & nat & "=""Limon"",7.5,4.5))"
     b0 = "IF(N(" & DONNEES & "$D$" & lp + 22 & ")>0,N(" & DONNEES & "$D$" & lp + 22 & "),0.6)"
     sol = DONNEES & "$D$" & lp + 21
+    ' Condition en tête (« Vérification structurelle ») : encastrée -> courbe 2, libre ->
+    ' courbe 4 ; à défaut, « Données du projet » (conditions en tête de la fondation)
+    v = Application.Match("Condition en tête", ws.Range("B1:B500"), 0)
+    If Not IsError(v) Then
+        enc = "($D$" & CLng(v) & "=""Micropieu encastré en tête"")"
+    Else
+        enc = "(" & DONNEES & "$D$" & lp + 18 & "=""Encastré en tête"")"
+    End If
+    lt = "IF(" & enc & ",1.75,1)"             ' limite de la formule pour lambda voisin de 0
     coulis = "N(" & DONNEES & "D" & lp + 28 & ")>500,N(" & DONNEES & "D" & lp + 27 & ")>0,N(" & DONNEES & "D" & _
         lp + 27 & ")<0.5," & DONNEES & "D" & lp + 12 & "<>""Traction"""
 
@@ -121,16 +137,27 @@ Public Sub VerificationMandel()
     With ws.Range("B" & rT + 1 & ":L" & rT + 1)
         .Merge
         .Value = "Charge critique Ncr = " & ChrW(966) & "." & ChrW(8730) & "(EI.Kf) ; demi-longueur réduite " & _
-            ChrW(955) & " = l.(Kf/EI)^(1/4), l = D/2 ; courbe 3 (micropieu libre) : " & ChrW(955) & _
-            " voisin de 0 : " & ChrW(966) & " = " & ChrW(955) & "²/3 ; " & ChrW(955) & " assez grand : " & _
-            ChrW(966) & " = 1 - (4/" & ChrW(8730) & "3).|sin(" & ChrW(955) & ChrW(8730) & "3)|/e^" & ChrW(955) & _
-            " ; " & ChrW(966) & " retenu : " & ChrW(955) & " " & ChrW(8804) & " 1,5 : " & ChrW(955) & _
-            "²/3, sinon formule pour " & ChrW(955) & " assez grand. Condition : N,ELS / Fcr " & ChrW(8804) & _
+            ChrW(955) & " = l.(Kf/EI)^(1/4), l = D/2 ; pointe toujours encastrée. Tête libre : courbe 4, " & _
+            ChrW(955) & " voisin de 0 : " & ChrW(966) & " = " & ChrW(960) & "²/(16" & ChrW(955) & "²) + (16" & _
+            ChrW(955) & "²/" & ChrW(960) & "²)(3 - 8/" & ChrW(960) & ") ; " & ChrW(955) & " assez grand : " & _
+            ChrW(966) & " = 1 + (4/" & ChrW(8730) & "3)(2 + cos 2" & ChrW(955) & ChrW(8730) & "3)/e^(2" & _
+            ChrW(955) & ") ; première formule jusqu'à " & ChrW(955) & " = 1. Tête encastrée : courbe 2, " & _
+            ChrW(955) & " voisin de 0 : " & ChrW(966) & " = " & ChrW(960) & "²/" & ChrW(955) & "² + 3" & _
+            ChrW(955) & "²/" & ChrW(960) & "² ; " & ChrW(955) & " assez grand : " & ChrW(966) & " = 2 + (" & _
+            ChrW(960) & "²/" & ChrW(955) & "²)(1 - |sin 2" & ChrW(955) & "|/" & ChrW(955) & ")² ; première " & _
+            "formule jusqu'à " & ChrW(955) & " = 1,75. Condition : N,ELS / Fcr " & ChrW(8804) & _
             " 1 avec Fcr = Ncr / F."
         .Font.Italic = True
         .WrapText = True
     End With
-    ws.Rows(rT + 1).RowHeight = 45
+    ws.Rows(rT + 1).RowHeight = 60
+    With ws.Range("M" & rT + 2 & ":S" & rT + 2)
+        .Merge
+        .Formula = "=IF(" & enc & ",""Micropieu encastré en tête, pointe encastrée : courbe 2""," & _
+            """Micropieu libre en tête, pointe encastrée : courbe 4"")"
+        .Font.Bold = True
+        .Font.Color = VERT_FONCE
+    End With
     rL = rT + 2
     ws.Range("B" & rL).Value = LIB_F
     ws.Range("C" & rL).Value = "F"
@@ -159,8 +186,8 @@ Public Sub VerificationMandel()
         "rc (0 si c " & ChrW(8805) & " 50 mm et coulis conforme)", "dc = d - 2rc", _
         "I = " & ChrW(960) & "/64 (dc^4 - di^4)", "EI = E.I", "EM", ChrW(945), _
         "12 EM / [4/3 (B0/B)(2,65 B/B0)^" & ChrW(945) & " + " & ChrW(945) & "]", "Kf", "D", "l = D/2", _
-        ChrW(955) & " = l (Kf/EI)^(1/4)", ChrW(955) & "²/3", "1 - (4/" & ChrW(8730) & "3)|sin " & ChrW(955) & _
-        ChrW(8730) & "3|/e^" & ChrW(955), ChrW(966), "Ncr = " & ChrW(966) & ChrW(8730) & "(EI.Kf)", _
+        ChrW(955) & " = l (Kf/EI)^(1/4)", "courbe 4 ou 2 (voir ci-dessus)", "courbe 4 ou 2 (voir ci-dessus)", _
+        ChrW(955) & " " & ChrW(8804) & " 1 (courbe 4) ou 1,75 (courbe 2) : " & ChrW(955) & " voisin de 0", "Ncr = " & ChrW(966) & ChrW(8730) & "(EI.Kf)", _
         "Fcr = Ncr / F", "N = max(Vmax ELS) / cos " & ChrW(945), "N / Fcr", "")
     unites = Array("", "mm", "mm", "m", "mm", "mm", "mm", "mm4", "kN.m²", "MPa", "", "MPa", "MPa", "m", "m", _
         "", "", "", "", "kN", "kN", "kN", "", "")
@@ -190,8 +217,8 @@ Public Sub VerificationMandel()
         x = "MAX(D" & r & "/" & b0 & ",1)"   ' rho = max(B / B0 ; 1)
         ws.Range("L" & r).Formula = "=IF(OR(N(J" & r & ")<=0,N(D" & r & ")<=0),"""",IF(" & pen & ",K" & r & "*J" & r & _
             ",12*J" & r & "/(4/3*(2.65*" & x & ")^K" & r & "/" & x & "+K" & r & ")))"
-        ws.Range("M" & r).Formula = "=IF(L" & r & "="""","""",L" & r & "/IF(OR(LEFT(" & sol & ",1)=""c"",LEFT(" & _
-            sol & ",1)=""d""),1,2))"
+        ws.Range("M" & r).Formula = "=IF(L" & r & "="""","""",L" & r & "/IF(" & DONNEES & "$D$" & lp + 23 & _
+            "=""Courte durée"",1,2))"
         If cDr > 0 Then
             ws.Range("N" & r).Formula = "=N(" & CALCUL & wc.Cells(ci, cDr).Address & ")"
         Else
@@ -200,9 +227,12 @@ Public Sub VerificationMandel()
         ws.Range("O" & r).Formula = "=N" & r & "/2"
         ws.Range("P" & r).Formula = "=IF(OR(M" & r & "="""",N(I" & r & ")<=0),"""",O" & r & "*(1000*M" & r & "/I" & _
             r & ")^0.25)"
-        ws.Range("Q" & r).Formula = "=IF(P" & r & "="""","""",P" & r & "^2/3)"
-        ws.Range("R" & r).Formula = "=IF(P" & r & "="""","""",1-4/SQRT(3)*ABS(SIN(P" & r & "*SQRT(3)))/EXP(P" & r & "))"
-        ws.Range("S" & r).Formula = "=IF(P" & r & "="""","""",IF(P" & r & "<=1.5,Q" & r & ",R" & r & "))"
+        x = "P" & r                           ' lambda
+        ws.Range("Q" & r).Formula = "=IF(N(" & x & ")<=0,"""",IF(" & enc & ",PI()^2/" & x & "^2+3*" & x & "^2/PI()^2," & _
+            "PI()^2/(16*" & x & "^2)+16*" & x & "^2/PI()^2*(3-8/PI())))"
+        ws.Range("R" & r).Formula = "=IF(N(" & x & ")<=0,"""",IF(" & enc & ",2+PI()^2/" & x & "^2*(1-ABS(SIN(2*" & x & _
+            "))/" & x & ")^2,1+4/SQRT(3)*(2+COS(2*" & x & "*SQRT(3)))/EXP(2*" & x & ")))"
+        ws.Range("S" & r).Formula = "=IF(Q" & r & "="""","""",IF(" & x & "<=" & lt & ",Q" & r & ",R" & r & "))"
         ws.Range("T" & r).Formula = "=IF(S" & r & "="""","""",S" & r & "*SQRT(I" & r & "*1000*M" & r & "))"
         ws.Range("U" & r).Formula = "=IF(OR(T" & r & "="""",N(" & vF & ")<=0),"""",T" & r & "/" & vF & ")"
         If cC > 0 Then
