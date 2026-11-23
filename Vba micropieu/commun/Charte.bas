@@ -25,12 +25,12 @@ Public Const BLEU_OCEAN As Long = 11371036     ' RGB(28, 130, 173)
 Public Const VERT_EMERAUDE As Long = 8964355   ' RGB(3, 201, 136)
 Public Const BLANC As Long = 16777215          ' RGB(255, 255, 255)
 
-Public Const COUL_TITRE As Long = 5898259      ' Bleu Nuit : titres et sous-titres
-Public Const COUL_ENTETE As Long = 15458502    ' RGB(198, 224, 235) : Bleu Océan éclairci
-Public Const COUL_SAISIE As Long = 15201485    ' RGB(205, 244, 231) : Vert Émeraude éclairci
-Public Const COUL_CALCUL As Long = 16315885    ' RGB(237, 245, 248) : Bleu Océan très clair
-Public Const COUL_SOUS_TITRE As Long = 16117988 ' RGB(228, 240, 245) : Bleu Océan clair
-Public Const COUL_ALERTE As Long = 192         ' RGB(192, 0, 0) : messages « non vérifié »
+Private Const COUL_TITRE As Long = 5898259      ' Bleu Nuit : titres et sous-titres
+Private Const COUL_ENTETE As Long = 15458502    ' RGB(198, 224, 235) : Bleu Océan éclairci
+Private Const COUL_SAISIE As Long = 15201485    ' RGB(205, 244, 231) : Vert Émeraude éclairci
+Private Const COUL_CALCUL As Long = 16315885    ' RGB(237, 245, 248) : Bleu Océan très clair
+Private Const COUL_SOUS_TITRE As Long = 16117988 ' RGB(228, 240, 245) : Bleu Océan clair
+Private Const COUL_ALERTE As Long = 192         ' RGB(192, 0, 0) : messages « non vérifié »
 
 Public Const POLICE_TITRE As String = "CheGuevara Text Sans"
 Public Const POLICE_TEXTE As String = "Inter"

@@ -1,5 +1,7 @@
 Attribute VB_Name = "CommentaireImage"
 Option Explicit
+' Couleurs de la charte graphique GEOSKILLS (voir module Charte)
+Private Const COUL_TITRE As Long = 5898259         ' RGB(19, 0, 90) : Bleu Nuit (charte GEOSKILLS)
 
 ' Module « Commentaires en image » : les commentaires explicatifs des cellules sont
 ' affichés sous forme d'image (texte noir sur fond blanc, cadre Bleu Nuit, police Inter
@@ -52,7 +54,7 @@ Public Sub CommentaireImage(c As Range, texte As String)
             .MarginTop = 4
             .MarginBottom = 4
             .TextRange.Text = texte
-            .TextRange.Font.Name = POLICE_TEXTE
+            .TextRange.Font.Name = "Inter"
             .TextRange.Font.Size = TAILLE_POLICE
             .TextRange.Font.Fill.ForeColor.RGB = RGB(0, 0, 0)
         End With
@@ -85,7 +87,7 @@ Texte:
         .Fill.ForeColor.RGB = RGB(255, 255, 255)
         .Line.ForeColor.RGB = COUL_TITRE
         .Line.Weight = 1.5
-        .TextFrame.Characters.Font.Name = POLICE_TEXTE
+        .TextFrame.Characters.Font.Name = "Inter"
         .TextFrame.Characters.Font.Size = TAILLE_POLICE
         .TextFrame.Characters.Font.Bold = False
         .TextFrame.AutoSize = True

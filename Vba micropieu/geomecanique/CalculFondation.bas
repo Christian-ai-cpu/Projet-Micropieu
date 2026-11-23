@@ -1,5 +1,11 @@
 Attribute VB_Name = "CalculFondation"
 Option Explicit
+' Couleurs de la charte graphique GEOSKILLS (voir module Charte)
+Private Const COUL_TITRE As Long = 5898259         ' RGB(19, 0, 90) : Bleu Nuit (charte GEOSKILLS)
+Private Const COUL_ENTETE As Long = 15458502       ' RGB(198, 224, 235) : Bleu Océan éclairci
+Private Const COUL_SAISIE As Long = 15201485       ' RGB(205, 244, 231) : Vert Émeraude éclairci
+Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu Océan très clair
+Private Const COUL_ALERTE As Long = 192            ' RGB(192, 0, 0) : messages « non vérifié »
 
 ' Module « Calcul et vérification » : crée (ou recrée) la feuille « Calcul et
 ' vérification » de la fondation, à partir des feuilles « Données du projet »
@@ -538,7 +544,10 @@ Private Sub Construire(activer As Boolean)
     AfficherGroupe ws
     AfficherCouchesCalcul ws
     InstallerCodeFeuille ws
-    AppliquerCharte ws                       ' polices de la charte GEOSKILLS (module Charte)
+    ' polices de la charte GEOSKILLS (module Charte, s'il est importé)
+    On Error Resume Next
+    Application.Run "AppliquerCharte", ws
+    On Error GoTo 0
     If activer Then ws.Activate
 
 Fin:
@@ -1359,7 +1368,7 @@ Private Sub GraphiqueCapacite(ws As Worksheet, k As Long)
                 .Smooth = True
                 .MarkerStyle = xlMarkerStyleNone
                 .Format.Line.Weight = 3
-                .Format.Line.ForeColor.RGB = CouleurSerie(j - 1)   ' palette de la charte
+                .Format.Line.ForeColor.RGB = Choose(((j - 1) Mod 4) + 1, 5898259, 11371036, 8964355, 8139520)   ' palette de la charte
             End With
         Next j
         .HasTitle = True

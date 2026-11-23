@@ -1,5 +1,11 @@
 Attribute VB_Name = "VerificationStructurelle"
 Option Explicit
+' Couleurs de la charte graphique GEOSKILLS (voir module Charte)
+Private Const COUL_TITRE As Long = 5898259         ' RGB(19, 0, 90) : Bleu Nuit (charte GEOSKILLS)
+Private Const COUL_ENTETE As Long = 15458502       ' RGB(198, 224, 235) : Bleu Océan éclairci
+Private Const COUL_SAISIE As Long = 15201485       ' RGB(205, 244, 231) : Vert Émeraude éclairci
+Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu Océan très clair
+Private Const COUL_ALERTE As Long = 192            ' RGB(192, 0, 0) : messages « non vérifié »
 
 ' Module « Vérification structurelle » : crée (ou recrée) la feuille « Vérification
 ' structurelle » des micropieux, à partir des feuilles « Données du projet » (module
@@ -711,7 +717,10 @@ MiseEnForme:
         Application.Run "VerificationArmature"
         On Error GoTo Erreur
     End If
-    AppliquerCharte ws                       ' polices de la charte GEOSKILLS (module Charte)
+    ' polices de la charte GEOSKILLS (module Charte, s'il est importé)
+    On Error Resume Next
+    Application.Run "AppliquerCharte", ws
+    On Error GoTo 0
     ws.Activate
 Fin:
     Application.ScreenUpdating = True
@@ -782,7 +791,7 @@ Private Sub GraphiquesProfil(ws As Worksheet, i As Long, r1 As Long, nb As Long,
                     .Values = rz
                     .ChartType = xlXYScatterSmoothNoMarkers
                     .Format.Line.Weight = 2
-                    .Format.Line.ForeColor.RGB = CouleurSerie(k)   ' palette de la charte
+                    .Format.Line.ForeColor.RGB = Choose((k Mod 4) + 1, 5898259, 11371036, 8964355, 8139520)   ' palette de la charte
                 End With
             Next k
             .HasTitle = True

@@ -1,5 +1,10 @@
 Attribute VB_Name = "DonneesProjet"
 Option Explicit
+' Couleurs de la charte graphique GEOSKILLS (voir module Charte)
+Private Const COUL_TITRE As Long = 5898259         ' RGB(19, 0, 90) : Bleu Nuit (charte GEOSKILLS)
+Private Const COUL_ENTETE As Long = 15458502       ' RGB(198, 224, 235) : Bleu Océan éclairci
+Private Const COUL_SAISIE As Long = 15201485       ' RGB(205, 244, 231) : Vert Émeraude éclairci
+Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu Océan très clair
 
 ' Module « Données du projet » : crée (ou recrée) la feuille « Données du projet »
 ' avec les hypothèses générales du projet.
@@ -559,7 +564,10 @@ Public Sub CreerDonneesProjet()
     AfficherMethode ws
     AfficherOptionsPieu ws
     MajArmature ws
-    AppliquerCharte ws                       ' polices de la charte GEOSKILLS (module Charte)
+    ' polices de la charte GEOSKILLS (module Charte, s'il est importé)
+    On Error Resume Next
+    Application.Run "AppliquerCharte", ws
+    On Error GoTo 0
     ws.Activate
     Application.EnableEvents = True
     Application.ScreenUpdating = True
