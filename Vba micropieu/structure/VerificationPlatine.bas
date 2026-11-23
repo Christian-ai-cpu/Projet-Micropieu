@@ -20,7 +20,10 @@ Option Explicit
 '     avec sigma e,adm = 2/3 fy (ELS), 3/4 fy (ELU), fy (ELUA) ; e retenu = maximum,
 '     arrondi au mm supérieur.
 '   Comparaison avec la platine choisie dans « Données du projet » (côté et épaisseur
-'   lus dans la désignation « Platine carrée a x a mm - ép. t mm »).
+'   lus dans la désignation « Platine carrée a x a mm - ép. t mm ») : dimensions
+'   calculées inférieures (platine choisie suffisante) : platine retenue = plus petite
+'   platine du catalogue couvrant a et e ; dimensions calculées supérieures : platine
+'   retenue = dimensions calculées.
 ' Appelée à la fin de VerificationMandel ; peut être relancée seule.
 
 Public Const TITRE_PLATINE As String = "DIMENSIONNEMENT DES PLATINES DE LIAISON MICROPIEU / MASSIF (CHARGE DE CHAQUE MICROPIEU)"
@@ -40,6 +43,7 @@ Public Sub VerificationPlatine()
     Dim vFc As String, vGu As String, vGa As String, vSb1 As String, vSb2 As String, vSb3 As String
     Dim vFy As String, vSe1 As String, vSe2 As String, vSe3 As String, vD As String, pl As String
     Dim entetes As Variant, formules As Variant, unites As Variant, lib As Variant
+    Dim cat As Variant, catD As String, catA As String, catT As String, ok As String
 
     On Error Resume Next
     Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
@@ -139,6 +143,18 @@ Public Sub VerificationPlatine()
     ws.Range("D" & rT + 1 & ":D" & rT + 11).NumberFormat = "0.00"
     ws.Range(vD).NumberFormat = "0.0"
 
+    ' --- Catalogue des platines (« Données du projet », liste PLATINES) : désignations,
+    ' côtés a et épaisseurs t en constantes de tableau, dans l'ordre croissant ---
+    etape = "catalogue des platines"
+    cat = Split(PLATINES, ",")
+    catD = "{": catA = "{": catT = "{"
+    For k = 0 To UBound(cat)
+        catD = catD & IIf(k > 0, ",", "") & """" & cat(k) & """"
+        catA = catA & IIf(k > 0, ",", "") & Val(Mid(cat(k), InStr(cat(k), "carrée") + 7))
+        catT = catT & IIf(k > 0, ",", "") & Val(Mid(cat(k), InStr(cat(k), "ép.") + 3))
+    Next k
+    catD = catD & "}": catA = catA & "}": catT = catT & "}"
+
     ' --- Tableau : une ligne par micropieu ---
     etape = "tableau des platines"
     rH = rT + 14
@@ -146,7 +162,7 @@ Public Sub VerificationPlatine()
         "Côté minimal ELS", "Côté minimal ELU", "Côté minimal ELUA", "Longueur = largeur retenue", "Débord", _
         ChrW(963) & "b ELS", ChrW(963) & "b ELU", ChrW(963) & "b ELUA", "Épaisseur minimale ELS", _
         "Épaisseur minimale ELU", "Épaisseur minimale ELUA", "Épaisseur retenue", "Platine à prévoir", _
-        "Platine choisie (« Données du projet »)", "Vérification")
+        "Platine choisie (« Données du projet »)", "Comparaison avec la platine choisie", "Platine retenue")
     formules = Array("", "N = max(Vmax ELS CARA ; ELS QP)", "N = Vmax ELU FOND", "N = Vmax ELU ACC", _
         "a = " & ChrW(8730) & "(N / " & ChrW(963) & "b,adm)", "a = max(" & ChrW(8730) & "(N/" & ChrW(963) & _
         "b,adm) ; " & ChrW(8730) & "(N/fy))", "a = max(" & ChrW(8730) & "(N/" & ChrW(963) & "b,adm) ; " & _
@@ -155,10 +171,11 @@ Public Sub VerificationPlatine()
         "e = " & ChrW(8730) & "(3" & ChrW(963) & "b.c² / " & ChrW(963) & "e,adm)", "e = " & ChrW(8730) & _
         "(3" & ChrW(963) & "b.c² / " & ChrW(963) & "e,adm)", "e = " & ChrW(8730) & "(3" & ChrW(963) & _
         "b.c² / " & ChrW(963) & "e,adm)", "e = max, au mm supérieur", "a x a x e", "désignation", _
-        "a choisi " & ChrW(8805) & " a et t " & ChrW(8805) & " e")
+        "a choisi " & ChrW(8805) & " a et t " & ChrW(8805) & " e ?", "choisie suffisante : catalogue le plus " & _
+        "proche ; insuffisante : dimensions calculées")
     unites = Array("", "kN", "kN", "kN", "mm", "mm", "mm", "mm", "mm", "MPa", "MPa", "MPa", "mm", "mm", "mm", _
-        "mm", "mm", "", "")
-    For k = 0 To 18
+        "mm", "mm", "", "", "")
+    For k = 0 To 19
         ws.Cells(rH, 1 + k).Value = entetes(k)
         ws.Cells(rH + 1, 1 + k).Value = formules(k)
         ws.Cells(rH + 2, 1 + k).Value = unites(k)
@@ -189,34 +206,40 @@ Public Sub VerificationPlatine()
         ws.Range("Q" & r).Formula = "=H" & r & "&"" x ""&H" & r & "&"" x ""&P" & r
         ' platine choisie : « Platine carrée a x a mm - ép. t mm »
         ws.Range("R" & r).Formula = "=" & pl
-        ws.Range("S" & r).Formula = "=IFERROR(IF(AND(--TRIM(MID(" & pl & ",FIND(""carrée""," & pl & ")+7,FIND("" x""," & _
-            pl & ")-FIND(""carrée""," & pl & ")-7))>=H" & r & ",N(" & DONNEES & "$D$" & a + 16 & ")>=P" & r & _
-            "),""OK"",""Platine insuffisante : prévoir ""&Q" & r & "&"" mm""),""Platine à prévoir : ""&Q" & r & _
+        ' platine choisie suffisante si son côté et son épaisseur couvrent ceux calculés
+        ok = "AND(--TRIM(MID(" & pl & ",FIND(""carrée""," & pl & ")+7,FIND("" x""," & pl & ")-FIND(""carrée""," & _
+            pl & ")-7))>=H" & r & ",N(" & DONNEES & "$D$" & a + 16 & ")>=P" & r & ")"
+        ws.Range("S" & r).Formula = "=IFERROR(IF(" & ok & ",""Suffisante (dimensions calculées inférieures)""," & _
+            """Insuffisante (dimensions calculées supérieures)""),""Platine choisie non reconnue"")"
+        ' platine retenue : choisie suffisante -> plus petite platine du catalogue couvrant
+        ' a et e ; sinon -> dimensions calculées
+        ws.Range("T" & r).Formula = "=IFERROR(IF(" & ok & ",INDEX(" & catD & ",MATCH(1,INDEX((" & catA & ">=H" & r & _
+            ")*(" & catT & ">=P" & r & "),0),0)),""Platine calculée ""&Q" & r & "&"" mm""),""Platine calculée ""&Q" & r & _
             "&"" mm"")"
     Next i
 
     ' --- Mise en forme ---
     etape = "mise en forme"
     r = rH + 2 + m
-    With ws.Range("A" & rH & ":S" & r)
+    With ws.Range("A" & rH & ":T" & r)
         .Borders.LineStyle = xlContinuous
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
-    With ws.Range("A" & rH & ":S" & rH + 2)
+    With ws.Range("A" & rH & ":T" & rH + 2)
         .Font.Bold = True
         .Interior.Color = VERT_ENTETE
     End With
-    ws.Range("A" & rH + 1 & ":S" & rH + 1).Font.Bold = False
-    ws.Range("A" & rH + 1 & ":S" & rH + 1).Font.Italic = True
-    ws.Range("B" & rH + 3 & ":S" & r).Interior.Color = JAUNE_CALCUL
+    ws.Range("A" & rH + 1 & ":T" & rH + 1).Font.Bold = False
+    ws.Range("A" & rH + 1 & ":T" & rH + 1).Font.Italic = True
+    ws.Range("B" & rH + 3 & ":T" & r).Interior.Color = JAUNE_CALCUL
     ws.Range("A" & rH + 3 & ":A" & r & ",H" & rH + 3 & ":H" & r & ",P" & rH + 3 & ":Q" & r & ",S" & rH + 3 & _
-        ":S" & r).Font.Bold = True
+        ":T" & r).Font.Bold = True
     ws.Range("B" & rH + 3 & ":G" & r & ",I" & rH + 3 & ":I" & r & ",M" & rH + 3 & ":O" & r).NumberFormat = "0.0"
     ws.Range("J" & rH + 3 & ":L" & r).NumberFormat = "0.00"
     ws.Range("H" & rH + 3 & ":H" & r & ",P" & rH + 3 & ":P" & r).NumberFormat = "0"
-    With ws.Range("S" & rH + 3 & ":S" & r).FormatConditions
+    With ws.Range("S" & rH + 3 & ":T" & r).FormatConditions
         .Delete
         .Add(xlTextString, String:="insuffisante", TextOperator:=xlContains).Font.Color = RGB(192, 0, 0)
     End With
