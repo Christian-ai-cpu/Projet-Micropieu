@@ -32,10 +32,6 @@ Private Const NOM_FEUILLE As String = "Vérification structurelle"
 Private Const DONNEES As String = "'Données du projet'!"
 Private Const CALCUL As String = "'Calcul et vérification'!"
 Private Const LIB_FC28 As String = "Résistance caractéristique du béton du massif fc28 (à saisir)"
-Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
-Private Const JAUNE_CALCUL As Long = 13434879  ' RGB(255, 255, 204)
-Private Const VERT_ENTETE As Long = 14348258   ' RGB(226, 239, 218)
-Private Const VERT_FONCE As Long = 2315831     ' RGB(55, 86, 35)
 
 Public Sub VerificationPlatine()
     Dim ws As Worksheet, wc As Worksheet, co As ChartObject, fr As Range, v As Variant, etape As String
@@ -95,7 +91,7 @@ Public Sub VerificationPlatine()
         .Value = TITRE_PLATINE
         .Font.Bold = True
         .Font.Size = 14
-        .Font.Color = VERT_FONCE
+        .Font.Color = COUL_TITRE
     End With
     lib = Array( _
         Array(LIB_FC28, "", "MPa"), _
@@ -125,7 +121,7 @@ Public Sub VerificationPlatine()
     vD = "$D$" & rT + 11
     With ws.Range(vFc)
         .Value = IIf(N0(fcSaisi) > 0, N0(fcSaisi), 25)
-        .Interior.Color = VERT_SAISIE
+        .Interior.Color = COUL_SAISIE
     End With
     ws.Range(vSb1).Formula = "=0.6*" & vFc
     ws.Range(vSb2).Formula = "=" & vFc & "/" & vGu
@@ -139,7 +135,7 @@ Public Sub VerificationPlatine()
         .WrapText = True
     End With
     ws.Range("D" & rT + 1 & ":E" & rT + 11).HorizontalAlignment = xlCenter
-    ws.Range("D" & rT + 2 & ":D" & rT + 11).Interior.Color = JAUNE_CALCUL
+    ws.Range("D" & rT + 2 & ":D" & rT + 11).Interior.Color = COUL_CALCUL
     ws.Range("D" & rT + 1 & ":D" & rT + 11).NumberFormat = "0.00"
     ws.Range(vD).NumberFormat = "0.0"
 
@@ -237,11 +233,11 @@ Public Sub VerificationPlatine()
     End With
     With ws.Range("A" & rH & ":X" & rH + 2)
         .Font.Bold = True
-        .Interior.Color = VERT_ENTETE
+        .Interior.Color = COUL_ENTETE
     End With
     ws.Range("A" & rH + 1 & ":X" & rH + 1).Font.Bold = False
     ws.Range("A" & rH + 1 & ":X" & rH + 1).Font.Italic = True
-    ws.Range("B" & rH + 3 & ":X" & r).Interior.Color = JAUNE_CALCUL
+    ws.Range("B" & rH + 3 & ":X" & r).Interior.Color = COUL_CALCUL
     ws.Range("A" & rH + 3 & ":A" & r & ",H" & rH + 3 & ":H" & r & ",P" & rH + 3 & ":T" & r & ",X" & rH + 3 & _
         ":X" & r).Font.Bold = True
     ws.Range("B" & rH + 3 & ":G" & r & ",I" & rH + 3 & ":I" & r & ",M" & rH + 3 & ":O" & r & ",U" & rH + 3 & _
@@ -250,7 +246,7 @@ Public Sub VerificationPlatine()
     ws.Range("H" & rH + 3 & ":H" & r & ",P" & rH + 3 & ":P" & r & ",S" & rH + 3 & ":T" & r).NumberFormat = "0"
     With ws.Range("X" & rH + 3 & ":X" & r).FormatConditions
         .Delete
-        .Add(xlTextString, String:="Non vérifiée", TextOperator:=xlContains).Font.Color = RGB(192, 0, 0)
+        .Add(xlTextString, String:="Non vérifiée", TextOperator:=xlContains).Font.Color = COUL_ALERTE
     End With
     Exit Sub
 Erreur:

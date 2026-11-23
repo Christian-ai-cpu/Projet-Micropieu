@@ -39,12 +39,7 @@ Private Const DONNEES As String = "'Données du projet'!"
 Private Const TITRE As String = "VÉRIFICATION DE L'ARMATURE (NF EN 1993-1-1, 6.2) - TUBE APRÈS CORROSION"
 Private Const TITRE2 As String = "EFFORTS SUR LE MICROPIEU - VÉRIFICATION DES DÉPLACEMENTS ET DES CONTRAINTES ADMISSIBLES"
 Private Const LIB_YADM As String = "Déplacement horizontal admissible (à saisir)"
-Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
 
-Private Const JAUNE_CALCUL As Long = 13434879  ' RGB(255, 255, 204)
-Private Const VERT_ENTETE As Long = 14348258   ' RGB(226, 239, 218)
-Private Const VERT_FONCE As Long = 2315831     ' RGB(55, 86, 35)
-Private Const GRIS_TITRE As Long = 15921906    ' RGB(242, 242, 242)
 
 Private mR As Long                              ' ligne courante du tableau
 Private mWs As Worksheet
@@ -137,14 +132,14 @@ Public Sub VerificationArmature()
         .Value = TITRE
         .Font.Bold = True
         .Font.Size = 14
-        .Font.Color = VERT_FONCE
+        .Font.Color = COUL_TITRE
     End With
     mR = r0 + 1
     ws.Range("B" & mR & ":E" & mR).Value = Array("Caractéristique", "", "Valeur", "Unité")
     ws.Range("B" & mR & ":C" & mR).Merge
     With ws.Range("B" & mR & ":E" & mR)
         .Font.Bold = True
-        .Interior.Color = VERT_ENTETE
+        .Interior.Color = COUL_ENTETE
         .HorizontalAlignment = xlCenter
     End With
 
@@ -267,7 +262,7 @@ Public Sub VerificationArmature()
     End With
     With ws.Range("B" & r0 + 1 & ":E" & mR).FormatConditions
         .Delete
-        .Add(xlTextString, String:="changer", TextOperator:=xlContains).Font.Color = RGB(192, 0, 0)
+        .Add(xlTextString, String:="changer", TextOperator:=xlContains).Font.Color = COUL_ALERTE
     End With
 
     ' === Second tableau : efforts le long du micropieu, vérification des déplacements et
@@ -280,7 +275,7 @@ Public Sub VerificationArmature()
         .Value = TITRE2
         .Font.Bold = True
         .Font.Size = 14
-        .Font.Color = VERT_FONCE
+        .Font.Color = COUL_TITRE
     End With
     mR = r2 + 1
     ws.Range("B" & mR & ":H" & mR).Value = Array("Caractéristique", "", "ELS CARA", "ELS QP", "ELU FOND", _
@@ -288,7 +283,7 @@ Public Sub VerificationArmature()
     ws.Range("B" & mR & ":C" & mR).Merge
     With ws.Range("B" & mR & ":H" & mR)
         .Font.Bold = True
-        .Interior.Color = VERT_ENTETE
+        .Interior.Color = COUL_ENTETE
         .HorizontalAlignment = xlCenter
     End With
 
@@ -314,7 +309,7 @@ Public Sub VerificationArmature()
     With ws.Range("D" & mR & ":G" & mR)
         .Merge
         .Value = IIf(N0(yAdm) > 0, N0(yAdm), 10)
-        .Interior.Color = VERT_SAISIE
+        .Interior.Color = COUL_SAISIE
         .NumberFormat = "0.00"
     End With
     ws.Range("H" & mR).Value = "mm"
@@ -378,7 +373,7 @@ Public Sub VerificationArmature()
     End With
     With ws.Range("B" & r2 + 1 & ":H" & mR).FormatConditions
         .Delete
-        .Add(xlTextString, String:="changer", TextOperator:=xlContains).Font.Color = RGB(192, 0, 0)
+        .Add(xlTextString, String:="changer", TextOperator:=xlContains).Font.Color = COUL_ALERTE
     End With
 Fin2:
     ' Vérification au flambement (Mandel) de tous les micropieux, juste en dessous
@@ -398,8 +393,8 @@ Private Sub MiniTitre(texte As String, condition As String)
         .Merge
         .Value = texte
         .Font.Bold = True
-        .Font.Color = VERT_FONCE
-        .Interior.Color = GRIS_TITRE
+        .Font.Color = COUL_TITRE
+        .Interior.Color = COUL_SOUS_TITRE
     End With
     If condition <> "" Then
         mR = mR + 1
@@ -423,7 +418,7 @@ Private Function Lig(designation As String, symbole As String, formule As String
     mWs.Range("D" & mR).Formula = formule
     mWs.Range("E" & mR).Value = unite
     mWs.Range("C" & mR & ":E" & mR).HorizontalAlignment = xlCenter
-    mWs.Range("D" & mR).Interior.Color = JAUNE_CALCUL
+    mWs.Range("D" & mR).Interior.Color = COUL_CALCUL
     If fmt <> "@" Then mWs.Range("D" & mR).NumberFormat = fmt
     If designation = "Vérification" Or Left(designation, 7) = "Section" Then mWs.Range("B" & mR & ":D" & mR).Font.Bold = True
     Lig = "$D$" & mR
@@ -442,8 +437,8 @@ Private Sub MiniTitre2(texte As String, condition As String)
         .Merge
         .Value = texte
         .Font.Bold = True
-        .Font.Color = VERT_FONCE
-        .Interior.Color = GRIS_TITRE
+        .Font.Color = COUL_TITRE
+        .Interior.Color = COUL_SOUS_TITRE
     End With
     If condition <> "" Then
         mR = mR + 1
@@ -482,7 +477,7 @@ Private Function LigC(designation As String, symbole As String, tpl As String, u
         If fmt <> "@" Then mWs.Cells(mR, 4 + k).NumberFormat = fmt
     Next k
     mWs.Range("C" & mR & ":H" & mR).HorizontalAlignment = xlCenter
-    mWs.Range("D" & mR & ":G" & mR).Interior.Color = JAUNE_CALCUL
+    mWs.Range("D" & mR & ":G" & mR).Interior.Color = COUL_CALCUL
     If designation = "Vérification" Or Left(designation, 9) = "Micropieu" Then mWs.Range("B" & mR & ":G" & mR).Font.Bold = True
     LigC = mR
 End Function

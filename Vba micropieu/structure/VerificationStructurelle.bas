@@ -39,12 +39,9 @@ Private Const TETE_LIBRE As String = "Micropieu libre en tête"
 Private Const TETE_ENC As String = "Micropieu encastré en tête"
 Private Const CALCUL As String = "'Calcul et vérification'!"
 
-' Thème : saisies en vert, valeurs calculées en jaune, en-têtes en vert clair
+' Charte GEOSKILLS (module Charte) : saisies en vert émeraude clair, valeurs calculées en
+' bleu très clair, en-têtes en bleu océan clair, titres en bleu nuit
 Public Const TITRE_FRONTALE As String = "VÉRIFICATION DE LA RÉSISTANCE FRONTALE DE LA FONDATION"
-Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
-Private Const JAUNE_CALCUL As Long = 13434879  ' RGB(255, 255, 204)
-Private Const VERT_ENTETE As Long = 14348258   ' RGB(226, 239, 218)
-Private Const VERT_FONCE As Long = 2315831     ' RGB(55, 86, 35)
 
 Public Sub CreerVerificationStructurelle()
     Dim ws As Worksheet, wc As Worksheet, wd As Worksheet, f As Worksheet, etape As String
@@ -103,7 +100,7 @@ Public Sub CreerVerificationStructurelle()
         .Value = "VÉRIFICATION STRUCTURELLE DES MICROPIEUX"
         .Font.Bold = True
         .Font.Size = 14
-        .Font.Color = VERT_FONCE
+        .Font.Color = COUL_TITRE
         .HorizontalAlignment = xlCenter
     End With
 
@@ -198,7 +195,7 @@ Public Sub CreerVerificationStructurelle()
         .Value = "LONGUEUR DE TRANSFERT l0 DU MICROPIEU LE PLUS LONG (MP" & iMax & ")"
         .Font.Bold = True
         .Font.Size = 14
-        .Font.Color = VERT_FONCE
+        .Font.Color = COUL_TITRE
     End With
     r = 4
     r = r + 1: Ligne ws, r, "Micropieu le plus long (plus grande profondeur réelle)", "MP" & iMax, ""
@@ -207,7 +204,7 @@ Public Sub CreerVerificationStructurelle()
         wc.Cells(ci, cPhi).Address & ",N(" & CALCUL & "$D$19))", "=N(" & CALCUL & "$D$19)"), "m": vPhi = "$D$" & r
     r = r + 1: Ligne ws, r, LIB_AUTRE, "", "m": vAut = "$D$" & r
     If IsNumeric(autre) And Not IsEmpty(autre) Then ws.Range("D" & r).Value = autre
-    ws.Range("D" & r).Interior.Color = VERT_SAISIE
+    ws.Range("D" & r).Interior.Color = COUL_SAISIE
     r = r + 1: Ligne ws, r, "Diamètre du pieu foré B", "=IF(N(" & vAut & ")>0," & vAut & "," & vPhi & ")", "m": vB = "$D$" & r
     r = r + 1: Ligne ws, r, "Section du pieu foré A = " & ChrW(960) & ".B²/4", "=PI()*" & vB & "^2/4", "m²"
     r = r + 1: Ligne ws, r, "Diamètre de l'armature d", "=" & dA, "mm": vdA = "$D$" & r
@@ -291,15 +288,15 @@ Public Sub CreerVerificationStructurelle()
         .WrapText = True
     End With
     ws.Range("D5:E" & rF).HorizontalAlignment = xlCenter
-    ws.Range("D5:D" & rF).Interior.Color = JAUNE_CALCUL
-    ws.Range(vAut & "," & vCond).Interior.Color = VERT_SAISIE
+    ws.Range("D5:D" & rF).Interior.Color = COUL_CALCUL
+    ws.Range(vAut & "," & vCond).Interior.Color = COUL_SAISIE
     ws.Range("D5:D" & rF).NumberFormat = "0.000"
     ws.Range(vI & "," & vI & ":" & vI).NumberFormat = "0.000E+00"
     ws.Range("D" & Mid(vI, 4) - 1).NumberFormat = "0.000E+00"
     ws.Range("B" & Mid(vl0, 4) & ":D" & Mid(vl0, 4) & ",B" & Mid(vx, 4) + 1 & ":D" & Mid(vx, 4) + 1).Font.Bold = True
     With ws.Range(vPro).FormatConditions
         .Delete
-        .Add(xlCellValue, xlEqual, "=""Non efficace""").Font.Color = RGB(192, 0, 0)
+        .Add(xlCellValue, xlEqual, "=""Non efficace""").Font.Color = COUL_ALERTE
     End With
 
     ' --- Butée des terres sur l'ancrage (poteau BA + semelle BA du
@@ -320,7 +317,7 @@ Public Sub CreerVerificationStructurelle()
         .Value = "BUTÉE DES TERRES SUR L'ANCRAGE (POTEAU BA + SEMELLE BA)"
         .Font.Bold = True
         .Font.Size = 14
-        .Font.Color = VERT_FONCE
+        .Font.Color = COUL_TITRE
     End With
     ' Hauteur de l'ancrage
     ws.Range("B" & rA + 1 & ":E" & rA + 1).Value = Array("Hauteur du poteau BA (soubassement)", "hp", "", "m")
@@ -339,7 +336,7 @@ Public Sub CreerVerificationStructurelle()
     End With
     ws.Range("C" & rA + 1 & ":E" & rA + 3).HorizontalAlignment = xlCenter
     ws.Range("C" & rA + 1 & ":C" & rA + 3).Font.Bold = True
-    ws.Range("D" & rA + 1 & ":D" & rA + 3).Interior.Color = JAUNE_CALCUL
+    ws.Range("D" & rA + 1 & ":D" & rA + 3).Interior.Color = COUL_CALCUL
     ws.Range("D" & rA + 1 & ":D" & rA + 3).NumberFormat = "0.00"
     x = "$D$" & rA + 3                        ' hauteur de l'ancrage
     ' Tableau par couche
@@ -399,9 +396,9 @@ Public Sub CreerVerificationStructurelle()
     End With
     With ws.Range("A" & rA + 5 & ":O" & rA + 5)
         .Font.Bold = True
-        .Interior.Color = VERT_ENTETE
+        .Interior.Color = COUL_ENTETE
     End With
-    ws.Range("B" & rA + 6 & ":O" & r).Interior.Color = JAUNE_CALCUL
+    ws.Range("B" & rA + 6 & ":O" & r).Interior.Color = COUL_CALCUL
     ws.Range("C" & rA + 6 & ":E" & r & ",O" & rA + 6 & ":O" & r).NumberFormat = "0.00"
     ws.Range("F" & rA + 6 & ":H" & r & ",J" & rA + 6 & ":N" & r).NumberFormat = "0.0"
     ws.Range("I" & rA + 6 & ":I" & r).NumberFormat = "0.000"
@@ -418,7 +415,7 @@ Public Sub CreerVerificationStructurelle()
             "POINTE ENCASTRÉE)"
         .Font.Bold = True
         .Font.Size = 14
-        .Font.Color = VERT_FONCE
+        .Font.Color = COUL_TITRE
     End With
     ws.Range("B" & rT + 1).Formula = "=""Condition en tête : ""&" & vCond
     r = rT + 2
@@ -497,10 +494,10 @@ Public Sub CreerVerificationStructurelle()
     ws.Range("B" & r + 1 & ":B" & r + 7 & ",D" & r + 1 & ":D" & r + 7).HorizontalAlignment = xlLeft
     With ws.Range("B" & r & ":I" & r)
         .Font.Bold = True
-        .Interior.Color = VERT_ENTETE
+        .Interior.Color = COUL_ENTETE
     End With
     ws.Range("C" & r + 1 & ":C" & r + 7).Font.Bold = True
-    ws.Range("E" & r + 1 & ":H" & r + 7).Interior.Color = JAUNE_CALCUL
+    ws.Range("E" & r + 1 & ":H" & r + 7).Interior.Color = COUL_CALCUL
     ws.Range("E" & r + 1 & ":H" & r + 3).NumberFormat = "0.0"
     ws.Range("E" & r + 4 & ":H" & r + 7).NumberFormat = "0.000E+00"
     rK = r                                    ' en-tête : Nc, H0, M0 puis A, B, C, E en lignes rK + 4 à rK + 7
@@ -516,7 +513,7 @@ Public Sub CreerVerificationStructurelle()
         .Value = TITRE_FRONTALE & " (MP" & iMax & ")"
         .Font.Bold = True
         .Font.Size = 14
-        .Font.Color = VERT_FONCE
+        .Font.Color = COUL_TITRE
     End With
     r = rV + 1
     ws.Range("B" & r & ":I" & r).Value = Array("Grandeur", "Symbole", "Formule", "ELS CARA", "ELS QP", _
@@ -560,15 +557,15 @@ Public Sub CreerVerificationStructurelle()
     ws.Range("B" & r + 1 & ":B" & r + 6 & ",D" & r + 1 & ":D" & r + 6).HorizontalAlignment = xlLeft
     With ws.Range("B" & r & ":I" & r)
         .Font.Bold = True
-        .Interior.Color = VERT_ENTETE
+        .Interior.Color = COUL_ENTETE
     End With
     ws.Range("C" & r + 1 & ":C" & r + 6 & ",B" & r + 6 & ":H" & r + 6).Font.Bold = True
-    ws.Range("E" & r + 1 & ":H" & r + 6).Interior.Color = JAUNE_CALCUL
+    ws.Range("E" & r + 1 & ":H" & r + 6).Interior.Color = COUL_CALCUL
     ws.Range("E" & r + 1 & ":H" & r + 4).NumberFormat = "0.0"
     ws.Range("E" & r + 5 & ":H" & r + 5).NumberFormat = "0.00"
     With ws.Range("E" & r + 6 & ":H" & r + 6).FormatConditions
         .Delete
-        .Add(xlTextString, String:="calcul du micropieu", TextOperator:=xlContains).Font.Color = RGB(192, 0, 0)
+        .Add(xlTextString, String:="calcul du micropieu", TextOperator:=xlContains).Font.Color = COUL_ALERTE
     End With
     ' Décision : calcul de Y, T et M seulement si une combinaison a H0 / Bp >= 1
     ws.Calculate
@@ -591,7 +588,7 @@ Public Sub CreerVerificationStructurelle()
                 "l'effort horizontal en tête ; le calcul des déplacements Y, de l'effort tranchant T et du " & _
                 "moment M du micropieu n'est pas nécessaire."
             .Font.Bold = True
-            .Font.Color = VERT_FONCE
+            .Font.Color = COUL_TITRE
             .WrapText = True
         End With
         ws.Rows(rF + 2).RowHeight = 32
@@ -611,7 +608,7 @@ Public Sub CreerVerificationStructurelle()
     ws.Range("B" & rP - 2 & ":C" & rP - 2).Merge
     With ws.Range("D" & rP - 2)
         .Value = IIf(N0(pasZ) > 0, N0(pasZ), 0.25)
-        .Interior.Color = VERT_SAISIE
+        .Interior.Color = COUL_SAISIE
         .NumberFormat = "0.00"
         .HorizontalAlignment = xlCenter
     End With
@@ -629,7 +626,7 @@ Public Sub CreerVerificationStructurelle()
         .Value = "DÉPLACEMENT Y, EFFORT TRANCHANT T ET MOMENT M LE LONG DU MICROPIEU MP" & iMax
         .Font.Bold = True
         .Font.Size = 14
-        .Font.Color = VERT_FONCE
+        .Font.Color = COUL_TITRE
     End With
     ws.Range("A" & rP & ":D" & rP).Value = Array("z (m)", "Pas de calcul (m)", ChrW(955) & "z", _
         ChrW(955) & "u = " & ChrW(955) & "(D - z)")
@@ -677,10 +674,10 @@ Public Sub CreerVerificationStructurelle()
     End With
     With ws.Range("A" & rP & ":P" & rP + 1)
         .Font.Bold = True
-        .Interior.Color = VERT_ENTETE
+        .Interior.Color = COUL_ENTETE
         .WrapText = True
     End With
-    ws.Range("A" & rP + 2 & ":P" & rP + 2 + nZ).Interior.Color = JAUNE_CALCUL
+    ws.Range("A" & rP + 2 & ":P" & rP + 2 + nZ).Interior.Color = COUL_CALCUL
     ws.Range("A" & rP + 2 & ":D" & rP + 2 + nZ).NumberFormat = "0.000"
     ws.Range("E" & rP + 2 & ":P" & rP + 2 + nZ).NumberFormat = "0.00"
     ws.Range("A" & rP + 2 & ":A" & rP + 2 + nZ).Font.Bold = True
@@ -702,7 +699,7 @@ MiseEnForme:
             .Value = "GRAPHIQUES - DÉPLACEMENT Y, EFFORT TRANCHANT T ET MOMENT M LE LONG DU MICROPIEU MP" & iMax
             .Font.Bold = True
             .Font.Size = 14
-            .Font.Color = VERT_FONCE
+            .Font.Color = COUL_TITRE
         End With
         GraphiquesProfil ws, iMax, rP + 2, nZ + 1, rG + 2, 1
     End If
@@ -714,6 +711,7 @@ MiseEnForme:
         Application.Run "VerificationArmature"
         On Error GoTo Erreur
     End If
+    AppliquerCharte ws                       ' polices de la charte GEOSKILLS (module Charte)
     ws.Activate
 Fin:
     Application.ScreenUpdating = True
@@ -784,6 +782,7 @@ Private Sub GraphiquesProfil(ws As Worksheet, i As Long, r1 As Long, nb As Long,
                     .Values = rz
                     .ChartType = xlXYScatterSmoothNoMarkers
                     .Format.Line.Weight = 2
+                    .Format.Line.ForeColor.RGB = CouleurSerie(k)   ' palette de la charte
                 End With
             Next k
             .HasTitle = True
@@ -816,7 +815,7 @@ Private Sub SousTitre(ws As Worksheet, r As Long, texte As String)
         .Font.Bold = True
         .Font.Underline = xlUnderlineStyleSingle
         .Font.Size = 14
-        .Font.Color = VERT_FONCE
+        .Font.Color = COUL_TITRE
     End With
 End Sub
 

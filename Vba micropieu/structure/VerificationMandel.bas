@@ -37,10 +37,6 @@ Private Const DONNEES As String = "'Données du projet'!"
 Private Const CALCUL As String = "'Calcul et vérification'!"
 Private Const TITRE As String = "VÉRIFICATION AU FLAMBEMENT DES MICROPIEUX - ABAQUE DE MANDEL"
 Private Const LIB_F As String = "Coefficient de sécurité sur la charge critique à l'ELS (à saisir)"
-Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
-Private Const JAUNE_CALCUL As Long = 13434879  ' RGB(255, 255, 204)
-Private Const VERT_ENTETE As Long = 14348258   ' RGB(226, 239, 218)
-Private Const VERT_FONCE As Long = 2315831     ' RGB(55, 86, 35)
 
 Public Sub VerificationMandel()
     Dim ws As Worksheet, wc As Worksheet, co As ChartObject, v As Variant, etape As String
@@ -140,7 +136,7 @@ Public Sub VerificationMandel()
         .Value = TITRE
         .Font.Bold = True
         .Font.Size = 14
-        .Font.Color = VERT_FONCE
+        .Font.Color = COUL_TITRE
     End With
     With ws.Range("B" & rT + 1 & ":L" & rT + 1)
         .Merge
@@ -164,7 +160,7 @@ Public Sub VerificationMandel()
         .Formula = "=IF(" & enc & ",""Micropieu encastré en tête, pointe encastrée : courbe 2""," & _
             """Micropieu libre en tête, pointe encastrée : courbe 4"")"
         .Font.Bold = True
-        .Font.Color = VERT_FONCE
+        .Font.Color = COUL_TITRE
     End With
     rL = rT + 2
     ws.Range("B" & rL).Value = LIB_F
@@ -172,7 +168,7 @@ Public Sub VerificationMandel()
     With ws.Range("D" & rL)
         .Value = IIf(IsNumeric(fSec) And Not IsEmpty(fSec), fSec, 2.5)
         If N0(.Value) <= 0 Then .Value = 2.5
-        .Interior.Color = VERT_SAISIE
+        .Interior.Color = COUL_SAISIE
         .NumberFormat = "0.00"
         .HorizontalAlignment = xlCenter
     End With
@@ -267,11 +263,11 @@ Public Sub VerificationMandel()
     End With
     With ws.Range("A" & rH & ":W" & rH + 2)
         .Font.Bold = True
-        .Interior.Color = VERT_ENTETE
+        .Interior.Color = COUL_ENTETE
     End With
     ws.Range("A" & rH + 1 & ":W" & rH + 1).Font.Bold = False
     ws.Range("A" & rH + 1 & ":W" & rH + 1).Font.Italic = True
-    ws.Range("B" & rH + 3 & ":W" & r).Interior.Color = JAUNE_CALCUL
+    ws.Range("B" & rH + 3 & ":W" & r).Interior.Color = COUL_CALCUL
     ws.Range("A" & rH + 3 & ":A" & r & ",W" & rH + 3 & ":W" & r).Font.Bold = True
     ws.Range("B" & rH + 3 & ":C" & r & ",E" & rH + 3 & ":G" & r).NumberFormat = "0.0"
     ws.Range("D" & rH + 3 & ":D" & r & ",M" & rH + 3 & ":R" & r & ",V" & rH + 3 & ":V" & r).NumberFormat = "0.00"
@@ -280,7 +276,7 @@ Public Sub VerificationMandel()
     ws.Range("K" & rH + 3 & ":K" & r).NumberFormat = "0.000"
     With ws.Range("W" & rH + 3 & ":W" & r).FormatConditions
         .Delete
-        .Add(xlTextString, String:="Non vérifié", TextOperator:=xlContains).Font.Color = RGB(192, 0, 0)
+        .Add(xlTextString, String:="Non vérifié", TextOperator:=xlContains).Font.Color = COUL_ALERTE
     End With
     ' Dimensionnement des platines (module VerificationPlatine), juste en dessous
     On Error Resume Next

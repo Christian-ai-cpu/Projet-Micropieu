@@ -2,12 +2,13 @@ Attribute VB_Name = "CommentaireImage"
 Option Explicit
 
 ' Module « Commentaires en image » : les commentaires explicatifs des cellules sont
-' affichés sous forme d'image (texte noir sur fond blanc, cadre vert, police lisible)
+' affichés sous forme d'image (texte noir sur fond blanc, cadre Bleu Nuit, police Inter
+' de la charte GEOSKILLS)
 ' au lieu de la note jaune d'Excel.
 '   CommentaireImage c, texte : crée le commentaire de la cellule c ; le texte est
 '     dessiné dans une zone de texte d'un graphique temporaire, exporté en image PNG
 '     (dossier temporaire de Windows) puis posé comme fond du commentaire ; en cas
-'     d'échec, commentaire texte mis en forme (fond blanc, cadre vert) ;
+'     d'échec, commentaire texte mis en forme (fond blanc, cadre Bleu Nuit) ;
 '   ConvertirCommentairesEnImages : convertit tous les commentaires du classeur
 '     (toutes les feuilles, toutes les cellules) ; à lancer après la création des
 '     feuilles, ou à tout moment.
@@ -16,7 +17,6 @@ Option Explicit
 
 Private Const LARGEUR As Double = 320          ' largeur de l'image (points)
 Private Const TAILLE_POLICE As Double = 10
-Private Const VERT_FONCE As Long = 2315831     ' RGB(55, 86, 35)
 
 Public Sub CommentaireImage(c As Range, texte As String)
     Dim co As ChartObject, tb As Shape, f As String, h As Double, n As Long, i As Long
@@ -31,14 +31,14 @@ Public Sub CommentaireImage(c As Range, texte As String)
         n = n + Application.WorksheetFunction.Max(1, Application.WorksheetFunction.RoundUp(Len(lignes(i)) / 55, 0))
     Next i
     h = n * TAILLE_POLICE * 1.35 + 14
-    ' Image : graphique temporaire (fond blanc, cadre vert) contenant une zone de texte
+    ' Image : graphique temporaire (fond blanc, cadre Bleu Nuit) contenant une zone de texte
     Set co = c.Worksheet.ChartObjects.Add(0, 0, LARGEUR, h)
     With co.Chart
         .ChartArea.Format.Fill.Visible = msoTrue
         .ChartArea.Format.Fill.Solid
         .ChartArea.Format.Fill.ForeColor.RGB = RGB(255, 255, 255)
         .ChartArea.Format.Line.Visible = msoTrue
-        .ChartArea.Format.Line.ForeColor.RGB = VERT_FONCE
+        .ChartArea.Format.Line.ForeColor.RGB = COUL_TITRE
         .ChartArea.Format.Line.Weight = 1.5
         Set tb = .Shapes.AddTextbox(msoTextOrientationHorizontal, 3, 3, LARGEUR - 6, h - 6)
     End With
@@ -52,7 +52,7 @@ Public Sub CommentaireImage(c As Range, texte As String)
             .MarginTop = 4
             .MarginBottom = 4
             .TextRange.Text = texte
-            .TextRange.Font.Name = "Calibri"
+            .TextRange.Font.Name = POLICE_TEXTE
             .TextRange.Font.Size = TAILLE_POLICE
             .TextRange.Font.Fill.ForeColor.RGB = RGB(0, 0, 0)
         End With
@@ -74,7 +74,7 @@ Public Sub CommentaireImage(c As Range, texte As String)
     Application.ScreenUpdating = ecran
     Exit Sub
 Texte:
-    ' Échec de l'image : commentaire texte lisible (fond blanc, cadre vert, Calibri 10)
+    ' Échec de l'image : commentaire texte lisible (fond blanc, cadre Bleu Nuit, Inter 10)
     On Error Resume Next
     If Not co Is Nothing Then co.Delete
     If f <> "" Then Kill f
@@ -83,9 +83,9 @@ Texte:
     With c.Comment.Shape
         .Fill.Solid
         .Fill.ForeColor.RGB = RGB(255, 255, 255)
-        .Line.ForeColor.RGB = VERT_FONCE
+        .Line.ForeColor.RGB = COUL_TITRE
         .Line.Weight = 1.5
-        .TextFrame.Characters.Font.Name = "Calibri"
+        .TextFrame.Characters.Font.Name = POLICE_TEXTE
         .TextFrame.Characters.Font.Size = TAILLE_POLICE
         .TextFrame.Characters.Font.Bold = False
         .TextFrame.AutoSize = True
