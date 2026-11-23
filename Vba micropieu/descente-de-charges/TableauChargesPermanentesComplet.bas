@@ -1,5 +1,8 @@
 Attribute VB_Name = "TableauChargesPermanentesComplet"
 Option Explicit
+' Couleurs de la charte graphique GEOSKILLS (bleu nuit, bleu océan, vert émeraude)
+Private Const COUL_SAISIE As Long = 15201485       ' RGB(205, 244, 231) : Vert Émeraude éclairci
+Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu Océan très clair
 
 ' Crée l'en-tête du tableau de descente de charges (colonnes B à H) :
 '   B : Désignation de l'ouvrage
@@ -24,7 +27,7 @@ Private Const LIGNE_SOUS_TITRE As Long = 4
 Private Const PREMIERE_LIGNE As Long = 5
 Private Const NB_LIGNES As Long = 69
 
-' Charte GEOSKILLS (module Charte) : saisies en vert émeraude clair, valeurs calculées en
+' Charte GEOSKILLS : saisies en vert émeraude clair, valeurs calculées en
 ' bleu très clair (comme les autres feuilles)
 
 Public Sub CreerTableauChargesPermanentesComplet()
@@ -186,7 +189,7 @@ Public Sub CreerTableauChargesPermanentesComplet()
         .VerticalAlignment = xlCenter
         .Rows.AutoFit
     End With
-    AppliquerCharte ws                       ' polices de la charte GEOSKILLS (module Charte)
+    ws.Cells.Font.Name = "Inter"            ' police de la charte graphique GEOSKILLS
 
     Application.EnableEvents = True
     Application.ScreenUpdating = True

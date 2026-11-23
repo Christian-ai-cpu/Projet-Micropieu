@@ -1,5 +1,8 @@
 Attribute VB_Name = "TableauxNFP94262"
 Option Explicit
+' Couleurs de la charte graphique GEOSKILLS (bleu nuit, bleu océan, vert émeraude)
+Private Const COUL_TITRE As Long = 5898259         ' RGB(19, 0, 90) : Bleu Nuit (charte GEOSKILLS)
+Private Const COUL_ENTETE As Long = 15458502       ' RGB(198, 224, 235) : Bleu Océan éclairci
 
 ' Module « Tableaux NF P94-262 » : crée (ou recrée) la feuille « Tableaux NF P94-262 »
 ' avec les tableaux de la norme NF P94-262 (juillet 2012) utiles au calcul des
@@ -49,7 +52,7 @@ Private mEmpl As Long          ' emplacement suivant dans la rangée (0 à 2)
 Private mEntete As Range       ' ligne d'en-tête du dernier tableau écrit
 Private mDonnees As Range      ' lignes de données du dernier tableau écrit
 
-' Charte GEOSKILLS (module Charte) : saisies en vert émeraude clair, valeurs calculées en
+' Charte GEOSKILLS : saisies en vert émeraude clair, valeurs calculées en
 ' bleu très clair, en-têtes en bleu océan clair, titres en bleu nuit
 Public Sub CreerTableauxNFP94262()
     Dim ws As Worksheet, s As String, g As String, c As Long
@@ -270,7 +273,7 @@ Public Sub CreerTableauxNFP94262()
         ws.Columns(3 + c * LARGEUR_EMPL).Resize(, LARGEUR_EMPL - 2).ColumnWidth = 12
         ws.Columns(1 + (c + 1) * LARGEUR_EMPL).ColumnWidth = 3
     Next c
-    AppliquerCharte ws                       ' polices de la charte GEOSKILLS (module Charte)
+    ws.Cells.Font.Name = "Inter"            ' police de la charte graphique GEOSKILLS
     ws.Activate
 Fin:
     Application.ScreenUpdating = True

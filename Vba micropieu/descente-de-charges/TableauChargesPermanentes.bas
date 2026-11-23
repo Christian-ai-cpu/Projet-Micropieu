@@ -65,7 +65,7 @@ Public Sub CreerTableauChargesPermanentes()
         .Columns("G").AutoFit                        ' colonne des charges ajustée au contenu
         If .Columns("G").ColumnWidth < 12 Then .Columns("G").ColumnWidth = 12   ' place pour le titre
     End With
-    AppliquerCharte ActiveSheet              ' polices de la charte GEOSKILLS (module Charte)
+    ActiveSheet.Cells.Font.Name = "Inter"            ' police de la charte graphique GEOSKILLS
     Application.EnableEvents = True
     Application.ScreenUpdating = True
 End Sub

@@ -1,5 +1,10 @@
 Attribute VB_Name = "DonneesProjet"
 Option Explicit
+' Couleurs de la charte graphique GEOSKILLS (bleu nuit, bleu océan, vert émeraude)
+Private Const COUL_TITRE As Long = 5898259         ' RGB(19, 0, 90) : Bleu Nuit (charte GEOSKILLS)
+Private Const COUL_ENTETE As Long = 15458502       ' RGB(198, 224, 235) : Bleu Océan éclairci
+Private Const COUL_SAISIE As Long = 15201485       ' RGB(205, 244, 231) : Vert Émeraude éclairci
+Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu Océan très clair
 
 ' Module « Données du projet » : crée (ou recrée) la feuille « Données du projet »
 ' avec les hypothèses générales du projet.
@@ -135,7 +140,7 @@ Public Const CATEGORIES_SOL As String = "Argiles et limons," & _
     "Sols intermédiaires (sable limoneux / sable argileux / argile sableuse)," & _
     "Sables et graves,Craies,Marnes et calcaires marneux,Roches"
 
-' Charte GEOSKILLS (module Charte) : saisies en vert émeraude clair, valeurs calculées en
+' Charte GEOSKILLS : saisies en vert émeraude clair, valeurs calculées en
 ' bleu très clair, en-têtes en bleu océan clair, titres en bleu nuit
 Public Sub CreerDonneesProjet()
     Dim ws As Worksheet, r As Long, normes As Variant, lc As Long, lm As Long, lp As Long
@@ -559,7 +564,7 @@ Public Sub CreerDonneesProjet()
     AfficherMethode ws
     AfficherOptionsPieu ws
     MajArmature ws
-    AppliquerCharte ws                       ' polices de la charte GEOSKILLS (module Charte)
+    ws.Cells.Font.Name = "Inter"            ' police de la charte graphique GEOSKILLS
     ws.Activate
     Application.EnableEvents = True
     Application.ScreenUpdating = True

@@ -1,5 +1,8 @@
 Attribute VB_Name = "ChargePermanente"
 Option Explicit
+' Couleurs de la charte graphique GEOSKILLS (bleu nuit, bleu océan, vert émeraude)
+Private Const COUL_SAISIE As Long = 15201485       ' RGB(205, 244, 231) : Vert Émeraude éclairci
+Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu Océan très clair
 
 ' Module « Charge permanente » : remplissage du tableau des charges permanentes G.
 ' Listes déroulantes sous « Désignation de l'ouvrage », à partir de B5.
@@ -55,7 +58,7 @@ Private Const TYPES_TOITURE As String = "Toiture fermettes industrielles + tuile
     "Toiture fermettes industrielles + ardoises,Toiture charpente traditionnelle bois massif"
 Private Const PENTES As String = "18,20,25,30,45"   ' pentes des versants (°)
 
-' Charte GEOSKILLS (module Charte) : saisies en vert émeraude clair, valeurs calculées en
+' Charte GEOSKILLS : saisies en vert émeraude clair, valeurs calculées en
 ' bleu très clair (comme les autres feuilles)
 Private Const NIVEAUX_RDC As String = "RDC,RDC+1SS,RDC+2SS,RDC+VS"   ' liste en B46
 Private Const PLANCHERS As String = "Plancher dalle pleine,Plancher à poutrelles,Plancher bois traditionnel"
