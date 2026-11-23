@@ -102,7 +102,7 @@ Private Const RHO_CIMENT As Double = 3.1
 ' Platines d'appui (liaison micropieu / structure, assemblage NF EN 1993-1-8) :
 ' plats carrés en acier de construction NF EN 10025, épaisseur t lue dans la
 ' désignation (elle fixe fy et fu, NF EN 1993-1-1 tableau 3.1).
-Public Const PLATINES As String = "Platine carrée 150 x 150 mm - ép. 15 mm," & _
+Private Const PLATINES As String = "Platine carrée 150 x 150 mm - ép. 15 mm," & _
     "Platine carrée 150 x 150 mm - ép. 20 mm,Platine carrée 200 x 200 mm - ép. 20 mm," & _
     "Platine carrée 200 x 200 mm - ép. 25 mm,Platine carrée 250 x 250 mm - ép. 25 mm," & _
     "Platine carrée 250 x 250 mm - ép. 30 mm,Platine carrée 300 x 300 mm - ép. 30 mm," & _
