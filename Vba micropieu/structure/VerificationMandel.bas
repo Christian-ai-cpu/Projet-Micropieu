@@ -29,7 +29,8 @@ Option Explicit
 '   charge critique Ncr = phi racine(EI Kf), charge admissible Fcr = Ncr / F (F = 2,5
 '   à l'ELS, saisi) ; effort ELS dans l'axe N = max(Vmax ELS CARA, ELS QP) / cos(alpha)
 '   (micropieu incliné) ; condition N / Fcr <= 1.
-' Appelée à la fin de VerificationArmature ; peut être relancée seule.
+' Appelée à la fin de VerificationArmature ; peut être relancée seule. Lance ensuite
+' le dimensionnement des platines (module VerificationPlatine), en dessous.
 
 Private Const NOM_FEUILLE As String = "Vérification structurelle"
 Private Const DONNEES As String = "'Données du projet'!"
@@ -88,6 +89,9 @@ Public Sub VerificationMandel()
     If Not IsError(v) Then fSec = ws.Range("D" & CLng(v)).Value      ' saisie conservée
     v = Application.Match(TITRE, ws.Range("A1:A5000"), 0)
     If Not IsError(v) Then ws.Range(ws.Rows(CLng(v)), ws.Rows(CLng(v) + m + 20)).Clear
+    ' tableau des platines (placé ensuite en dessous) effacé lui aussi
+    v = Application.Match(TITRE_PLATINE, ws.Range("A1:A5000"), 0)
+    If Not IsError(v) Then ws.Range(ws.Rows(CLng(v)), ws.Rows(CLng(v) + m + 30)).Clear
     Set fr = ws.Cells.Find("*", LookIn:=xlFormulas, SearchOrder:=xlByRows, SearchDirection:=xlPrevious)
     r = 1
     If Not fr Is Nothing Then r = fr.Row      ' dernière ligne remplie (vérification de l'armature)
@@ -278,6 +282,9 @@ Public Sub VerificationMandel()
         .Delete
         .Add(xlTextString, String:="Non vérifié", TextOperator:=xlContains).Font.Color = RGB(192, 0, 0)
     End With
+    ' Dimensionnement des platines (module VerificationPlatine), juste en dessous
+    On Error Resume Next
+    Application.Run "VerificationPlatine"
     Exit Sub
 Erreur:
     MsgBox "Erreur pendant la vérification au flambement (Mandel), partie « " & etape & " » : " & _
