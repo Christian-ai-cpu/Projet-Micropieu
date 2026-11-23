@@ -1,9 +1,5 @@
 Attribute VB_Name = "MatriceMicropieux"
 Option Explicit
-' Couleurs de la charte graphique GEOSKILLS (voir module Charte)
-Private Const COUL_ENTETE As Long = 15458502       ' RGB(198, 224, 235) : Bleu Océan éclairci
-Private Const COUL_SAISIE As Long = 15201485       ' RGB(205, 244, 231) : Vert Émeraude éclairci
-Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu Océan très clair
 
 ' Module « Matrice des micropieux » : sous les tableaux de descente de charges des murs
 ' (à partir de la ligne LIGNE_MATRICE), répartition des charges des murs sur les

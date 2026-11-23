@@ -1,8 +1,5 @@
 Attribute VB_Name = "ChargePermanente"
 Option Explicit
-' Couleurs de la charte graphique GEOSKILLS (voir module Charte)
-Private Const COUL_SAISIE As Long = 15201485       ' RGB(205, 244, 231) : Vert Émeraude éclairci
-Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu Océan très clair
 
 ' Module « Charge permanente » : remplissage du tableau des charges permanentes G.
 ' Listes déroulantes sous « Désignation de l'ouvrage », à partir de B5.

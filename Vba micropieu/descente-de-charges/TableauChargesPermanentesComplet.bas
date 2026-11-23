@@ -1,8 +1,5 @@
 Attribute VB_Name = "TableauChargesPermanentesComplet"
 Option Explicit
-' Couleurs de la charte graphique GEOSKILLS (voir module Charte)
-Private Const COUL_SAISIE As Long = 15201485       ' RGB(205, 244, 231) : Vert Émeraude éclairci
-Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu Océan très clair
 
 ' Crée l'en-tête du tableau de descente de charges (colonnes B à H) :
 '   B : Désignation de l'ouvrage
@@ -189,10 +186,7 @@ Public Sub CreerTableauChargesPermanentesComplet()
         .VerticalAlignment = xlCenter
         .Rows.AutoFit
     End With
-    ' polices de la charte GEOSKILLS (module Charte, s'il est importé)
-    On Error Resume Next
-    Application.Run "AppliquerCharte", ws
-    On Error GoTo 0
+    AppliquerCharte ws                       ' polices de la charte GEOSKILLS (module Charte)
 
     Application.EnableEvents = True
     Application.ScreenUpdating = True
