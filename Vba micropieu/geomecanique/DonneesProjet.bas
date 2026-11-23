@@ -1,10 +1,5 @@
 Attribute VB_Name = "DonneesProjet"
 Option Explicit
-' Couleurs de la charte graphique GEOSKILLS (bleu nuit, bleu océan, vert émeraude)
-Private Const COUL_TITRE As Long = 5898259         ' RGB(19, 0, 90) : Bleu Nuit (charte GEOSKILLS)
-Private Const COUL_ENTETE As Long = 15458502       ' RGB(198, 224, 235) : Bleu Océan éclairci
-Private Const COUL_SAISIE As Long = 15201485       ' RGB(205, 244, 231) : Vert Émeraude éclairci
-Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu Océan très clair
 
 ' Module « Données du projet » : crée (ou recrée) la feuille « Données du projet »
 ' avec les hypothèses générales du projet.
@@ -44,7 +39,7 @@ Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu O
 '               d'épaisseur due à la corrosion (NF EN 1993-5, tableaux 4.1 et 4.2),
 '               épaisseur ou diamètre résiduel, platine d'appui NF EN 1993-1-8,
 '               épaisseur, nuance, fy et fu selon l'épaisseur, gamma M0 et M2)
-' Les valeurs se saisissent dans les cases vert émeraude. Le type de fondation (ligne 13)
+' Les valeurs se saisissent dans les cases vertes. Le type de fondation (ligne 13)
 ' s'affiche quand la phase (C9) vaut G5 (AfficherTypeFondation) et le tableau des
 ' couches suit le nombre de couches (AfficherCouches) : voir CodeFeuilleDonnees.txt.
 ' Les listes de plus de 255 caractères (limite d'Excel, ex. types de pieux ou
@@ -140,8 +135,12 @@ Public Const CATEGORIES_SOL As String = "Argiles et limons," & _
     "Sols intermédiaires (sable limoneux / sable argileux / argile sableuse)," & _
     "Sables et graves,Craies,Marnes et calcaires marneux,Roches"
 
-' Charte GEOSKILLS : saisies en vert émeraude clair, valeurs calculées en
-' bleu très clair, en-têtes en bleu océan clair, titres en bleu nuit
+' Thème vert : saisies en vert, valeurs non saisies (calculées) en jaune, en-têtes et
+' titres en vert (couleurs RGB écrites en nombre : rouge + 256 x vert + 65536 x bleu)
+Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
+Private Const JAUNE_CALCUL As Long = 13434879  ' RGB(255, 255, 204), jaune clair
+Private Const VERT_ENTETE As Long = 14348258   ' RGB(226, 239, 218)
+Private Const VERT_FONCE As Long = 2315831     ' RGB(55, 86, 35)
 Public Sub CreerDonneesProjet()
     Dim ws As Worksheet, r As Long, normes As Variant, lc As Long, lm As Long, lp As Long
     Dim la As Long, c As String
@@ -165,7 +164,7 @@ Public Sub CreerDonneesProjet()
         .Merge
         .Value = "HYPOTHÈSES GÉNÉRALES"
         .Font.Bold = True
-        .Font.Color = COUL_TITRE
+        .Font.Color = VERT_FONCE
         .Font.Size = 14
         .HorizontalAlignment = xlCenter
     End With
@@ -284,8 +283,8 @@ Public Sub CreerDonneesProjet()
         Replace(CATEGORIES_RHEO, ",", """,""") & """},0))),""""))"
     ws.Range("D" & r & ":D" & r + 2 & ",D" & r + 6).NumberFormat = "0.00"
     ws.Range("D" & r & ":E" & r + 6).HorizontalAlignment = xlCenter
-    ws.Range("D" & r & ":D" & r + 2 & ",D" & r + 6).Interior.Color = COUL_CALCUL
-    ws.Range("D" & r + 3 & ":D" & r + 5).Interior.Color = COUL_SAISIE
+    ws.Range("D" & r & ":D" & r + 2 & ",D" & r + 6).Interior.Color = JAUNE_CALCUL
+    ws.Range("D" & r + 3 & ":D" & r + 5).Interior.Color = VERT_SAISIE
     For r = lm + 1 To LIGNE_COUCHE_MOLLE + 6
         ws.Range("B" & r & ":C" & r).Merge
     Next r
@@ -390,7 +389,7 @@ Public Sub CreerDonneesProjet()
         ws.Range("F" & lp + 8 + r).Value = "B" & r - 1
         With ws.Range("G" & lp + 8 + r)
             .NumberFormat = "0.000"
-            .Interior.Color = COUL_SAISIE
+            .Interior.Color = VERT_SAISIE
             If r > 1 Then
                 .Validation.Add xlValidateCustom, xlValidAlertStop, , "=OR(G" & lp + 8 + r & _
                     "="""",G" & lp + 8 + r & ">G" & lp + 7 + r & ")"
@@ -404,7 +403,7 @@ Public Sub CreerDonneesProjet()
     End With
     With ws.Range("F" & lp + 8 & ":G" & lp + 8)
         .Font.Bold = True
-        .Interior.Color = COUL_ENTETE
+        .Interior.Color = VERT_ENTETE
     End With
     ws.Range("D" & lp + 15).Formula = "=IF(G" & lp + 9 & "="""","""",G" & lp + 9 & ")"   ' B = B0
     ws.Range("D" & lp + 15).NumberFormat = "0.000"          ' diamètre B (m)
@@ -436,7 +435,7 @@ Public Sub CreerDonneesProjet()
         .Merge
         .Value = "HYPOTHÈSES RELATIVES AUX MATÉRIAUX CONSTITUTIFS DES FONDATIONS PROFONDES"
         .Font.Bold = True
-        .Font.Color = COUL_TITRE
+        .Font.Color = VERT_FONCE
         .Font.Size = 14
         .HorizontalAlignment = xlCenter
     End With
@@ -536,22 +535,22 @@ Public Sub CreerDonneesProjet()
         .WrapText = True
     End With
     ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":N" & LIGNE_COUCHES - 1).Font.Bold = True
-    ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":N" & LIGNE_COUCHES - 1).Interior.Color = COUL_ENTETE
+    ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":N" & LIGNE_COUCHES - 1).Interior.Color = VERT_ENTETE
     ws.Range("B" & LIGNE_COUCHES - 1 & ":N" & LIGNE_COUCHES - 1).HorizontalAlignment = xlCenter
-    ' Cases à remplir en vert émeraude, valeurs calculées en bleu clair (caractéristiques de la
+    ' Cases à remplir en vert, valeurs calculées en jaune (caractéristiques de la
     ' fondation comprises) ; sans couleur : données géotechniques (laboratoire) et
     ' données de la fondation
     ws.Range("D" & lp & ":D" & lp + 7 & ",D" & lp + 12 & ",D" & lp + 16 & ":D" & lp + 23 _
-        ).Interior.Color = COUL_SAISIE
-    ws.Range("D" & lp + 8 & ":D" & lp + 11 & ",D" & lp + 13 & ":D" & lp + 15).Interior.Color = COUL_CALCUL
+        ).Interior.Color = VERT_SAISIE
+    ws.Range("D" & lp + 8 & ":D" & lp + 11 & ",D" & lp + 13 & ":D" & lp + 15).Interior.Color = JAUNE_CALCUL
     ws.Range("C4:C9,C12:C16,D28:D29," & CELLULE_NB_COUCHES & ",D" & la + 3 & ":D" & la + 4 & _
         ",D" & la + 6 & ":D" & la + 9 & _
         ",D" & LIGNE_ACIER & ":D" & LIGNE_ACIER + 1 & ",D" & LIGNE_ACIER + 8 & ":D" & _
         LIGNE_ACIER + 10 & ",D" & LIGNE_ACIER + 12 & ",D" & LIGNE_ACIER + 15 & ",D" & LIGNE_ACIER + 17 & ",D" & LIGNE_ACIER + 20 & ":D" & _
-        LIGNE_ACIER + 21).Interior.Color = COUL_SAISIE
+        LIGNE_ACIER + 21).Interior.Color = VERT_SAISIE
     ws.Range("D" & la + 5 & ",D" & LIGNE_ACIER + 2 & ":D" & LIGNE_ACIER + 7 & _
         ",D" & LIGNE_ACIER + 11 & ":D" & LIGNE_ACIER + 14 & _
-        ",D" & LIGNE_ACIER + 16 & ",D" & LIGNE_ACIER + 18 & ":D" & LIGNE_ACIER + 19).Interior.Color = COUL_CALCUL
+        ",D" & LIGNE_ACIER + 16 & ",D" & LIGNE_ACIER + 18 & ":D" & LIGNE_ACIER + 19).Interior.Color = JAUNE_CALCUL
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 40
@@ -564,7 +563,6 @@ Public Sub CreerDonneesProjet()
     AfficherMethode ws
     AfficherOptionsPieu ws
     MajArmature ws
-    ws.Cells.Font.Name = "Inter"            ' police de la charte graphique GEOSKILLS
     ws.Activate
     Application.EnableEvents = True
     Application.ScreenUpdating = True
@@ -785,7 +783,7 @@ Private Sub SousTitre(ws As Worksheet, ligne As Long, texte As String)
         .Font.Bold = True
         .Font.Underline = xlUnderlineStyleSingle
         .Font.Size = 12
-        .Font.Color = COUL_TITRE
+        .Font.Color = VERT_FONCE
     End With
 End Sub
 

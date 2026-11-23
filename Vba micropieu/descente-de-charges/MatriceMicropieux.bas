@@ -1,9 +1,5 @@
 Attribute VB_Name = "MatriceMicropieux"
 Option Explicit
-' Couleurs de la charte graphique GEOSKILLS (bleu nuit, bleu océan, vert émeraude)
-Private Const COUL_ENTETE As Long = 15458502       ' RGB(198, 224, 235) : Bleu Océan éclairci
-Private Const COUL_SAISIE As Long = 15201485       ' RGB(205, 244, 231) : Vert Émeraude éclairci
-Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu Océan très clair
 
 ' Module « Matrice des micropieux » : sous les tableaux de descente de charges des murs
 ' (à partir de la ligne LIGNE_MATRICE), répartition des charges des murs sur les
@@ -38,8 +34,10 @@ Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu O
 Public Const LIGNE_MATRICE As Long = 80             ' titre du tableau
 Public Const CELLULE_NB_MICROPIEUX As String = "K1"
 
-' Charte GEOSKILLS : saisies en vert émeraude clair, valeurs calculées en
-' bleu très clair, en-têtes en bleu océan clair, titres en bleu nuit
+' Thème : saisies en vert, valeurs calculées en jaune, en-têtes en vert clair
+Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
+Private Const JAUNE_CALCUL As Long = 13434879  ' RGB(255, 255, 204)
+Private Const VERT_ENTETE As Long = 14348258   ' RGB(226, 239, 218)
 
 Public Sub ConstruireMatrice(Optional ws As Worksheet)
     Dim n As Long, m As Long, i As Long, j As Long, L As Long, r0 As Long, rG As Long
@@ -136,7 +134,7 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         .WrapText = True
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
-        .Interior.Color = COUL_ENTETE
+        .Interior.Color = VERT_ENTETE
     End With
     ws.Range("B" & L + 2).Value = "Massif"
     ws.Range("B" & L + 3).Value = "Longrine"
@@ -144,7 +142,7 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         ws.Range("C" & L + i & ":E" & L + i).Value = _
             Array(IIf(IsEmpty(dims(i, 1)), 25, dims(i, 1)), dims(i, 2), dims(i, 3))
     Next i
-    ws.Range("C" & L + 2 & ":E" & L + 3).Interior.Color = COUL_SAISIE
+    ws.Range("C" & L + 2 & ":E" & L + 3).Interior.Color = VERT_SAISIE
     ws.Range("B" & L + 1 & ":E" & L + 3).Borders.LineStyle = xlContinuous
 
     ' --- Matrice n x 2 : G et Q (kN/ml) de chaque mur (récapitulatif du mur k, colonne
@@ -158,7 +156,7 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
             ws.Range("D" & r).Formula = "=N(" & ws.Cells(rG + 1, 3 + (j - 1) * PAS_MUR).Address & ")"
         End If
     Next j
-    ws.Range("C" & L + 6 & ":D" & L + 5 + n).Interior.Color = COUL_CALCUL
+    ws.Range("C" & L + 6 & ":D" & L + 5 + n).Interior.Color = JAUNE_CALCUL
     cG = "$C$" & L + 6 & ":$C$" & L + 5 + n
     cQ = "$D$" & L + 6 & ":$D$" & L + 5 + n
 
@@ -272,20 +270,20 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     With Union(ws.Range("B" & L + 5 & ":D" & L + 5), _
             ws.Range(ws.Cells(r0, 2), ws.Cells(r0 + 1, xt + 1)))
         .Font.Bold = True
-        .Interior.Color = COUL_ENTETE
+        .Interior.Color = VERT_ENTETE
         .WrapText = True
     End With
-    ws.Range(ws.Cells(r0 + 2, 3), ws.Cells(r - 1, 2 + n)).Interior.Color = COUL_SAISIE
-    ws.Range(ws.Cells(r0 + 3, x0 + 2), ws.Cells(r - 1, x0 + 2)).Interior.Color = COUL_SAISIE
-    ws.Range(ws.Cells(r0 + 3, x0), ws.Cells(r, x0 + 1)).Interior.Color = COUL_CALCUL
-    ws.Range(ws.Cells(r0 + 3, x0 + 3), ws.Cells(r, x0 + 6)).Interior.Color = COUL_CALCUL
-    If nappe Then                            ' eau à saisir (vert émeraude), total en bleu clair
-        ws.Range(ws.Cells(r0 + 3, x0 + 7), ws.Cells(r - 1, x0 + 9)).Interior.Color = COUL_SAISIE
-        ws.Range(ws.Cells(r, x0 + 7), ws.Cells(r, x0 + 9)).Interior.Color = COUL_CALCUL
+    ws.Range(ws.Cells(r0 + 2, 3), ws.Cells(r - 1, 2 + n)).Interior.Color = VERT_SAISIE
+    ws.Range(ws.Cells(r0 + 3, x0 + 2), ws.Cells(r - 1, x0 + 2)).Interior.Color = VERT_SAISIE
+    ws.Range(ws.Cells(r0 + 3, x0), ws.Cells(r, x0 + 1)).Interior.Color = JAUNE_CALCUL
+    ws.Range(ws.Cells(r0 + 3, x0 + 3), ws.Cells(r, x0 + 6)).Interior.Color = JAUNE_CALCUL
+    If nappe Then                            ' eau à saisir (vert), total en jaune
+        ws.Range(ws.Cells(r0 + 3, x0 + 7), ws.Cells(r - 1, x0 + 9)).Interior.Color = VERT_SAISIE
+        ws.Range(ws.Cells(r, x0 + 7), ws.Cells(r, x0 + 9)).Interior.Color = JAUNE_CALCUL
     End If
     ws.Range(ws.Cells(r0 + 2, 3), ws.Cells(r, xt + 1)).NumberFormat = "0.00"
-    ws.Range(ws.Cells(r0 + 3, xt), ws.Cells(r - 1, xt + 1)).Interior.Color = COUL_SAISIE   ' talus
-    ws.Range(ws.Cells(r, xt), ws.Cells(r, xt + 1)).Interior.Color = COUL_CALCUL
+    ws.Range(ws.Cells(r0 + 3, xt), ws.Cells(r - 1, xt + 1)).Interior.Color = VERT_SAISIE   ' talus
+    ws.Range(ws.Cells(r, xt), ws.Cells(r, xt + 1)).Interior.Color = JAUNE_CALCUL
     ws.Range("C" & L + 2 & ":E" & L + 3 & ",C" & L + 6 & ":D" & L + 5 + n).NumberFormat = "0.00"
     ws.Range("C" & L + 2 & ":E" & L + 3).HorizontalAlignment = xlCenter
     ws.Rows(r0).RowHeight = 45
