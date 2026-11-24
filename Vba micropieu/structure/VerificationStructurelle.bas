@@ -131,6 +131,28 @@ Public Sub CreerVerificationStructurelle()
     ' en colonne A, combinaisons (Vmax) dans la colonne « COMBINAISONS ... », coefficients
     ' des combinaisons sous le tableau
     ' (position variable : sous le tableau de la capacité portante par pas de calcul)
+    ' Nombre de micropieux : celui de la descente de charges (K1) ; vérification de la
+    ' profondeur de « Calcul et vérification » (et matrice des micropieux) recréée si
+    ' elle n'a pas ce nombre de micropieux
+    If Not wd Is Nothing Then
+        k = Val(wd.Range("K1").Value)
+        On Error Resume Next
+        r0 = Application.Match("N° MICROPIEU", wc.Range("A1:A5000"), 0)
+        On Error GoTo Erreur
+        m = 0
+        If r0 > 0 Then
+            Do While Left(CStr(wc.Range("A" & r0 + 3 + m).Value), 2) = "MP"
+                m = m + 1
+            Loop
+        End If
+        If k >= 1 And k <> m Then
+            etape = "mise à jour du nombre de micropieux (descente de charges)"
+            Application.Run "ActualiserVerificationProfondeur"
+            wc.Calculate
+        End If
+        m = 0: r0 = 0
+        etape = "micropieux de la vérification de la profondeur"
+    End If
     On Error Resume Next
     r0 = Application.Match("N° MICROPIEU", wc.Range("A1:A5000"), 0)
     On Error GoTo Erreur
