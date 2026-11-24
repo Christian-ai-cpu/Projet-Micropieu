@@ -1596,11 +1596,17 @@ Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat A
     ' terrain neutralisé : « Oui » saisi, ou catégorie de sol « Neutralisé »
     ws.Range("Q" & r).Formula = cond & "IF(" & DONNEES & "$D$" & ld & "=""Neutralisé"",""Oui""," & _
         DONNEES & "$M$" & ld & "))"
-    ' Terrain neutralisé (Q = « Oui ») : toutes les valeurs de la ligne mises à 0, de pl*
+    ' Terrain neutralisé (Q = « Oui ») : toutes les valeurs de la ligne mises à 0 (affichées
+    ' « - »), de pl*
     ' (ou qc) à Rs,i (colonnes G à P) ; nom, catégorie, profondeur et épaisseur conservés
     For Each c In Array("G", "H", "I", "J", "K", "L", "M", "N", "O", "P")
         ws.Range(c & r).Formula = "=IF($Q$" & r & "=""Oui"",0," & Mid(ws.Range(c & r).Formula, 2) & ")"
     Next c
+    ' affichées « - » (valeur 0 conservée pour les calculs qui les utilisent)
+    With ws.Range("G" & r & ":P" & r).FormatConditions
+        .Delete
+        .Add(xlExpression, Formula1:="=$Q$" & r & "=""Oui""").NumberFormat = """-"""
+    End With
     ws.Range("E" & r & ":G" & r & ",I" & r).NumberFormat = "0.00"
     ws.Range("J" & r & ":M" & r & ",O" & r & ":P" & r).NumberFormat = "0.0"
     ws.Range("N" & r).NumberFormat = "0.000"

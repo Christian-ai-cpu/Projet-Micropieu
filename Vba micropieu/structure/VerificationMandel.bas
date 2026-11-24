@@ -211,7 +211,8 @@ Public Sub VerificationMandel()
     For i = 1 To m
         r = rH + 2 + i
         ci = r0 + 2 + i                       ' ligne du micropieu dans « Calcul Portance »
-        ws.Range("A" & r).Formula = "=" & CALCUL & "$A$" & ci & "&"""""
+        ' n° du micropieu (« Calcul Portance », colonne A ; MPi à défaut)
+        ws.Range("A" & r).Formula = "=IF(" & CALCUL & "$A$" & ci & "="""",""MP" & i & """," & CALCUL & "$A$" & ci & ")"
         ws.Range("B" & r).Formula = "=" & dA
         ws.Range("C" & r).Formula = "=IF(" & tube & "," & t0 & ",""-"")"
         If cPhi > 0 Then

@@ -190,7 +190,8 @@ Public Sub VerificationPlatine()
     For i = 1 To m
         r = rH + 2 + i
         ci = r0 + 2 + i                       ' ligne du micropieu dans « Calcul Portance »
-        ws.Range("A" & r).Formula = "=" & CALCUL & "$A$" & ci & "&"""""
+        ' n° du micropieu (« Calcul Portance », colonne A ; MPi à défaut)
+        ws.Range("A" & r).Formula = "=IF(" & CALCUL & "$A$" & ci & "="""",""MP" & i & """," & CALCUL & "$A$" & ci & ")"
         ws.Range("B" & r).Formula = "=MAX(ABS(N(" & CALCUL & wc.Cells(ci, cC).Address & ")),ABS(N(" & CALCUL & _
             wc.Cells(ci, cC + 2).Address & ")))"
         ws.Range("C" & r).Formula = "=ABS(N(" & CALCUL & wc.Cells(ci, cC + 4).Address & "))"

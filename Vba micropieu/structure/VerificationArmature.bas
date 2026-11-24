@@ -66,7 +66,7 @@ Public Sub VerificationArmature()
     Dim r2 As Long, yAdm As Variant, vYa As String, xN As Long, xV As Long, xM As Long, xY0 As Long
     Dim xYm As Long, xRy As Long, xOkY As Long, xsN As Long, xsM As Long, xsx As Long, xtau As Long
     Dim xsa As Long, xta As Long, xcr As Long, xOkS As Long, xin As Long, xOkI As Long
-    Dim xSy As Long, xb As Long, xsv As Long, xR As Long
+    Dim xSy As Long, xb As Long, xsv As Long, xR As Long, nMP As String
     Dim fT As String, fM As String, k As Long
     Dim vInc As String, vAng As String, cosA As String, vNc As String, rap5 As String, ok5 As String
 
@@ -78,7 +78,8 @@ Public Sub VerificationArmature()
         Exit Sub
     End If
     Set mWs = ws
-    yAdm = LireD(ws, LIB_YADM)                ' déplacement admissible saisi (conservé)
+    yAdm = LireD(ws, LIB_YADM)
+    nMP = CStr(LireD(ws, "Micropieu le plus long (plus grande profondeur réelle)"))   ' ex. MP3                ' déplacement admissible saisi (conservé)
 
     ' --- Cellules de la feuille « Vérification structurelle » (repérées par intitulé) ---
     etape = "lecture de la feuille"
@@ -123,7 +124,7 @@ Public Sub VerificationArmature()
     ' --- Position : sous les graphiques (ou sous le profil) ; ancien tableau effacé
     ' (les graphiques ne sont pas touchés) ---
     etape = "position du tableau"
-    v = Application.Match(TITRE, ws.Range("A1:A5000"), 0)
+    v = Application.Match(TITRE & "*", ws.Range("A1:A5000"), 0)
     If Not IsError(v) Then ws.Range(ws.Rows(CLng(v)), ws.Rows(CLng(v) + 160)).Clear
     bas = ws.Cells(rFin, 1).Top
     For Each co In ws.ChartObjects
@@ -136,7 +137,7 @@ Public Sub VerificationArmature()
     r0 = r0 + 1
 
     With ws.Range("A" & r0)
-        .Value = TITRE
+        .Value = TITRE & IIf(nMP <> "", " - MICROPIEU " & nMP, "")
         .Font.Bold = True
         .Font.Size = 14
         .Font.Color = COUL_TITRE
@@ -279,7 +280,7 @@ Public Sub VerificationArmature()
     mR = mR + 3
     r2 = mR
     With ws.Range("A" & r2)
-        .Value = TITRE2
+        .Value = TITRE2 & IIf(nMP <> "", " - MICROPIEU " & nMP, "")
         .Font.Bold = True
         .Font.Size = 14
         .Font.Color = COUL_TITRE

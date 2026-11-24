@@ -363,7 +363,7 @@ Public Sub CreerVerificationStructurelle()
     If nbC > MAX_COUCHES Then nbC = MAX_COUCHES
     rA = rF + 3
     With ws.Range("A" & rA)
-        .Value = "BUTÉE DES TERRES SUR L'ANCRAGE (POTEAU BA + SEMELLE BA)"
+        .Value = "BUTÉE DES TERRES SUR L'ANCRAGE (POTEAU BA + SEMELLE BA) - MICROPIEU MP" & iMax
         .Font.Bold = True
         .Font.Size = 14
         .Font.Color = COUL_TITRE
@@ -461,7 +461,7 @@ Public Sub CreerVerificationStructurelle()
     rT = rF + 3
     With ws.Range("A" & rT)
         .Value = "EFFORTS EN TÊTE (DESCENTE DE CHARGES) ET CONSTANTES DE LA SOLUTION (PIEU LONG, " & _
-            "POINTE ENCASTRÉE)"
+            "POINTE ENCASTRÉE) - MICROPIEU MP" & iMax
         .Font.Bold = True
         .Font.Size = 14
         .Font.Color = COUL_TITRE
