@@ -754,11 +754,13 @@ MiseEnForme:
     End If
     ' Vérification de l'armature (module VerificationArmature), sous les graphiques (ou
     ' sous la vérification de la résistance frontale si le profil n'est pas calculé)
+    ' puis flambement (Mandel) et platines, les uns sous les autres : les trois
+    ' vérifications sont recréées à chaque création de la feuille (plus besoin de les
+    ' relancer une à une) ; une vérification en échec est signalée sans arrêter les autres
     If rK > 0 Then
-        etape = "vérification de l'armature"
-        On Error Resume Next
-        Application.Run "VerificationArmature"
-        On Error GoTo Erreur
+        LancerVerification "VerificationArmature", "vérification de l'armature"
+        LancerVerification "VerificationMandel", "vérification au flambement (Mandel)"
+        LancerVerification "VerificationPlatine", "dimensionnement des platines"
     End If
     ws.Cells.Font.Name = "CheGuevara Text Sans"   ' police principale de la charte graphique GEOSKILLS
     AjusterTextes ws                      ' colonnes élargies pour la police de la charte
@@ -879,6 +881,24 @@ Private Sub SousTitre(ws As Worksheet, r As Long, texte As String)
 End Sub
 
 ' Commentaire (signification) sur une cellule d'en-tête
+' Vrai pendant la création de la feuille : les vérifications de l'armature, du
+' flambement et des platines ne s'enchaînent alors pas elles-mêmes (elles sont lancées
+' l'une après l'autre par CreerVerificationStructurelle)
+Public Function CreationVerificationEnCours() As Boolean
+    CreationVerificationEnCours = mEnCours
+End Function
+
+' Lance une vérification (module de la feuille) ; erreur signalée sans arrêter la suite
+Private Sub LancerVerification(macro As String, libelle As String)
+    On Error GoTo Echec
+    Application.Run macro
+    Exit Sub
+Echec:
+    MsgBox "« Vérification structurelle » : la " & libelle & " (macro " & macro & ") n'a pas pu " & _
+        "être faite : " & Err.Description & " (n° " & Err.Number & "). Vérifiez que le module " & _
+        macro & " est importé.", vbExclamation
+End Sub
+
 ' À l'activation de la feuille (code de la feuille, Worksheet_Activate) : feuille
 ' recréée si le nombre de micropieux de la descente de charges (K1) a changé depuis sa
 ' création

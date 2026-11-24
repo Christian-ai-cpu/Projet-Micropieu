@@ -384,8 +384,10 @@ Public Sub VerificationArmature()
     End With
 Fin2:
     ' Vérification au flambement (Mandel) de tous les micropieux, juste en dessous
+    ' (seulement si la macro est lancée seule : pendant CreerVerificationStructurelle,
+    ' le flambement et les platines sont lancés ensuite par celle-ci)
     On Error Resume Next
-    Application.Run "VerificationMandel"
+    If Not CBool(Application.Run("CreationVerificationEnCours")) Then Application.Run "VerificationMandel"
     Exit Sub
 Erreur:
     MsgBox "Erreur pendant la vérification de l'armature, partie « " & etape & " » : " & Err.Description & _
