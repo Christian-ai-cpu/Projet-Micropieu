@@ -135,7 +135,7 @@ Public Sub CreerVerificationStructurelle()
     ' profondeur de « Calcul et vérification » (et matrice des micropieux) recréée si
     ' elle n'a pas ce nombre de micropieux
     If Not wd Is Nothing Then
-        k = Val(wd.Range("K1").Value)
+        k = CLng(N0(wd.Range("K1").Value))   ' N0 : la variable vAl masque la fonction Val
         On Error Resume Next
         r0 = Application.Match("N° MICROPIEU", wc.Range("A1:A5000"), 0)
         On Error GoTo Erreur
