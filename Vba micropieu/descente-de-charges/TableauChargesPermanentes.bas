@@ -66,6 +66,27 @@ Public Sub CreerTableauChargesPermanentes()
         If .Columns("G").ColumnWidth < 12 Then .Columns("G").ColumnWidth = 12   ' place pour le titre
     End With
     ActiveSheet.Cells.Font.Name = "CheGuevara Text Sans"   ' police principale de la charte graphique GEOSKILLS
+    AjusterTextes ActiveSheet                      ' colonnes élargies pour la police de la charte
     Application.EnableEvents = True
     Application.ScreenUpdating = True
+End Sub
+
+' Textes trop serrés avec la police de la charte (plus large que Calibri) : colonnes
+' utilisées élargies de 15 % ; graphiques et images replacés sur leur cellule d'origine
+Private Sub AjusterTextes(ws As Worksheet)
+    Dim c As Range, sh As Shape, cel() As Range, k As Long
+    On Error Resume Next
+    If ws.Shapes.Count > 0 Then
+        ReDim cel(1 To ws.Shapes.Count)
+        For k = 1 To ws.Shapes.Count
+            Set cel(k) = ws.Shapes(k).TopLeftCell
+        Next k
+    End If
+    For Each c In ws.UsedRange.Columns
+        If Not c.EntireColumn.Hidden Then c.ColumnWidth = Application.WorksheetFunction.Min(255, c.ColumnWidth * 1.15)
+    Next c
+    For k = 1 To ws.Shapes.Count
+        If Not cel(k) Is Nothing Then ws.Shapes(k).Left = cel(k).Left
+    Next k
+    On Error GoTo 0
 End Sub

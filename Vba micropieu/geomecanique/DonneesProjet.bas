@@ -12,10 +12,11 @@ Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu O
 ' sont proposées (M1, M2, PIGU / MIGU, PIRS / MIRS) ; la catégorie est le rang du type
 ' choisi + 16, la classe vaut 1 bis (17, 18) ou 8 (19, 20), la norme de référence est
 ' NF EN 1536 / 14199 / 12699 et la résistance de pointe n'est pas prise en compte.
-'   B1        : HYPOTHÈSES GÉNÉRALES
-'   B3 à C9   : Synthèse du projet (nom, lieu, maître d'ouvrage, date, numéro,
-'               phase : liste G2-AVP, G2-PRO, G5) ; logo GEOSKILLS en F3:I9 (fichier
-'               logo_geoskills.png du dossier du classeur, voir InsererLogo)
+'   B1 à I9   : en-tête et synthèse du projet : logo GEOSKILLS en B1:B2 (fichier
+'               logo_geoskills.png du dossier du classeur, voir InsererLogo), numéro
+'               du projet encadré en H2, bandeau HYPOTHÈSES GÉNÉRALES (ligne 3), date
+'               en H4, bandeau SYNTHÈSE DU PROJET (ligne 5), nom, lieu, maître
+'               d'ouvrage et phase (liste G2-AVP, G2-PRO, G5) en C6 à C9
 '   B11 à C16 : Caractérisation générale de l'ouvrage (type d'ouvrage : Bâtiment
 '               ou Pont ; type de fondation, affiché seulement en phase G5 ;
 '               catégorie A à G ; altitude ; zone de sismicité 1 à 5)
@@ -161,8 +162,30 @@ Public Sub CreerDonneesProjet()
     ws.Cells.Clear
     ws.Rows.Hidden = False
 
-    ' --- Titre : bandeau Bleu Nuit, texte blanc (charte GEOSKILLS) ---
-    With ws.Range("B1:I1")
+    ' --- En-tête (mise en page d'une fiche de demande de calcul) ---
+    '   B1:C2 : logo GEOSKILLS (InsererLogo) ; H1 : « Numéro du projet », H2:I2 : numéro
+    '   encadré ; ligne 3 : bandeau Bleu Nuit « HYPOTHÈSES GÉNÉRALES » ; ligne 4 : date
+    '   à droite ; ligne 5 : bandeau « SYNTHÈSE DU PROJET » ; lignes 6 à 9 : intitulé en
+    '   B, saisie en C:F (fond vert émeraude clair, trait pointillé dessous)
+    ws.Rows("1:2").RowHeight = 30
+    With ws.Range("H1:I1")
+        .Merge
+        .Value = "Numéro du projet"
+        .Font.Italic = True
+        .Font.Size = 9
+        .HorizontalAlignment = xlRight
+        .VerticalAlignment = xlBottom
+    End With
+    With ws.Range("H2:I2")
+        .Merge
+        .Font.Bold = True
+        .Font.Size = 16
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .Interior.Color = COUL_SAISIE
+        .BorderAround xlContinuous, xlMedium
+    End With
+    With ws.Range("B3:I3")
         .Merge
         .Value = "HYPOTHÈSES GÉNÉRALES"
         .Font.Bold = True
@@ -172,11 +195,19 @@ Public Sub CreerDonneesProjet()
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
     End With
-    ws.Rows(1).RowHeight = 24
-
-    ' --- Synthèse du projet : bandeau de titre (B3:D3), intitulés en B, saisies en C,
-    ' zone du logo à droite (F3:I9) ---
-    With ws.Range("B3:D3")
+    ws.Rows(3).RowHeight = 24
+    ws.Range("G4").Value = "Date :"
+    ws.Range("G4").HorizontalAlignment = xlRight
+    With ws.Range("H4:I4")
+        .Merge
+        .Value = Date
+        .NumberFormat = "dd/mm/yyyy"
+        .HorizontalAlignment = xlCenter
+        .Interior.Color = COUL_SAISIE
+        .Borders(xlEdgeBottom).LineStyle = xlDot
+    End With
+    ws.Rows(4).RowHeight = 22
+    With ws.Range("B5:I5")
         .Merge
         .Value = "SYNTHÈSE DU PROJET"
         .Font.Bold = True
@@ -185,14 +216,23 @@ Public Sub CreerDonneesProjet()
         .Interior.Color = COUL_ENTETE
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
-        .Borders.LineStyle = xlContinuous
+        .BorderAround xlContinuous, xlThin
     End With
-    ws.Range("B4:B9").Value = Application.Transpose(Array("Nom du projet", "Lieu", _
-        "Maître d'ouvrage", "Date", "Numéro du projet", "Phase du projet"))
-    ws.Rows("3:9").RowHeight = 20
-    ws.Range("C7").Value = Date
-    ws.Range("C7").NumberFormat = "dd/mm/yyyy"
+    ws.Rows(5).RowHeight = 22
+    ws.Range("B6:B9").Value = Application.Transpose(Array("Nom du projet :", "Lieu :", _
+        "Maître d'ouvrage :", "Phase du projet :"))
+    For r = 6 To 9
+        With ws.Range("C" & r & ":F" & r)
+            .Merge
+            .Interior.Color = COUL_SAISIE
+            .HorizontalAlignment = xlLeft
+            .VerticalAlignment = xlCenter
+            .Borders(xlEdgeBottom).LineStyle = xlDot
+        End With
+    Next r
+    ws.Rows("6:9").RowHeight = 22
     Liste ws.Range(CELLULE_PHASE), "G2-AVP,G2-PRO,G5"
+    ws.Range(CELLULE_PHASE).HorizontalAlignment = xlLeft
 
     ' --- Caractérisation générale de l'ouvrage ---
     SousTitre ws, 11, "Caractérisation générale de l'ouvrage"
@@ -543,7 +583,7 @@ Public Sub CreerDonneesProjet()
     Next r
 
     ' --- Mise en forme ---
-    With ws.Range("B4:C9,B12:C16,B19:I26,B28:E29,B" & LIGNE_COUCHES - 2 & ":C" & LIGNE_COUCHES - 2 & _
+    With ws.Range("B12:C16,B19:I26,B28:E29,B" & LIGNE_COUCHES - 2 & ":C" & LIGNE_COUCHES - 2 & _
             ",B" & LIGNE_COUCHES - 1 & ":N" & lc & _
             ",B" & lm + 1 & ":E" & LIGNE_COUCHE_MOLLE + 6 & ",B" & lp & ":D" & lp + 23 & _
             ",B" & la + 3 & ":E" & la + 9 & ",B" & LIGNE_ACIER & ":E" & LIGNE_ACIER + 21)
@@ -560,7 +600,7 @@ Public Sub CreerDonneesProjet()
     ws.Range("D" & lp & ":D" & lp + 7 & ",D" & lp + 12 & ",D" & lp + 16 & ":D" & lp + 23 _
         ).Interior.Color = COUL_SAISIE
     ws.Range("D" & lp + 8 & ":D" & lp + 11 & ",D" & lp + 13 & ":D" & lp + 15).Interior.Color = COUL_CALCUL
-    ws.Range("C4:C9,C12:C16,D28:D29," & CELLULE_NB_COUCHES & ",D" & la + 3 & ":D" & la + 4 & _
+    ws.Range("C12:C16,D28:D29," & CELLULE_NB_COUCHES & ",D" & la + 3 & ":D" & la + 4 & _
         ",D" & la + 6 & ":D" & la + 9 & _
         ",D" & LIGNE_ACIER & ":D" & LIGNE_ACIER + 1 & ",D" & LIGNE_ACIER + 8 & ":D" & _
         LIGNE_ACIER + 10 & ",D" & LIGNE_ACIER + 12 & ",D" & LIGNE_ACIER + 15 & ",D" & LIGNE_ACIER + 17 & ",D" & LIGNE_ACIER + 20 & ":D" & _
@@ -575,6 +615,7 @@ Public Sub CreerDonneesProjet()
     ws.Columns("E:N").ColumnWidth = 14
     ws.Rows("19:" & LIGNE_ACIER + 21).AutoFit
     ws.Cells.Font.Name = "CheGuevara Text Sans"   ' police principale de la charte graphique GEOSKILLS
+    AjusterTextes ws                      ' colonnes élargies pour la police de la charte
     InsererLogo ws                           ' logo GEOSKILLS (synthèse du projet), colonnes à leur largeur
 
     AfficherTypeFondation ws
@@ -796,13 +837,13 @@ Public Sub AfficherTypeFondation(ws As Worksheet)
 End Sub
 
 ' Sous-titre en gras, souligné, en colonne B
-' Logo GEOSKILLS dans la zone F3:I9 de la synthèse du projet : fichier
+' Logo GEOSKILLS dans la zone B1:B2 de l'en-tête (en haut à gauche) : fichier
 ' « logo_geoskills.png » (ou .jpg) placé dans le dossier du classeur ; image ajustée à
 ' la hauteur de la zone, proportions conservées, centrée. Sans fichier : cadre
 ' « Emplacement du logo ». Peut être relancée seule (InsererLogoDonnees).
 Public Sub InsererLogo(ws As Worksheet)
     Dim zone As Range, f As String, sh As Shape, ext As Variant, k As Long
-    Set zone = ws.Range("F3:I9")
+    Set zone = ws.Range("B1:B2")
     ' Sans erreur bloquante (chemin OneDrive / SharePoint en https, fichier illisible...) :
     ' à défaut, cadre « Emplacement du logo »
     On Error Resume Next
@@ -829,14 +870,15 @@ Public Sub InsererLogo(ws As Worksheet)
         sh.LockAspectRatio = msoTrue
         sh.Height = zone.Height - 6
         If sh.Width > zone.Width - 6 Then sh.Width = zone.Width - 6
-        sh.Left = zone.Left + (zone.Width - sh.Width) / 2
+        sh.Left = zone.Left + 3                  ' en haut à gauche
         sh.Top = zone.Top + (zone.Height - sh.Height) / 2
         sh.Placement = xlMove
     Else
         With zone
             .Merge
-            .Value = "Emplacement du logo GEOSKILLS" & vbLf & "(fichier logo_geoskills.png dans le dossier du classeur)"
+            .Value = "Logo GEOSKILLS" & vbLf & "(logo_geoskills.png dans le dossier du classeur)"
             .Font.Italic = True
+            .Font.Size = 8
             .Font.Color = COUL_TITRE
             .HorizontalAlignment = xlCenter
             .VerticalAlignment = xlCenter
@@ -903,4 +945,24 @@ Private Sub ListeLongue(c As Range, choix As String, nom As String)
     c.Validation.Add xlValidateList, xlValidAlertStop, , "=Listes!" & _
         wl.Cells(2, col).Resize(UBound(t) + 1, 1).Address
     c.Value = t(0)
+End Sub
+
+' Textes trop serrés avec la police de la charte (plus large que Calibri) : colonnes
+' utilisées élargies de 15 % ; graphiques et images replacés sur leur cellule d'origine
+Private Sub AjusterTextes(ws As Worksheet)
+    Dim c As Range, sh As Shape, cel() As Range, k As Long
+    On Error Resume Next
+    If ws.Shapes.Count > 0 Then
+        ReDim cel(1 To ws.Shapes.Count)
+        For k = 1 To ws.Shapes.Count
+            Set cel(k) = ws.Shapes(k).TopLeftCell
+        Next k
+    End If
+    For Each c In ws.UsedRange.Columns
+        If Not c.EntireColumn.Hidden Then c.ColumnWidth = Application.WorksheetFunction.Min(255, c.ColumnWidth * 1.15)
+    Next c
+    For k = 1 To ws.Shapes.Count
+        If Not cel(k) Is Nothing Then ws.Shapes(k).Left = cel(k).Left
+    Next k
+    On Error GoTo 0
 End Sub

@@ -45,6 +45,7 @@ Public Sub CreerTableauChargesPermanentesComplet()
 
     ' --- Effacement complet de la feuille (contenu, formats, fusions, listes) ---
     ws.Cells.Clear
+    ws.Columns.ColumnWidth = ws.StandardWidth   ' largeurs d'origine (élargies à la fin, AjusterTextes)
 
     ' --- Choix du niveau d'étage (liste déroulante RDC à 5) ---
     ws.Range("B" & LIGNE_NIVEAU).Value = "Niveau d'étage"
@@ -190,6 +191,7 @@ Public Sub CreerTableauChargesPermanentesComplet()
         .Rows.AutoFit
     End With
     ws.Cells.Font.Name = "CheGuevara Text Sans"   ' police principale de la charte graphique GEOSKILLS
+    AjusterTextes ws                      ' colonnes élargies pour la police de la charte
 
     Application.EnableEvents = True
     Application.ScreenUpdating = True
@@ -204,3 +206,22 @@ Private Function FeuilleExiste(nom As String) As Boolean
     FeuilleExiste = Not f Is Nothing
 End Function
 
+' Textes trop serrés avec la police de la charte (plus large que Calibri) : colonnes
+' utilisées élargies de 15 % ; graphiques et images replacés sur leur cellule d'origine
+Private Sub AjusterTextes(ws As Worksheet)
+    Dim c As Range, sh As Shape, cel() As Range, k As Long
+    On Error Resume Next
+    If ws.Shapes.Count > 0 Then
+        ReDim cel(1 To ws.Shapes.Count)
+        For k = 1 To ws.Shapes.Count
+            Set cel(k) = ws.Shapes(k).TopLeftCell
+        Next k
+    End If
+    For Each c In ws.UsedRange.Columns
+        If Not c.EntireColumn.Hidden Then c.ColumnWidth = Application.WorksheetFunction.Min(255, c.ColumnWidth * 1.15)
+    Next c
+    For k = 1 To ws.Shapes.Count
+        If Not cel(k) Is Nothing Then ws.Shapes(k).Left = cel(k).Left
+    Next k
+    On Error GoTo 0
+End Sub

@@ -80,6 +80,7 @@ Private mGeo As Variant, mGsn As Variant, mAmax As Variant, mAmin As Variant   '
 ' et la feuille est recréée quand la méthode change (ActualiserCalculVerification,
 ' appelée par ChangementDonnees du module DonneesProjet)
 Private mPenetro As Boolean
+Private mReconstruction As Boolean   ' matrice des micropieux en cours de reconstruction
 
 ' Charte GEOSKILLS : saisies en vert émeraude clair, valeurs calculées en
 ' bleu très clair, en-têtes en bleu océan clair, titres en bleu nuit
@@ -148,6 +149,7 @@ Private Sub Construire(activer As Boolean)
     LireActions ws
     mPas = ws.Range("A" & LIGNE_FROT & ":A" & LIGNE_FROT + MAX_COUCHES - 1).Formula   ' pas saisis
     ws.Cells.Clear
+    ws.Columns.ColumnWidth = ws.StandardWidth   ' largeurs d'origine (élargies à la fin, AjusterTextes)
     Do While ws.ChartObjects.Count > 0       ' graphique de la création précédente
         ws.ChartObjects(1).Delete
     Loop
@@ -545,6 +547,7 @@ Private Sub Construire(activer As Boolean)
     AfficherCouchesCalcul ws
     InstallerCodeFeuille ws
     ws.Cells.Font.Name = "CheGuevara Text Sans"   ' police principale de la charte graphique GEOSKILLS
+    AjusterTextes ws                      ' colonnes élargies pour la police de la charte
     If activer Then ws.Activate
 
 Fin:
@@ -604,6 +607,7 @@ Public Sub ActualiserVerificationProfondeur()
     Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
     On Error GoTo 0
     If ws Is Nothing Then Exit Sub
+    If mReconstruction Then Exit Sub        ' appel de ConstruireMatrice pendant la création
     L = LigneVerif(ws)
     gmin = CStr(ws.Range("D" & L + 2).Value)
     mPhiManuel = LirePhiManuel(ws)
@@ -724,6 +728,24 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     Do While Left(CStr(wd.Range("B" & rd + m).Value), 2) = "MP"
         m = m + 1
     Loop
+    ' Nombre de micropieux : celui de la descente de charges (K1) ; matrice des
+    ' micropieux reconstruite si elle n'a pas ce nombre de lignes
+    k = Val(wd.Range("K1").Value)
+    If k >= 1 And k <> m And Not mReconstruction Then
+        mReconstruction = True
+        On Error Resume Next
+        Application.Run "ConstruireMatrice", wd
+        On Error GoTo 0
+        mReconstruction = False
+        n = 0: m = 0
+        Do While Left(CStr(wd.Range("B" & 86 + n).Value), 4) = "Mur "
+            n = n + 1
+        Loop
+        rd = 88 + n + 3
+        Do While Left(CStr(wd.Range("B" & rd + m).Value), 2) = "MP"
+            m = m + 1
+        Loop
+    End If
     dn = "'" & wd.Name & "'!"
 
     ' Charges de l'eau (EB basses eaux, EH hautes eaux, EE eaux exceptionnelles) : colonnes
@@ -1599,3 +1621,23 @@ Private Function ZoneTableau(wt As Worksheet, titre As String, decalage As Long,
         ent.Offset(1 + decalage, 0).Resize(nbLignes, nbCols).Address
     ZoneTableau = nom
 End Function
+
+' Textes trop serrés avec la police de la charte (plus large que Calibri) : colonnes
+' utilisées élargies de 15 % ; graphiques et images replacés sur leur cellule d'origine
+Private Sub AjusterTextes(ws As Worksheet)
+    Dim c As Range, sh As Shape, cel() As Range, k As Long
+    On Error Resume Next
+    If ws.Shapes.Count > 0 Then
+        ReDim cel(1 To ws.Shapes.Count)
+        For k = 1 To ws.Shapes.Count
+            Set cel(k) = ws.Shapes(k).TopLeftCell
+        Next k
+    End If
+    For Each c In ws.UsedRange.Columns
+        If Not c.EntireColumn.Hidden Then c.ColumnWidth = Application.WorksheetFunction.Min(255, c.ColumnWidth * 1.15)
+    Next c
+    For k = 1 To ws.Shapes.Count
+        If Not cel(k) Is Nothing Then ws.Shapes(k).Left = cel(k).Left
+    Next k
+    On Error GoTo 0
+End Sub
