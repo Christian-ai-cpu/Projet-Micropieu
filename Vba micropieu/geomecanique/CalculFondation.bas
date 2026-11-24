@@ -1557,7 +1557,7 @@ End Function
 ' coefficients de modèle) ; terrain neutralisé : frottement négligé, Rs,i = 0.
 Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat As String, _
         gamma As String, zAlpha As String, zABC As String, zQs As String)
-    Dim cond As String, sol As String, pl As String, c As String
+    Dim cond As String, sol As String, pl As String, c As Variant
     cond = "=IF(OR(" & DONNEES & "$C$" & ld & "=""""," & DONNEES & "$D$" & ld & "=""""),"""","
     sol = "$D$" & r
     pl = "$G$" & r
@@ -1596,6 +1596,11 @@ Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat A
     ' terrain neutralisé : « Oui » saisi, ou catégorie de sol « Neutralisé »
     ws.Range("Q" & r).Formula = cond & "IF(" & DONNEES & "$D$" & ld & "=""Neutralisé"",""Oui""," & _
         DONNEES & "$M$" & ld & "))"
+    ' Terrain neutralisé (Q = « Oui ») : toutes les valeurs de la ligne mises à 0, de pl*
+    ' (ou qc) à Rs,i (colonnes G à P) ; nom, catégorie, profondeur et épaisseur conservés
+    For Each c In Array("G", "H", "I", "J", "K", "L", "M", "N", "O", "P")
+        ws.Range(c & r).Formula = "=IF($Q$" & r & "=""Oui"",0," & Mid(ws.Range(c & r).Formula, 2) & ")"
+    Next c
     ws.Range("E" & r & ":G" & r & ",I" & r).NumberFormat = "0.00"
     ws.Range("J" & r & ":M" & r & ",O" & r & ":P" & r).NumberFormat = "0.0"
     ws.Range("N" & r).NumberFormat = "0.000"
