@@ -24,6 +24,8 @@ Private Const COUL_ENTETE As Long = 15458502       ' RGB(198, 224, 235) : Bleu O
 '   I.1.3.1 / I.1.3.2 : coefficient rhéologique alpha (sols / rochers), plages
 '                       nommées NF_Rheo_* et NF_RheoRoc_* ; module de réaction Kf
 '                       (B0 = 0,60 m, courte durée Kf, longue durée Kf / 2)
+'   Paramètres de sols : ordre de grandeur de phi', c' et gamma par type de sol
+'                       (vérification de la butée), plages NF_ParamSol_*
 ' Disposition : 3 groupes (généralités ; facteurs partiels, de corrélation et de
 ' modèle ; méthodes de calcul) et, dans chaque groupe, 3 tableaux côte à côte.
 ' « - » : pas de valeur dans la norme. Les notes des tableaux sont résumées sous
@@ -264,6 +266,20 @@ Public Sub CreerTableauxNFP94262()
     Placer ws, "Module linéique de réaction du sol Kf (annexe I)", "Condition|Expression", s, _
         "EM en MPa, B et B0 en m ; Kf en MPa. Durée des charges choisie dans « Données du projet » " & _
         "(caractéristiques de la fondation)."
+
+    NouveauGroupe ws, "6. PARAMÈTRES DE SOLS", 1
+    ' --- Ordre de grandeur des paramètres de sols (vérification de la butée) : plages
+    ' nommées NF_ParamSol_* ; listes déroulantes gamma, c', phi' de « Données du
+    ' projet » (tableau des couches) ---
+    s = "Roche altérée / Enrochements|45|0|20;Gravier propre|40|0|19;" & _
+        "Gravier limoneux ou argileux|35|0|20;Sable propre|35|0|19;Sable limoneux|30|0|20;" & _
+        "Sable argileux|25|5|20;Limon|35|0|19;Limon argileux|30|15|19;Argile limoneuse|25|20|19;" & _
+        "Argile|15|25|18"
+    Placer ws, "Ordre de grandeur des paramètres de sols pour la vérification de la butée", _
+        "Type de sol|" & ChrW(966) & "' (°)|c' (kPa)|" & ChrW(947) & " (kN/m3)", s, _
+        "Valeurs indicatives, à remplacer par celles des essais quand elles existent. " & _
+        "Proposées en listes déroulantes dans « Données du projet » (tableau des couches)."
+    NommerColonnes "NF_ParamSol", Array("Type", "Phi", "C", "Gamma")
 
     ' Largeurs : 1re colonne de chaque emplacement large (intitulés), colonnes de
     ' valeurs étroites, colonne vide entre deux tableaux

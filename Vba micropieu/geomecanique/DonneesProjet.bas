@@ -368,8 +368,9 @@ Public Sub CreerDonneesProjet()
     ws.Range("E" & LIGNE_COUCHES - 1).Formula = "=""Prof. bas (""&$E$29&"")"""
     For r = LIGNE_COUCHES To LIGNE_COUCHES + MAX_COUCHES - 1
         ws.Range("B" & r).Value = r - LIGNE_COUCHES + 1
-        ws.Range("C" & r).Validation.Delete  ' nom de couche : saisie libre
-        Liste ws.Range("D" & r), CATEGORIES_SOL
+        ws.Range("C" & r).Validation.Delete  ' nom de couche : saisie libre (majuscule initiale)
+        ' catégorie : celles de la norme, ou « Neutralisé » (terrain neutralisé)
+        Liste ws.Range("D" & r), CATEGORIES_SOL & ",Neutralisé"
         ws.Range("D" & r).ClearContents      ' catégorie à choisir
         ' Épaisseur = différence entre la base de la couche et celle de la couche
         ' au-dessus (TN pour la première couche)
@@ -378,7 +379,11 @@ Public Sub CreerDonneesProjet()
         Else
             ws.Range("F" & r).Formula = "=IF(E" & r & "="""","""",ABS(E" & r & "-E" & r - 1 & "))"
         End If
-        ws.Range("J" & r & ":L" & r).Validation.Delete
+        ' gamma, c', phi' : listes des ordres de grandeur (« Tableaux NF P94-262 »,
+        ' paramètres de sols pour la vérification de la butée) ; autre valeur admise
+        ListeLibre ws.Range("J" & r), "18,19,20", "Poids volumique " & ChrW(947) & " (kN/m3)"
+        ListeLibre ws.Range("K" & r), "0,5,15,20,25", "Cohésion c' (kPa)"
+        ListeLibre ws.Range("L" & r), "15,25,30,35,40,45", "Angle de frottement " & ChrW(966) & "' (°)"
         Liste ws.Range("M" & r), "Non,Oui"
         Liste ws.Range("N" & r), "Non,Oui"
     Next r
@@ -387,7 +392,7 @@ Public Sub CreerDonneesProjet()
     ws.Range("E" & LIGNE_COUCHES & ":I" & lc).NumberFormat = "0.00"
     ws.Range("J" & LIGNE_COUCHES & ":L" & lc).NumberFormat = "0.0"
     ws.Range("M" & LIGNE_COUCHES & ":N" & lc).NumberFormat = "General"
-    ws.Range("B" & LIGNE_COUCHES & ":B" & lc & ",E" & LIGNE_COUCHES & ":N" & lc).HorizontalAlignment = xlCenter
+    ws.Range("B" & LIGNE_COUCHES & ":N" & lc).HorizontalAlignment = xlCenter   ' nom de couche compris
 
     ' --- Caractéristiques de la fondation (sous le tableau précédent) ---
     ' Intitulé (unité comprise) sur B:C fusionnées, valeur en D. Norme de référence,
@@ -638,12 +643,32 @@ End Sub
 '   méthode de calcul -> colonne pl* ou qc masquée et « Calcul et
 '   vérification » recréée ; nombre de couches, profondeurs, terrains neutralisés ->
 '   lignes du frottement axial et du tableau de la capacité portante (ActualiserPas)
+' Tableau des couches modifié (noms en C, catégories en D) : nom avec une majuscule
+' initiale ; catégorie « Neutralisé » : colonne « Terrain neutralisé » mise à « Oui »
+Private Sub MajCouches(ws As Worksheet, zone As Range)
+    Dim c As Range, t As String
+    For Each c In zone.Cells
+        If c.Column = 3 And VarType(c.Value) = vbString Then
+            t = Trim(c.Value)
+            If t <> "" Then c.Value = UCase(Left(t, 1)) & Mid(t, 2)
+            c.HorizontalAlignment = xlCenter
+        ElseIf c.Column = 4 And CStr(c.Value) = "Neutralisé" Then
+            ws.Range("M" & c.Row).Value = "Oui"
+        End If
+    Next c
+End Sub
+
 Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
     Dim f As Worksheet
     On Error GoTo Fin
     Application.EnableEvents = False
     If Not Intersect(Target, ws.Range(CELLULE_PHASE)) Is Nothing Then AfficherTypeFondation ws
     If Not Intersect(Target, ws.Range(CELLULE_NB_COUCHES)) Is Nothing Then AfficherCouches ws
+    ' Tableau des couches : nom de couche avec majuscule initiale ; catégorie
+    ' « Neutralisé » : terrain neutralisé = Oui
+    If Not Intersect(Target, ws.Range("C" & LIGNE_COUCHES & ":D" & LIGNE_COUCHES + MAX_COUCHES - 1)) _
+        Is Nothing Then MajCouches ws, Intersect(Target, ws.Range("C" & LIGNE_COUCHES & ":D" & _
+        LIGNE_COUCHES + MAX_COUCHES - 1))
     If Not Intersect(Target, ws.Range("D" & LIGNE_ACIER)) Is Nothing Then MajArmature ws
     If Not Intersect(Target, ws.Range("D" & LIGNE_ACIER + 1)) Is Nothing Then MajAcier ws
     If Not Intersect(Target, Union(ws.Range("D" & LIGNE_PIEU + 2), ws.Range("D" & LIGNE_PIEU + 4))) _
@@ -659,6 +684,7 @@ Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
     ' et nombre de pas du tableau de la capacité portante de « Calcul Portance »
     If Not Intersect(Target, Union(ws.Range(CELLULE_NB_COUCHES), _
             ws.Range("E" & LIGNE_COUCHES & ":E" & LIGNE_COUCHES + MAX_COUCHES - 1), _
+            ws.Range("D" & LIGNE_COUCHES & ":D" & LIGNE_COUCHES + MAX_COUCHES - 1), _
             ws.Range("M" & LIGNE_COUCHES & ":M" & LIGNE_COUCHES + MAX_COUCHES - 1))) Is Nothing Then
         On Error Resume Next
         Application.Run "ActualiserPas"
@@ -892,6 +918,20 @@ End Sub
 ' Réinsère le logo dans « Données du projet » (après avoir placé le fichier)
 Public Sub InsererLogoDonnees()
     InsererLogo ActiveWorkbook.Worksheets(NOM_FEUILLE)
+End Sub
+
+' Liste déroulante de valeurs proposées sans blocage : une autre valeur peut être saisie
+' (ordres de grandeur du tableau des paramètres de sols, « Tableaux NF P94-262 »)
+Private Sub ListeLibre(c As Range, choix As String, titre As String)
+    c.Validation.Delete
+    c.Validation.Add xlValidateList, xlValidAlertInformation, , choix
+    With c.Validation
+        .ShowError = False                    ' saisie libre admise
+        .InputTitle = Left(titre, 32)
+        .InputMessage = "Choisir dans la liste ou saisir une valeur. Ordres de grandeur : " & _
+            "« Tableaux NF P94-262 », paramètres de sols pour la vérification de la butée."
+        .ShowInput = True
+    End With
 End Sub
 
 Private Sub SousTitre(ws As Worksheet, ligne As Long, texte As String)

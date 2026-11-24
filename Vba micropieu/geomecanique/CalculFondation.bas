@@ -1484,7 +1484,8 @@ End Sub
 ' Rang (1 à 6) de la catégorie de sol dans la liste CATEGORIES_SOL (feuille
 ' « Données du projet ») = colonne du tableau qs max
 Private Function Rang6(sol As String) As String
-    Rang6 = "MATCH(" & sol & ",{""" & Replace(CATEGORIES_SOL, ",", """,""") & """},0)"
+    ' catégorie hors liste (« Neutralisé ») : 1 (sans effet, frottement négligé)
+    Rang6 = "IFERROR(MATCH(" & sol & ",{""" & Replace(CATEGORIES_SOL, ",", """,""") & """},0),1)"
 End Function
 
 ' Colonne (1 à 5) des tableaux pressiométriques F.5.2.1 et F.5.2.2 : argiles et sols
@@ -1592,7 +1593,9 @@ Private Sub CoucheLigne(ws As Worksheet, r As Long, i As Long, ld As Long, cat A
         "IFERROR(M" & r & "/(" & gamma & "),""-"")))"
     ws.Range("P" & r).Formula = "=IF(AND(ISNUMBER(O" & r & "),ISNUMBER(N" & r & "))," & _
         "IF(Q" & r & "=""Oui"",0,O" & r & "*N" & r & "),IF(B" & r & "="""","""",""-""))"
-    ws.Range("Q" & r).Formula = cond & DONNEES & "$M$" & ld & ")"
+    ' terrain neutralisé : « Oui » saisi, ou catégorie de sol « Neutralisé »
+    ws.Range("Q" & r).Formula = cond & "IF(" & DONNEES & "$D$" & ld & "=""Neutralisé"",""Oui""," & _
+        DONNEES & "$M$" & ld & "))"
     ws.Range("E" & r & ":G" & r & ",I" & r).NumberFormat = "0.00"
     ws.Range("J" & r & ":M" & r & ",O" & r & ":P" & r).NumberFormat = "0.0"
     ws.Range("N" & r).NumberFormat = "0.000"
