@@ -1,0 +1,10 @@
+' À COLLER DANS LE MODULE DE LA FEUILLE « Vérification structurelle » (pas dans un
+' module standard) si l'accès au projet VBA n'est pas autorisé : clic droit sur
+' l'onglet de la feuille > Visualiser le code, puis coller.
+' À l'activation de la feuille, elle est recréée si le nombre de micropieux de la
+' descente de charges (K1) a changé (VerifierNombreMicropieux, module
+' VerificationStructurelle).
+
+Private Sub Worksheet_Activate()
+    VerifierNombreMicropieux Me
+End Sub

@@ -762,6 +762,14 @@ MiseEnForme:
     End If
     ws.Cells.Font.Name = "CheGuevara Text Sans"   ' police principale de la charte graphique GEOSKILLS
     AjusterTextes ws                      ' colonnes élargies pour la police de la charte
+    ' Nombre de micropieux de la descente de charges (K1) mémorisé, et code de la feuille
+    ' installé : à l'activation de la feuille, recréation si ce nombre a changé
+    If Not wd Is Nothing Then
+        On Error Resume Next
+        ws.Names.Add Name:="NbMicropieuxDDC", RefersTo:="=" & CLng(N0(wd.Range("K1").Value)), Visible:=False
+        On Error GoTo Erreur
+    End If
+    InstallerCodeActivation ws
     ws.Activate
 Fin:
     mEnCours = False
@@ -871,6 +879,45 @@ Private Sub SousTitre(ws As Worksheet, r As Long, texte As String)
 End Sub
 
 ' Commentaire (signification) sur une cellule d'en-tête
+' À l'activation de la feuille (code de la feuille, Worksheet_Activate) : feuille
+' recréée si le nombre de micropieux de la descente de charges (K1) a changé depuis sa
+' création
+Public Sub VerifierNombreMicropieux(ws As Worksheet)
+    Dim f As Worksheet, k As Long, v As Variant
+    If mEnCours Then Exit Sub
+    For Each f In ActiveWorkbook.Worksheets
+        If CStr(f.Range("B80").Value) = "RÉPARTITION DES CHARGES DES MURS SUR LES MICROPIEUX" Then
+            k = CLng(N0(f.Range("K1").Value))
+            Exit For
+        End If
+    Next f
+    If k < 1 Then Exit Sub
+    On Error Resume Next
+    v = ws.Evaluate("NbMicropieuxDDC")
+    On Error GoTo 0
+    If IsError(v) Or IsEmpty(v) Then
+        CreerVerificationStructurelle
+    ElseIf CLng(N0(v)) <> k Then
+        CreerVerificationStructurelle
+    End If
+End Sub
+
+' Code de la feuille « Vérification structurelle » : Worksheet_Activate appelle
+' VerifierNombreMicropieux (accès au projet VBA requis : Options > Centre de gestion
+' de la confidentialité > Paramètres des macros > « Accès approuvé au modèle d'objet du
+' projet VBA » ; sinon coller ce code à la main dans le module de la feuille)
+Private Sub InstallerCodeActivation(ws As Worksheet)
+    Dim cm As Object, texte As String
+    On Error GoTo Fin
+    Set cm = ws.Parent.VBProject.VBComponents(ws.CodeName).CodeModule
+    If cm.CountOfLines > 0 Then texte = cm.Lines(1, cm.CountOfLines)
+    If InStr(1, texte, "VerifierNombreMicropieux", vbTextCompare) = 0 Then
+        cm.AddFromString "Private Sub Worksheet_Activate()" & vbCrLf & _
+            "    VerifierNombreMicropieux Me" & vbCrLf & "End Sub"
+    End If
+Fin:
+End Sub
+
 Private Sub Commentaire(c As Range, texte As String)
     ' Commentaire en image (module CommentaireImage) ; à défaut, commentaire texte
     On Error Resume Next
