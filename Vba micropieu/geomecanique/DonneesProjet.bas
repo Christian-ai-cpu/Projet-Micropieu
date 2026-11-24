@@ -582,7 +582,6 @@ Public Sub CreerDonneesProjet()
     AfficherMethode ws
     AfficherOptionsPieu ws
     MajArmature ws
-    ws.Cells.Font.Name = "CheGuevara Text Sans"   ' police principale de la charte graphique GEOSKILLS
     ws.Activate
     Application.EnableEvents = True
     Application.ScreenUpdating = True
