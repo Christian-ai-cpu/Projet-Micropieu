@@ -88,6 +88,12 @@ Public Sub CreerCalculVerification()
     Construire True
 End Sub
 
+' Vrai pendant la reconstruction de la matrice des micropieux lancée par la création de
+' « Calcul Portance » (ConstruireMatrice ne recrée alors pas « Vérification structurelle »)
+Public Function ReconstructionMatriceEnCours() As Boolean
+    ReconstructionMatriceEnCours = mReconstruction
+End Function
+
 ' Même macro sous le nouveau nom de la feuille
 Public Sub CreerCalculPortance()
     Construire True

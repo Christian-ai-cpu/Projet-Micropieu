@@ -49,6 +49,25 @@ Private Const CALCUL As String = "'Calcul Portance'!"
 ' bleu très clair, en-têtes en bleu océan clair, titres en bleu nuit
 Public Const TITRE_FRONTALE As String = "VÉRIFICATION DE LA RÉSISTANCE FRONTALE DE LA FONDATION"
 
+Private mEnCours As Boolean                     ' création de la feuille en cours
+
+' Recrée « Vérification structurelle » (si elle existe) sans changer de feuille active :
+' appelée quand le nombre de micropieux change dans la descente de charges
+' (ConstruireMatrice, module MatriceMicropieux)
+Public Sub ActualiserVerificationStructurelle()
+    Dim ws As Worksheet, actif As Object
+    If mEnCours Then Exit Sub
+    On Error Resume Next
+    Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
+    On Error GoTo 0
+    If ws Is Nothing Then Exit Sub
+    Set actif = ActiveSheet
+    CreerVerificationStructurelle
+    On Error Resume Next
+    actif.Activate
+    On Error GoTo 0
+End Sub
+
 Public Sub CreerVerificationStructurelle()
     Dim ws As Worksheet, wc As Worksheet, wd As Worksheet, f As Worksheet, etape As String
     Dim a As Long, lp As Long, lm As Long, r As Long, i As Long, k As Long, m As Long, n As Long
@@ -72,6 +91,7 @@ Public Sub CreerVerificationStructurelle()
     Dim libre As Variant, cTal As Long, fH0 As String, fM0 As String
 
     Application.ScreenUpdating = False
+    mEnCours = True
     On Error GoTo Erreur
     etape = "feuilles du projet"
     Application.Run "RenommerFeuilleCalcul"   ' ancienne feuille « Calcul et vérification »
@@ -744,6 +764,7 @@ MiseEnForme:
     AjusterTextes ws                      ' colonnes élargies pour la police de la charte
     ws.Activate
 Fin:
+    mEnCours = False
     Application.ScreenUpdating = True
     Exit Sub
 Erreur:

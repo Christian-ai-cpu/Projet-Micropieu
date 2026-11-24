@@ -294,6 +294,9 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     ' vérification » mis à jour (module CalculFondation, s'il est présent)
     On Error Resume Next
     Application.Run "ActualiserVerificationProfondeur"
+    ' puis « Vérification structurelle » recréée avec le nouveau nombre de micropieux
+    ' (module VerificationStructurelle ; pas pendant une création de « Calcul Portance »)
+    If Not CBool(Application.Run("ReconstructionMatriceEnCours")) Then Application.Run "ActualiserVerificationStructurelle"
 
 Fin:
     Application.EnableEvents = evenements
