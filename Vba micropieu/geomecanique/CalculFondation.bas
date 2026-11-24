@@ -1,5 +1,11 @@
 Attribute VB_Name = "CalculFondation"
 Option Explicit
+' Couleurs de la charte graphique GEOSKILLS (bleu nuit, bleu océan, vert émeraude)
+Private Const COUL_TITRE As Long = 5898259         ' RGB(19, 0, 90) : Bleu Nuit (charte GEOSKILLS)
+Private Const COUL_ENTETE As Long = 15458502       ' RGB(198, 224, 235) : Bleu Océan éclairci
+Private Const COUL_SAISIE As Long = 15201485       ' RGB(205, 244, 231) : Vert Émeraude éclairci
+Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu Océan très clair
+Private Const COUL_ALERTE As Long = 192            ' RGB(192, 0, 0) : messages « non vérifié »
 
 ' Module « Calcul et vérification » : crée (ou recrée) la feuille « Calcul et
 ' vérification » de la fondation, à partir des feuilles « Données du projet »
@@ -46,7 +52,7 @@ Option Explicit
 
 Private Const NOM_FEUILLE As String = "Calcul et vérification"
 Private Const DONNEES As String = "'Données du projet'!"
-' Pas de calcul : saisie libre pour chaque couche (colonne A, en vert, sans valeur
+' Pas de calcul : saisie libre pour chaque couche (colonne A, en vert émeraude, sans valeur
 ' imposée) ; nombre de subdivisions k calculé d'après le pas et l'épaisseur hi :
 ' k = arrondi supérieur de hi / pas (dernier pas de la couche réduit au reste) ;
 ' pas vide : k = 1 (pas = hi). NB_SUBDIV ne sert plus qu'aux anciennes feuilles.
@@ -75,12 +81,8 @@ Private mGeo As Variant, mGsn As Variant, mAmax As Variant, mAmin As Variant   '
 ' appelée par ChangementDonnees du module DonneesProjet)
 Private mPenetro As Boolean
 
-' Thème vert : saisies en vert, valeurs non saisies (calculées) en jaune, en-têtes et
-' titres en vert (couleurs RGB écrites en nombre : rouge + 256 x vert + 65536 x bleu)
-Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
-Private Const JAUNE_CALCUL As Long = 13434879  ' RGB(255, 255, 204), jaune clair
-Private Const VERT_ENTETE As Long = 14348258   ' RGB(226, 239, 218)
-Private Const VERT_FONCE As Long = 2315831     ' RGB(55, 86, 35)
+' Charte GEOSKILLS : saisies en vert émeraude clair, valeurs calculées en
+' bleu très clair, en-têtes en bleu océan clair, titres en bleu nuit
 Public Sub CreerCalculVerification()
     Construire True
 End Sub
@@ -158,7 +160,7 @@ Private Sub Construire(activer As Boolean)
         .Merge
         .Value = "CALCUL ET VÉRIFICATION DES MICROPIEUX"
         .Font.Bold = True
-        .Font.Color = VERT_FONCE
+        .Font.Color = COUL_TITRE
         .Font.Size = 14
         .HorizontalAlignment = xlCenter
     End With
@@ -370,10 +372,10 @@ Private Sub Construire(activer As Boolean)
     End With
     With ws.Range("A38,R38")
         .Font.Bold = True
-        .Interior.Color = VERT_ENTETE
+        .Interior.Color = COUL_ENTETE
     End With
-    ws.Range("A39:A53").Interior.Color = VERT_SAISIE
-    ws.Range("R39:R53").Interior.Color = JAUNE_CALCUL
+    ws.Range("A39:A53").Interior.Color = COUL_SAISIE
+    ws.Range("R39:R53").Interior.Color = COUL_CALCUL
     mPas = Empty
 
     ' Nombre total de pas (somme des k) : nombre de lignes du tableau de la capacité
@@ -473,7 +475,7 @@ Private Sub Construire(activer As Boolean)
     End With
     With ws.Range("B" & LIGNE_PROFIL - 2 & ":Y" & LIGNE_PROFIL - 1)
         .Font.Bold = True
-        .Interior.Color = VERT_ENTETE
+        .Interior.Color = COUL_ENTETE
         .WrapText = True
     End With
     ws.Columns("ZA:ZG").Hidden = True
@@ -508,12 +510,12 @@ Private Sub Construire(activer As Boolean)
     With ws.Range("B27:E27,B33:E33,B66:E66,B" & r + 1 & ":Q" & r + 1)
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
-        .Interior.Color = VERT_ENTETE
+        .Interior.Color = COUL_ENTETE
     End With
-    ' Valeurs non saisies (reprises ou calculées) en jaune ; tableau du frottement axial
+    ' Valeurs non saisies (reprises ou calculées) en bleu clair ; tableau du frottement axial
     ' sans couleur
     ws.Range("D4:D5,D8:D11,D14:D16,D19:D24,D28:E31,D34:E35,D57:D58,D60:D63,E67:E74,D76,D79:D85").Interior.Color = _
-        JAUNE_CALCUL
+        COUL_CALCUL
     ws.Range("D4:F35,C57:E63,B67:B74,D67:E74,D76:E85,B" & r + 2 & ":B" & lt & ",E" & r + 2 & ":Q" & lt _
         ).HorizontalAlignment = xlCenter
     ws.Columns("A").ColumnWidth = 12        ' pas de calcul
@@ -542,6 +544,7 @@ Private Sub Construire(activer As Boolean)
     AfficherGroupe ws
     AfficherCouchesCalcul ws
     InstallerCodeFeuille ws
+    ws.Cells.Font.Name = "CheGuevara Text Sans"   ' police principale de la charte graphique GEOSKILLS
     If activer Then ws.Activate
 
 Fin:
@@ -679,7 +682,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         .Value = "VÉRIFICATION DE LA PROFONDEUR DES MICROPIEUX (DESCENTE DE CHARGES)"
         .Font.Bold = True
         .Font.Size = 16
-        .Font.Color = VERT_FONCE
+        .Font.Color = COUL_TITRE
     End With
     Ligne ws, L + 1, "Feuille de descente de charges", IIf(wd Is Nothing, "introuvable", ""), ""
     If Not wd Is Nothing Then ws.Range("D" & L + 1).Value = wd.Name
@@ -687,7 +690,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     With ws.Range("D" & L + 2)
         .Validation.Add xlValidateList, xlValidAlertStop, , "G,0"
         .Value = IIf(gmin = "0", "0", "G")
-        .Interior.Color = VERT_SAISIE
+        .Interior.Color = COUL_SAISIE
     End With
     Ligne ws, L + 3, "Catégorie du bâtiment", "=" & DONNEES & "C14", ""
     Ligne ws, L + 4, ChrW(968) & "1 (combinaison accidentelle)", "=IFERROR(CHOOSE(MATCH(LEFT(D" & _
@@ -695,7 +698,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     Ligne ws, L + 5, ChrW(968) & "2 (combinaison quasi permanente)", "=IFERROR(CHOOSE(MATCH(LEFT(D" & _
         L + 3 & ",1),{""A"",""B"",""C"",""D"",""E"",""F"",""G""},0),0.3,0.3,0.6,0.6,0.8,0.6,0.3),0.3)", ""
     ws.Range("D" & L + 1 & ":D" & L + 5).HorizontalAlignment = xlCenter
-    ws.Range("D" & L + 3 & ":D" & L + 5).Interior.Color = JAUNE_CALCUL
+    ws.Range("D" & L + 3 & ":D" & L + 5).Interior.Color = COUL_CALCUL
     ws.Range("D" & L + 4 & ":D" & L + 5).NumberFormat = "0.00"
     With ws.Range("B" & L + 1 & ":E" & L + 5)
         .Borders.LineStyle = xlContinuous
@@ -910,7 +913,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         .Value = "COEFFICIENTS DES COMBINAISONS D'ACTIONS (NF EN 1990)"
         .Font.Bold = True
         .Font.Size = 14
-        .Font.Color = VERT_FONCE
+        .Font.Color = COUL_TITRE
     End With
     ws.Range("B" & tC + 1 & ":I" & tC + 1).Value = Array("Combinaison", "Expression (NF EN 1990)", _
         ChrW(947) & "G,sup (Gstr max, Geo, Gsn)", ChrW(947) & "G,inf (Gstr min, Geo min)", ChrW(947) & "Q", _
@@ -953,10 +956,10 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     End With
     With ws.Range("B" & tC + 1 & ":I" & tC + 1 & ",B" & tP + 1 & ":F" & tP + 1)
         .Font.Bold = True
-        .Interior.Color = VERT_ENTETE
+        .Interior.Color = COUL_ENTETE
     End With
     ws.Range("D" & tC + 2 & ":I" & tC + 5 & ",D" & tP + 2 & ":F" & tP + 9).NumberFormat = "0.00"
-    ws.Range("D" & tC + 2 & ":I" & tC + 5).Interior.Color = JAUNE_CALCUL
+    ws.Range("D" & tC + 2 & ":I" & tC + 5).Interior.Color = COUL_CALCUL
     ' psi en tête de la vérification : repris du tableau des combinaisons
     ws.Range("D" & L + 4).Formula = "=$H$" & tC + 5
     ws.Range("D" & L + 5).Formula = "=$H$" & tC + 3
@@ -1099,28 +1102,28 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     With ws.Range(ws.Cells(r0, 1), ws.Cells(r0 + 2, cF))
         .Font.Bold = True
         .Font.Size = 11
-        .Interior.Color = VERT_ENTETE
+        .Interior.Color = COUL_ENTETE
         .WrapText = True
     End With
     If m > 0 Then
         ws.Range("A" & r0 + 3 & ":A" & rt).Font.Bold = True
-        ws.Range(ws.Cells(r0 + 3, 2), ws.Cells(rt, cF)).Interior.Color = JAUNE_CALCUL
-        ws.Range(ws.Cells(r0 + 3, cD + 5), ws.Cells(rt, cD + 5)).Interior.Color = VERT_SAISIE ' Phi manuel
-        ws.Range("F" & r0 + 3 & ":F" & rt & ",K" & r0 + 3 & ":M" & rt).Interior.Color = VERT_SAISIE ' actions
+        ws.Range(ws.Cells(r0 + 3, 2), ws.Cells(rt, cF)).Interior.Color = COUL_CALCUL
+        ws.Range(ws.Cells(r0 + 3, cD + 5), ws.Cells(rt, cD + 5)).Interior.Color = COUL_SAISIE ' Phi manuel
+        ws.Range("F" & r0 + 3 & ":F" & rt & ",K" & r0 + 3 & ":M" & rt).Interior.Color = COUL_SAISIE ' actions
         ws.Range(ws.Cells(r0 + 3, 2), ws.Cells(rt, cD - 1)).NumberFormat = "0.0"
         ws.Range(ws.Cells(r0 + 3, cD), ws.Cells(rt, cP - 1)).NumberFormat = "0.000"
         ws.Range(ws.Cells(r0 + 3, cP), ws.Cells(rt, cL + 2)).NumberFormat = "0.00"
         ws.Range(ws.Cells(r0 + 3, cD + 6), ws.Cells(rt, cD + 6)).Font.Bold = True
         ws.Range(ws.Cells(r0 + 3, cR), ws.Cells(rt, cL - 1)).Font.Bold = True
-        ws.Range(ws.Cells(r0 + 3, cI), ws.Cells(rt, cI)).Interior.Color = VERT_SAISIE  ' inclinaison
-        ws.Range(ws.Cells(r0 + 3, cA), ws.Cells(rt, cA)).Interior.Color = VERT_SAISIE  ' angle
+        ws.Range(ws.Cells(r0 + 3, cI), ws.Cells(rt, cI)).Interior.Color = COUL_SAISIE  ' inclinaison
+        ws.Range(ws.Cells(r0 + 3, cA), ws.Cells(rt, cA)).Interior.Color = COUL_SAISIE  ' angle
         ws.Range(ws.Cells(r0 + 3, cA), ws.Cells(rt, cA)).NumberFormat = "0.0"
         ws.Range(ws.Cells(r0 + 3, cI), ws.Cells(rt, cI)).Font.Bold = False
         ws.Range(ws.Cells(r0 + 3, cF), ws.Cells(rt, cF)).Font.Bold = True
         ' Vérification en rouge si non vérifiée
         With ws.Range(ws.Cells(r0 + 3, cF), ws.Cells(rt, cF)).FormatConditions
             .Delete
-            .Add(xlCellValue, xlEqual, "=""Non vérifiée""").Font.Color = RGB(192, 0, 0)
+            .Add(xlCellValue, xlEqual, "=""Non vérifiée""").Font.Color = COUL_ALERTE
         End With
     End If
     ws.Range(ws.Columns(cD), ws.Columns(cF)).ColumnWidth = 12
@@ -1362,6 +1365,7 @@ Private Sub GraphiqueCapacite(ws As Worksheet, k As Long)
                 .Smooth = True
                 .MarkerStyle = xlMarkerStyleNone
                 .Format.Line.Weight = 3
+                .Format.Line.ForeColor.RGB = Choose(((j - 1) Mod 4) + 1, 5898259, 11371036, 8964355, 8139520)   ' palette de la charte
             End With
         Next j
         .HasTitle = True
@@ -1421,7 +1425,7 @@ Private Sub SousTitre(ws As Worksheet, r As Long, texte As String, Optional col 
         .Font.Bold = True
         .Font.Underline = xlUnderlineStyleSingle
         .Font.Size = 14
-        .Font.Color = VERT_FONCE
+        .Font.Color = COUL_TITRE
     End With
 End Sub
 

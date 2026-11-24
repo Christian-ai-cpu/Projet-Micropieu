@@ -1,5 +1,10 @@
 Attribute VB_Name = "DonneesProjet"
 Option Explicit
+' Couleurs de la charte graphique GEOSKILLS (bleu nuit, bleu océan, vert émeraude)
+Private Const COUL_TITRE As Long = 5898259         ' RGB(19, 0, 90) : Bleu Nuit (charte GEOSKILLS)
+Private Const COUL_ENTETE As Long = 15458502       ' RGB(198, 224, 235) : Bleu Océan éclairci
+Private Const COUL_SAISIE As Long = 15201485       ' RGB(205, 244, 231) : Vert Émeraude éclairci
+Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu Océan très clair
 
 ' Module « Données du projet » : crée (ou recrée) la feuille « Données du projet »
 ' avec les hypothèses générales du projet.
@@ -9,7 +14,8 @@ Option Explicit
 ' NF EN 1536 / 14199 / 12699 et la résistance de pointe n'est pas prise en compte.
 '   B1        : HYPOTHÈSES GÉNÉRALES
 '   B3 à C9   : Synthèse du projet (nom, lieu, maître d'ouvrage, date, numéro,
-'               phase : liste G2-AVP, G2-PRO, G5)
+'               phase : liste G2-AVP, G2-PRO, G5) ; logo GEOSKILLS en F3:I9 (fichier
+'               logo_geoskills.png du dossier du classeur, voir InsererLogo)
 '   B11 à C16 : Caractérisation générale de l'ouvrage (type d'ouvrage : Bâtiment
 '               ou Pont ; type de fondation, affiché seulement en phase G5 ;
 '               catégorie A à G ; altitude ; zone de sismicité 1 à 5)
@@ -39,7 +45,7 @@ Option Explicit
 '               d'épaisseur due à la corrosion (NF EN 1993-5, tableaux 4.1 et 4.2),
 '               épaisseur ou diamètre résiduel, platine d'appui NF EN 1993-1-8,
 '               épaisseur, nuance, fy et fu selon l'épaisseur, gamma M0 et M2)
-' Les valeurs se saisissent dans les cases vertes. Le type de fondation (ligne 13)
+' Les valeurs se saisissent dans les cases vert émeraude. Le type de fondation (ligne 13)
 ' s'affiche quand la phase (C9) vaut G5 (AfficherTypeFondation) et le tableau des
 ' couches suit le nombre de couches (AfficherCouches) : voir CodeFeuilleDonnees.txt.
 ' Les listes de plus de 255 caractères (limite d'Excel, ex. types de pieux ou
@@ -135,12 +141,8 @@ Public Const CATEGORIES_SOL As String = "Argiles et limons," & _
     "Sols intermédiaires (sable limoneux / sable argileux / argile sableuse)," & _
     "Sables et graves,Craies,Marnes et calcaires marneux,Roches"
 
-' Thème vert : saisies en vert, valeurs non saisies (calculées) en jaune, en-têtes et
-' titres en vert (couleurs RGB écrites en nombre : rouge + 256 x vert + 65536 x bleu)
-Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
-Private Const JAUNE_CALCUL As Long = 13434879  ' RGB(255, 255, 204), jaune clair
-Private Const VERT_ENTETE As Long = 14348258   ' RGB(226, 239, 218)
-Private Const VERT_FONCE As Long = 2315831     ' RGB(55, 86, 35)
+' Charte GEOSKILLS : saisies en vert émeraude clair, valeurs calculées en
+' bleu très clair, en-têtes en bleu océan clair, titres en bleu nuit
 Public Sub CreerDonneesProjet()
     Dim ws As Worksheet, r As Long, normes As Variant, lc As Long, lm As Long, lp As Long
     Dim la As Long, c As String
@@ -159,20 +161,35 @@ Public Sub CreerDonneesProjet()
     ws.Cells.Clear
     ws.Rows.Hidden = False
 
-    ' --- Titre ---
+    ' --- Titre : bandeau Bleu Nuit, texte blanc (charte GEOSKILLS) ---
     With ws.Range("B1:I1")
         .Merge
         .Value = "HYPOTHÈSES GÉNÉRALES"
         .Font.Bold = True
-        .Font.Color = VERT_FONCE
+        .Font.Color = RGB(255, 255, 255)
         .Font.Size = 14
+        .Interior.Color = COUL_TITRE
         .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
     End With
+    ws.Rows(1).RowHeight = 24
 
-    ' --- Synthèse du projet ---
-    SousTitre ws, 3, "Synthèse du projet"
+    ' --- Synthèse du projet : bandeau de titre (B3:D3), intitulés en B, saisies en C,
+    ' zone du logo à droite (F3:I9) ---
+    With ws.Range("B3:D3")
+        .Merge
+        .Value = "SYNTHÈSE DU PROJET"
+        .Font.Bold = True
+        .Font.Size = 12
+        .Font.Color = COUL_TITRE
+        .Interior.Color = COUL_ENTETE
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .Borders.LineStyle = xlContinuous
+    End With
     ws.Range("B4:B9").Value = Application.Transpose(Array("Nom du projet", "Lieu", _
         "Maître d'ouvrage", "Date", "Numéro du projet", "Phase du projet"))
+    ws.Rows("3:9").RowHeight = 20
     ws.Range("C7").Value = Date
     ws.Range("C7").NumberFormat = "dd/mm/yyyy"
     Liste ws.Range(CELLULE_PHASE), "G2-AVP,G2-PRO,G5"
@@ -283,8 +300,8 @@ Public Sub CreerDonneesProjet()
         Replace(CATEGORIES_RHEO, ",", """,""") & """},0))),""""))"
     ws.Range("D" & r & ":D" & r + 2 & ",D" & r + 6).NumberFormat = "0.00"
     ws.Range("D" & r & ":E" & r + 6).HorizontalAlignment = xlCenter
-    ws.Range("D" & r & ":D" & r + 2 & ",D" & r + 6).Interior.Color = JAUNE_CALCUL
-    ws.Range("D" & r + 3 & ":D" & r + 5).Interior.Color = VERT_SAISIE
+    ws.Range("D" & r & ":D" & r + 2 & ",D" & r + 6).Interior.Color = COUL_CALCUL
+    ws.Range("D" & r + 3 & ":D" & r + 5).Interior.Color = COUL_SAISIE
     For r = lm + 1 To LIGNE_COUCHE_MOLLE + 6
         ws.Range("B" & r & ":C" & r).Merge
     Next r
@@ -389,7 +406,7 @@ Public Sub CreerDonneesProjet()
         ws.Range("F" & lp + 8 + r).Value = "B" & r - 1
         With ws.Range("G" & lp + 8 + r)
             .NumberFormat = "0.000"
-            .Interior.Color = VERT_SAISIE
+            .Interior.Color = COUL_SAISIE
             If r > 1 Then
                 .Validation.Add xlValidateCustom, xlValidAlertStop, , "=OR(G" & lp + 8 + r & _
                     "="""",G" & lp + 8 + r & ">G" & lp + 7 + r & ")"
@@ -403,7 +420,7 @@ Public Sub CreerDonneesProjet()
     End With
     With ws.Range("F" & lp + 8 & ":G" & lp + 8)
         .Font.Bold = True
-        .Interior.Color = VERT_ENTETE
+        .Interior.Color = COUL_ENTETE
     End With
     ws.Range("D" & lp + 15).Formula = "=IF(G" & lp + 9 & "="""","""",G" & lp + 9 & ")"   ' B = B0
     ws.Range("D" & lp + 15).NumberFormat = "0.000"          ' diamètre B (m)
@@ -435,7 +452,7 @@ Public Sub CreerDonneesProjet()
         .Merge
         .Value = "HYPOTHÈSES RELATIVES AUX MATÉRIAUX CONSTITUTIFS DES FONDATIONS PROFONDES"
         .Font.Bold = True
-        .Font.Color = VERT_FONCE
+        .Font.Color = COUL_TITRE
         .Font.Size = 14
         .HorizontalAlignment = xlCenter
     End With
@@ -535,34 +552,37 @@ Public Sub CreerDonneesProjet()
         .WrapText = True
     End With
     ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":N" & LIGNE_COUCHES - 1).Font.Bold = True
-    ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":N" & LIGNE_COUCHES - 1).Interior.Color = VERT_ENTETE
+    ws.Range("B19:I19,B" & LIGNE_COUCHES - 1 & ":N" & LIGNE_COUCHES - 1).Interior.Color = COUL_ENTETE
     ws.Range("B" & LIGNE_COUCHES - 1 & ":N" & LIGNE_COUCHES - 1).HorizontalAlignment = xlCenter
-    ' Cases à remplir en vert, valeurs calculées en jaune (caractéristiques de la
+    ' Cases à remplir en vert émeraude, valeurs calculées en bleu clair (caractéristiques de la
     ' fondation comprises) ; sans couleur : données géotechniques (laboratoire) et
     ' données de la fondation
     ws.Range("D" & lp & ":D" & lp + 7 & ",D" & lp + 12 & ",D" & lp + 16 & ":D" & lp + 23 _
-        ).Interior.Color = VERT_SAISIE
-    ws.Range("D" & lp + 8 & ":D" & lp + 11 & ",D" & lp + 13 & ":D" & lp + 15).Interior.Color = JAUNE_CALCUL
+        ).Interior.Color = COUL_SAISIE
+    ws.Range("D" & lp + 8 & ":D" & lp + 11 & ",D" & lp + 13 & ":D" & lp + 15).Interior.Color = COUL_CALCUL
     ws.Range("C4:C9,C12:C16,D28:D29," & CELLULE_NB_COUCHES & ",D" & la + 3 & ":D" & la + 4 & _
         ",D" & la + 6 & ":D" & la + 9 & _
         ",D" & LIGNE_ACIER & ":D" & LIGNE_ACIER + 1 & ",D" & LIGNE_ACIER + 8 & ":D" & _
         LIGNE_ACIER + 10 & ",D" & LIGNE_ACIER + 12 & ",D" & LIGNE_ACIER + 15 & ",D" & LIGNE_ACIER + 17 & ",D" & LIGNE_ACIER + 20 & ":D" & _
-        LIGNE_ACIER + 21).Interior.Color = VERT_SAISIE
+        LIGNE_ACIER + 21).Interior.Color = COUL_SAISIE
     ws.Range("D" & la + 5 & ",D" & LIGNE_ACIER + 2 & ":D" & LIGNE_ACIER + 7 & _
         ",D" & LIGNE_ACIER + 11 & ":D" & LIGNE_ACIER + 14 & _
-        ",D" & LIGNE_ACIER + 16 & ",D" & LIGNE_ACIER + 18 & ":D" & LIGNE_ACIER + 19).Interior.Color = JAUNE_CALCUL
+        ",D" & LIGNE_ACIER + 16 & ",D" & LIGNE_ACIER + 18 & ":D" & LIGNE_ACIER + 19).Interior.Color = COUL_CALCUL
     ws.Columns("A").ColumnWidth = 3
     ws.Columns("B").ColumnWidth = 30
     ws.Columns("C").ColumnWidth = 40
     ws.Columns("D").ColumnWidth = 28         ' valeurs de la fondation, catégorie de sol
     ws.Columns("E:N").ColumnWidth = 14
     ws.Rows("19:" & LIGNE_ACIER + 21).AutoFit
+    ws.Cells.Font.Name = "CheGuevara Text Sans"   ' police principale de la charte graphique GEOSKILLS
+    InsererLogo ws                           ' logo GEOSKILLS (synthèse du projet), colonnes à leur largeur
 
     AfficherTypeFondation ws
     AfficherCouches ws
     AfficherMethode ws
     AfficherOptionsPieu ws
     MajArmature ws
+    ws.Cells.Font.Name = "CheGuevara Text Sans"   ' police principale de la charte graphique GEOSKILLS
     ws.Activate
     Application.EnableEvents = True
     Application.ScreenUpdating = True
@@ -777,13 +797,61 @@ Public Sub AfficherTypeFondation(ws As Worksheet)
 End Sub
 
 ' Sous-titre en gras, souligné, en colonne B
+' Logo GEOSKILLS dans la zone F3:I9 de la synthèse du projet : fichier
+' « logo_geoskills.png » (ou .jpg) placé dans le dossier du classeur ; image ajustée à
+' la hauteur de la zone, proportions conservées, centrée. Sans fichier : cadre
+' « Emplacement du logo ». Peut être relancée seule (InsererLogoDonnees).
+Public Sub InsererLogo(ws As Worksheet)
+    Dim zone As Range, f As String, sh As Shape, ext As Variant, k As Long
+    Set zone = ws.Range("F3:I9")
+    For k = ws.Shapes.Count To 1 Step -1       ' ancien logo supprimé
+        If ws.Shapes(k).Name = "LogoGeoskills" Then ws.Shapes(k).Delete
+    Next k
+    zone.UnMerge
+    zone.ClearContents
+    zone.Borders.LineStyle = xlNone
+    If ActiveWorkbook.Path <> "" Then
+        For Each ext In Array("png", "jpg", "jpeg")
+            f = ActiveWorkbook.Path & Application.PathSeparator & "logo_geoskills." & ext
+            If Dir(f) <> "" Then Exit For
+            f = ""
+        Next ext
+    End If
+    If f <> "" Then
+        Set sh = ws.Shapes.AddPicture(f, msoFalse, msoTrue, zone.Left, zone.Top, -1, -1)
+        sh.Name = "LogoGeoskills"
+        sh.LockAspectRatio = msoTrue
+        sh.Height = zone.Height - 6
+        If sh.Width > zone.Width - 6 Then sh.Width = zone.Width - 6
+        sh.Left = zone.Left + (zone.Width - sh.Width) / 2
+        sh.Top = zone.Top + (zone.Height - sh.Height) / 2
+        sh.Placement = xlMove
+    Else
+        With zone
+            .Merge
+            .Value = "Emplacement du logo GEOSKILLS" & vbLf & "(fichier logo_geoskills.png dans le dossier du classeur)"
+            .Font.Italic = True
+            .Font.Color = COUL_TITRE
+            .HorizontalAlignment = xlCenter
+            .VerticalAlignment = xlCenter
+            .WrapText = True
+            .BorderAround xlDash, xlThin, , COUL_TITRE
+        End With
+    End If
+End Sub
+
+' Réinsère le logo dans « Données du projet » (après avoir placé le fichier)
+Public Sub InsererLogoDonnees()
+    InsererLogo ActiveWorkbook.Worksheets(NOM_FEUILLE)
+End Sub
+
 Private Sub SousTitre(ws As Worksheet, ligne As Long, texte As String)
     With ws.Range("B" & ligne)
         .Value = texte
         .Font.Bold = True
         .Font.Underline = xlUnderlineStyleSingle
         .Font.Size = 12
-        .Font.Color = VERT_FONCE
+        .Font.Color = COUL_TITRE
     End With
 End Sub
 

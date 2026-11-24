@@ -1,5 +1,8 @@
 Attribute VB_Name = "TableauChargesPermanentesComplet"
 Option Explicit
+' Couleurs de la charte graphique GEOSKILLS (bleu nuit, bleu océan, vert émeraude)
+Private Const COUL_SAISIE As Long = 15201485       ' RGB(205, 244, 231) : Vert Émeraude éclairci
+Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu Océan très clair
 
 ' Crée l'en-tête du tableau de descente de charges (colonnes B à H) :
 '   B : Désignation de l'ouvrage
@@ -24,9 +27,8 @@ Private Const LIGNE_SOUS_TITRE As Long = 4
 Private Const PREMIERE_LIGNE As Long = 5
 Private Const NB_LIGNES As Long = 69
 
-' Thème : saisies en vert, valeurs calculées en jaune (comme les autres feuilles)
-Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
-Private Const JAUNE_CALCUL As Long = 13434879  ' RGB(255, 255, 204)
+' Charte GEOSKILLS : saisies en vert émeraude clair, valeurs calculées en
+' bleu très clair (comme les autres feuilles)
 
 Public Sub CreerTableauChargesPermanentesComplet()
     Dim ws As Worksheet
@@ -179,14 +181,15 @@ Public Sub CreerTableauChargesPermanentesComplet()
     ws.Range("B" & LIGNE_TITRE & ":K" & derniereLigne + 1).Rows.AutoFit
     ' Ligne 1 : niveau d'étage, catégorie du bâtiment, nombre de murs et % d'ouvertures
     ' Code couleur de la ligne 1 : niveau, nombre de murs, % d'ouvertures et nombre de
-    ' micropieux à saisir en vert ; catégorie en jaune si reprise de « Données du projet »
-    ws.Range("C1,G1,I1,K1").Interior.Color = VERT_SAISIE
-    ws.Range("E1").Interior.Color = IIf(ws.Range("E1").HasFormula, JAUNE_CALCUL, VERT_SAISIE)
+    ' micropieux à saisir en vert ; catégorie en bleu clair si reprise de « Données du projet »
+    ws.Range("C1,G1,I1,K1").Interior.Color = COUL_SAISIE
+    ws.Range("E1").Interior.Color = IIf(ws.Range("E1").HasFormula, COUL_CALCUL, COUL_SAISIE)
     With ws.Range("B" & LIGNE_NIVEAU & ":K" & LIGNE_NIVEAU)
         .WrapText = True
         .VerticalAlignment = xlCenter
         .Rows.AutoFit
     End With
+    ws.Cells.Font.Name = "CheGuevara Text Sans"   ' police principale de la charte graphique GEOSKILLS
 
     Application.EnableEvents = True
     Application.ScreenUpdating = True

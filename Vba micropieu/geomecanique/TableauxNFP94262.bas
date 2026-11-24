@@ -1,5 +1,8 @@
 Attribute VB_Name = "TableauxNFP94262"
 Option Explicit
+' Couleurs de la charte graphique GEOSKILLS (bleu nuit, bleu océan, vert émeraude)
+Private Const COUL_TITRE As Long = 5898259         ' RGB(19, 0, 90) : Bleu Nuit (charte GEOSKILLS)
+Private Const COUL_ENTETE As Long = 15458502       ' RGB(198, 224, 235) : Bleu Océan éclairci
 
 ' Module « Tableaux NF P94-262 » : crée (ou recrée) la feuille « Tableaux NF P94-262 »
 ' avec les tableaux de la norme NF P94-262 (juillet 2012) utiles au calcul des
@@ -49,12 +52,8 @@ Private mEmpl As Long          ' emplacement suivant dans la rangée (0 à 2)
 Private mEntete As Range       ' ligne d'en-tête du dernier tableau écrit
 Private mDonnees As Range      ' lignes de données du dernier tableau écrit
 
-' Thème vert : saisies en vert, valeurs non saisies (calculées) en jaune, en-têtes et
-' titres en vert (couleurs RGB écrites en nombre : rouge + 256 x vert + 65536 x bleu)
-Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
-Private Const JAUNE_CALCUL As Long = 13434879  ' RGB(255, 255, 204), jaune clair
-Private Const VERT_ENTETE As Long = 14348258   ' RGB(226, 239, 218)
-Private Const VERT_FONCE As Long = 2315831     ' RGB(55, 86, 35)
+' Charte GEOSKILLS : saisies en vert émeraude clair, valeurs calculées en
+' bleu très clair, en-têtes en bleu océan clair, titres en bleu nuit
 Public Sub CreerTableauxNFP94262()
     Dim ws As Worksheet, s As String, g As String, c As Long
 
@@ -73,7 +72,7 @@ Public Sub CreerTableauxNFP94262()
         .Merge
         .Value = "TABLEAUX DE LA NORME NF P94-262 (juillet 2012) - MICROPIEUX"
         .Font.Bold = True
-        .Font.Color = VERT_FONCE
+        .Font.Color = COUL_TITRE
         .Font.Size = 14
         .HorizontalAlignment = xlCenter
     End With
@@ -274,6 +273,7 @@ Public Sub CreerTableauxNFP94262()
         ws.Columns(3 + c * LARGEUR_EMPL).Resize(, LARGEUR_EMPL - 2).ColumnWidth = 12
         ws.Columns(1 + (c + 1) * LARGEUR_EMPL).ColumnWidth = 3
     Next c
+    ws.Cells.Font.Name = "CheGuevara Text Sans"   ' police principale de la charte graphique GEOSKILLS
     ws.Activate
 Fin:
     Application.ScreenUpdating = True
@@ -297,11 +297,11 @@ Private Sub NouveauGroupe(ws As Worksheet, titre As String, niveau As Long)
         If niveau = 1 Then
             .Font.Size = 13
             .Font.Color = RGB(255, 255, 255)
-            .Interior.Color = VERT_FONCE
+            .Interior.Color = COUL_TITRE
         Else
             .Font.Size = 11
             .Font.Underline = xlUnderlineStyleSingle
-            .Font.Color = VERT_FONCE
+            .Font.Color = COUL_TITRE
         End If
     End With
     mHaut = mHaut + 2
@@ -353,7 +353,7 @@ Private Function EcrireTableau(ws As Worksheet, ByVal r As Long, c0 As Long, tit
         .Value = titre
         .Font.Bold = True
         .Font.Underline = xlUnderlineStyleSingle
-        .Font.Color = VERT_FONCE
+        .Font.Color = COUL_TITRE
         .WrapText = True
         .VerticalAlignment = xlBottom
     End With
@@ -366,7 +366,7 @@ Private Function EcrireTableau(ws As Worksheet, ByVal r As Long, c0 As Long, tit
     Next j
     With ws.Range(ws.Cells(r, c0), ws.Cells(r, c0 + UBound(e)))
         .Font.Bold = True
-        .Interior.Color = VERT_ENTETE
+        .Interior.Color = COUL_ENTETE
         .HorizontalAlignment = xlCenter
     End With
     lignes = Split(donnees, ";")

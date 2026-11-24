@@ -1,5 +1,8 @@
 Attribute VB_Name = "ChargePermanente"
 Option Explicit
+' Couleurs de la charte graphique GEOSKILLS (bleu nuit, bleu océan, vert émeraude)
+Private Const COUL_SAISIE As Long = 15201485       ' RGB(205, 244, 231) : Vert Émeraude éclairci
+Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu Océan très clair
 
 ' Module « Charge permanente » : remplissage du tableau des charges permanentes G.
 ' Listes déroulantes sous « Désignation de l'ouvrage », à partir de B5.
@@ -55,9 +58,8 @@ Private Const TYPES_TOITURE As String = "Toiture fermettes industrielles + tuile
     "Toiture fermettes industrielles + ardoises,Toiture charpente traditionnelle bois massif"
 Private Const PENTES As String = "18,20,25,30,45"   ' pentes des versants (°)
 
-' Thème : saisies en vert, valeurs calculées en jaune (comme les autres feuilles)
-Private Const VERT_SAISIE As Long = 13561798   ' RGB(198, 239, 206)
-Private Const JAUNE_CALCUL As Long = 13434879  ' RGB(255, 255, 204)
+' Charte GEOSKILLS : saisies en vert émeraude clair, valeurs calculées en
+' bleu très clair (comme les autres feuilles)
 Private Const NIVEAUX_RDC As String = "RDC,RDC+1SS,RDC+2SS,RDC+VS"   ' liste en B46
 Private Const PLANCHERS As String = "Plancher dalle pleine,Plancher à poutrelles,Plancher bois traditionnel"
 Private Const POUTRES As String = "Poutre BA,Poutre bois,Poutre métallique"
@@ -120,12 +122,12 @@ Public Sub RemplirChargePermanente()
             End With
             MajLigne ActiveSheet, r              ' poids volumique / surfacique
             ' Code couleur : désignation (liste) et dimensions b, h à saisir en vert ;
-            ' poids volumique / surfacique et charge G calculés en jaune
+            ' poids volumique / surfacique et charge G calculés en bleu clair
             With ActiveSheet
-                If InStr(listes(i), ",") > 0 Then .Range("B" & r).Interior.Color = VERT_SAISIE
+                If InStr(listes(i), ",") > 0 Then .Range("B" & r).Interior.Color = COUL_SAISIE
                 If i > 0 Then
-                    .Range("C" & r & ":D" & r & ",G" & r).Interior.Color = JAUNE_CALCUL
-                    .Range("E" & r & ":F" & r).Interior.Color = VERT_SAISIE
+                    .Range("C" & r & ":D" & r & ",G" & r).Interior.Color = COUL_CALCUL
+                    .Range("E" & r & ":F" & r).Interior.Color = COUL_SAISIE
                 End If
             End With
             r = r + 1
@@ -139,7 +141,7 @@ Public Sub RemplirChargePermanente()
             .Range("G" & r).Formula = "=SUBTOTAL(109,G" & debut & ":G" & r - 1 & ")"
             .Range("B" & r & ":K" & r).Font.Bold = True
             .Range("B" & r).Font.Italic = True
-            .Range("G" & r & ":K" & r).Interior.Color = JAUNE_CALCUL   ' G, Q, ΣQ, αn, αn × ΣQ
+            .Range("G" & r & ":K" & r).Interior.Color = COUL_CALCUL   ' G, Q, ΣQ, αn, αn × ΣQ
         End With
         sousTotaux = sousTotaux & ",G" & r
         r = r + 1
@@ -150,7 +152,7 @@ Public Sub RemplirChargePermanente()
         .Range("B" & r).Value = "TOTAL (somme des sous-totaux)"
         .Range("G" & r).Formula = "=SUM(" & Mid(sousTotaux, 2) & ")"
         .Range("B" & r & ":K" & r).Font.Bold = True
-        .Range("G" & r & ":K" & r).Interior.Color = JAUNE_CALCUL
+        .Range("G" & r & ":K" & r).Interior.Color = COUL_CALCUL
     End With
 
     AfficherEtages ActiveSheet
