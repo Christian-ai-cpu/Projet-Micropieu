@@ -9,11 +9,11 @@ Private Const COUL_ALERTE As Long = 192            ' RGB(192, 0, 0) : messages �
 
 ' Module « Vérification structurelle » : crée (ou recrée) la feuille « Vérification
 ' structurelle » des micropieux, à partir des feuilles « Données du projet » (module
-' DonneesProjet), « Calcul et vérification » (module CalculFondation) et de la feuille de
+' DonneesProjet), « Calcul Portance » (module CalculFondation) et de la feuille de
 ' descente de charges (matrice des micropieux, module MatriceMicropieux). Toutes les
 ' valeurs sont des formules : elles suivent les saisies de ces feuilles.
 '   A3  : tableau vertical du micropieu le plus long (plus grande profondeur réelle de
-'         « Calcul et vérification ») : diamètre du pieu foré (Phi retenu ou autre
+'         « Calcul Portance ») : diamètre du pieu foré (Phi retenu ou autre
 '         valeur saisie), enrobage et protection par le coulis (c >= 5 cm, C > 500
 '         kg/m3, E/C < 0,5 : pas de corrosion), rayon de corrosion, armature après
 '         corrosion, I, EI, EM et alpha (ou qc et beta), rho, Kf selon la méthode de
@@ -43,7 +43,7 @@ Private Const LIB_PAS As String = "Pas de calcul dz (à saisir)"
 Private Const LIB_LIBRE As String = "Condition en tête"
 Private Const TETE_LIBRE As String = "Micropieu libre en tête"
 Private Const TETE_ENC As String = "Micropieu encastré en tête"
-Private Const CALCUL As String = "'Calcul et vérification'!"
+Private Const CALCUL As String = "'Calcul Portance'!"
 
 ' Charte GEOSKILLS : saisies en vert émeraude clair, valeurs calculées en
 ' bleu très clair, en-têtes en bleu océan clair, titres en bleu nuit
@@ -74,7 +74,8 @@ Public Sub CreerVerificationStructurelle()
     Application.ScreenUpdating = False
     On Error GoTo Erreur
     etape = "feuilles du projet"
-    Set wc = ActiveWorkbook.Worksheets("Calcul et vérification")
+    Application.Run "RenommerFeuilleCalcul"   ' ancienne feuille « Calcul et vérification »
+    Set wc = ActiveWorkbook.Worksheets("Calcul Portance")
     For Each f In ActiveWorkbook.Worksheets
         If CStr(f.Range("B80").Value) = "RÉPARTITION DES CHARGES DES MURS SUR LES MICROPIEUX" Then
             Set wd = f
@@ -127,12 +128,12 @@ Public Sub CreerVerificationStructurelle()
     bet = "IF(OR(" & nat & "=""Tourbe""," & nat & "=""Argile""),12,IF(" & nat & "=""Limon"",7.5,4.5))"
 
     etape = "micropieux de la vérification de la profondeur"
-    ' Vérification de la profondeur (« Calcul et vérification ») : en-tête « N° MICROPIEU »
+    ' Vérification de la profondeur (« Calcul Portance ») : en-tête « N° MICROPIEU »
     ' en colonne A, combinaisons (Vmax) dans la colonne « COMBINAISONS ... », coefficients
     ' des combinaisons sous le tableau
     ' (position variable : sous le tableau de la capacité portante par pas de calcul)
     ' Nombre de micropieux : celui de la descente de charges (K1) ; vérification de la
-    ' profondeur de « Calcul et vérification » (et matrice des micropieux) recréée si
+    ' profondeur de « Calcul Portance » (et matrice des micropieux) recréée si
     ' elle n'a pas ce nombre de micropieux
     If Not wd Is Nothing Then
         k = CLng(N0(wd.Range("K1").Value))   ' N0 : la variable vAl masque la fonction Val
@@ -186,11 +187,11 @@ Public Sub CreerVerificationStructurelle()
     End If
     If m = 0 Or cC = 0 Then
         ws.Range("A3").Value = "Créez la matrice des micropieux (descente de charges) " & _
-            "et « Calcul et vérification », puis relancez CreerVerificationStructurelle."
+            "et « Calcul Portance », puis relancez CreerVerificationStructurelle."
         GoTo MiseEnForme
     End If
     ' --- Micropieu le plus long : plus grande profondeur réelle de la vérification de la
-    ' profondeur (« Calcul et vérification ») ; colonnes repérées par leurs en-têtes ---
+    ' profondeur (« Calcul Portance ») ; colonnes repérées par leurs en-têtes ---
     etape = "micropieu le plus long"
     For i = 1 To 80
         If CStr(wc.Cells(r0 + 1, i).Value) = ChrW(934) & " RETENU" Then cPhi = i
@@ -205,7 +206,7 @@ Public Sub CreerVerificationStructurelle()
             If N0(wc.Cells(r0 + 2 + i, cDr).Value) > N0(wc.Cells(r0 + 2 + iMax, cDr).Value) Then iMax = i
         Next i
     End If
-    ci = r0 + 2 + iMax                        ' ligne du micropieu dans « Calcul et vérification »
+    ci = r0 + 2 + iMax                        ' ligne du micropieu dans « Calcul Portance »
 
     ' --- Tableau vertical : longueur de transfert l0, inclinaison, poussée des terres ---
     ' Intitulé en B:C, valeur en D, unité en E. Diamètre du pieu foré B = Phi retenu ou
@@ -465,7 +466,7 @@ Public Sub CreerVerificationStructurelle()
     End If
     entete = Array( _
         Array("Effort de compression de la descente de charges", "Nc", _
-            "Vmax de la combinaison (vérification de la profondeur, « Calcul et vérification »)", "kN"), _
+            "Vmax de la combinaison (vérification de la profondeur, « Calcul Portance »)", "kN"), _
         Array("Effort horizontal en tête", "H0", "H0 = Nc x sin " & ChrW(945) & " (composante inclinée de la " & _
             "descente de charges, 0 si vertical) + H talus (descente de charges, charge du talus)", "kN"), _
         Array("Moment en tête (selon la condition en tête)", "M0", "micropieu libre en tête : M0 = M talus " & _

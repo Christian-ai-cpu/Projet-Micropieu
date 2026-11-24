@@ -10,8 +10,8 @@ Private Const COUL_ALERTE As Long = 192            ' RGB(192, 0, 0) : messages �
 ' Module « Dimensionnement des platines » : ajoute, sous la vérification au flambement
 ' (module VerificationMandel) de la feuille « Vérification structurelle », le
 ' dimensionnement de la platine carrée de liaison micropieu / massif de chaque micropieu
-' de « Calcul et vérification » (charge N uniformément répartie par la platine).
-'   Charges : N = Vmax des combinaisons de « Calcul et vérification » (ELS : maximum
+' de « Calcul Portance » (charge N uniformément répartie par la platine).
+'   Charges : N = Vmax des combinaisons de « Calcul Portance » (ELS : maximum
 '   des combinaisons caractéristique et quasi permanente ; ELU fondamental ; ELU
 '   accidentel).
 '   Côté (longueur = largeur) : contrainte dans le béton sigma b = N / A, A = a x a ;
@@ -36,7 +36,7 @@ Private Const COUL_ALERTE As Long = 192            ' RGB(192, 0, 0) : messages �
 Public Const TITRE_PLATINE As String = "DIMENSIONNEMENT DES PLATINES DE LIAISON MICROPIEU / MASSIF (CHARGE DE CHAQUE MICROPIEU)"
 Private Const NOM_FEUILLE As String = "Vérification structurelle"
 Private Const DONNEES As String = "'Données du projet'!"
-Private Const CALCUL As String = "'Calcul et vérification'!"
+Private Const CALCUL As String = "'Calcul Portance'!"
 Private Const LIB_FC28 As String = "Résistance caractéristique du béton du massif fc28 (à saisir)"
 
 Public Sub VerificationPlatine()
@@ -50,17 +50,18 @@ Public Sub VerificationPlatine()
 
     On Error Resume Next
     Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
-    Set wc = ActiveWorkbook.Worksheets("Calcul et vérification")
+    Application.Run "RenommerFeuilleCalcul"   ' ancienne feuille « Calcul et vérification »
+    Set wc = ActiveWorkbook.Worksheets("Calcul Portance")
     On Error GoTo Erreur
     If ws Is Nothing Or wc Is Nothing Then
-        MsgBox "Créez d'abord les feuilles « Calcul et vérification » et « " & NOM_FEUILLE & " ».", vbExclamation
+        MsgBox "Créez d'abord les feuilles « Calcul Portance » et « " & NOM_FEUILLE & " ».", vbExclamation
         Exit Sub
     End If
     a = LIGNE_ACIER
     la = LIGNE_PIEU + 24                      ' partie matériaux (coulis) de « Données du projet »
 
-    ' --- Micropieux et combinaisons (« Calcul et vérification ») ---
-    etape = "micropieux de « Calcul et vérification »"
+    ' --- Micropieux et combinaisons (« Calcul Portance ») ---
+    etape = "micropieux de « Calcul Portance »"
     v = Application.Match("N° MICROPIEU", wc.Range("A1:A5000"), 0)
     If IsError(v) Then Exit Sub
     r0 = CLng(v)
@@ -188,7 +189,7 @@ Public Sub VerificationPlatine()
     Next k
     For i = 1 To m
         r = rH + 2 + i
-        ci = r0 + 2 + i                       ' ligne du micropieu dans « Calcul et vérification »
+        ci = r0 + 2 + i                       ' ligne du micropieu dans « Calcul Portance »
         ws.Range("A" & r).Formula = "=" & CALCUL & "$A$" & ci & "&"""""
         ws.Range("B" & r).Formula = "=MAX(ABS(N(" & CALCUL & wc.Cells(ci, cC).Address & ")),ABS(N(" & CALCUL & _
             wc.Cells(ci, cC + 2).Address & ")))"

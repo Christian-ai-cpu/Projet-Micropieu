@@ -394,7 +394,7 @@ Public Sub CreerDonneesProjet()
     ' classe, catégorie, abréviation, résistance de pointe et type de mise en oeuvre
     ' sont des formules qui suivent le type de pieu choisi (tableau A.1 de la
     ' NF P94-262) ; le mode de fonctionnement (compression / traction) se choisit.
-    ' Les hauteurs de la fondation sont calculées dans « Calcul et vérification ».
+    ' Les hauteurs de la fondation sont calculées dans « Calcul Portance ».
     lp = LIGNE_PIEU
     SousTitre ws, lp - 1, "Caractéristiques de la fondation"
     ws.Range("B" & lp & ":B" & lp + 23).Value = Application.Transpose(Array( _
@@ -440,7 +440,7 @@ Public Sub CreerDonneesProjet()
     ' Tableau des diamètres disponibles (F:G, à droite des caractéristiques, lignes
     ' toujours affichées lp + 8 à lp + 16) : B0 < B1 < B2 ... ; B0 est le diamètre de
     ' référence (calcul de la portance), les suivants sont pris tour à tour quand la
-    ' portance n'est pas vérifiée (« Calcul et vérification »)
+    ' portance n'est pas vérifiée (« Calcul Portance »)
     ws.Range("F" & lp + 8 & ":G" & lp + 8).Value = Array("Diamètre", "B (m)")
     For r = 1 To NB_DIAMETRES
         ws.Range("F" & lp + 8 + r).Value = "B" & r - 1
@@ -656,7 +656,7 @@ Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
         On Error GoTo Fin
     End If
     ' Nombre de couches, profondeurs ou terrains neutralisés : lignes du frottement axial
-    ' et nombre de pas du tableau de la capacité portante de « Calcul et vérification »
+    ' et nombre de pas du tableau de la capacité portante de « Calcul Portance »
     If Not Intersect(Target, Union(ws.Range(CELLULE_NB_COUCHES), _
             ws.Range("E" & LIGNE_COUCHES & ":E" & LIGNE_COUCHES + MAX_COUCHES - 1), _
             ws.Range("M" & LIGNE_COUCHES & ":M" & LIGNE_COUCHES + MAX_COUCHES - 1))) Is Nothing Then
@@ -664,14 +664,14 @@ Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
         Application.Run "ActualiserPas"
         On Error GoTo Fin
     End If
-    ' Effet de groupe : bloc Ce de « Calcul et vérification » affiché ou masqué
+    ' Effet de groupe : bloc Ce de « Calcul Portance » affiché ou masqué
     If Not Intersect(Target, ws.Range("D" & LIGNE_PIEU + 4)) Is Nothing Then
         On Error Resume Next
         Application.Run "AfficherGroupe"
         On Error GoTo Fin
     End If
     ' Méthode de calcul : colonne pl* ou qc des données géotechniques masquée, puis
-    ' « Calcul et vérification » recréée avec les formules de la méthode choisie (pl* et
+    ' « Calcul Portance » recréée avec les formules de la méthode choisie (pl* et
     ' tableaux F, ou qc et tableaux G)
     If Not Intersect(Target, ws.Range(CELLULE_METHODE)) Is Nothing Then
         AfficherMethode ws
@@ -679,7 +679,7 @@ Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
         Application.Run "ActualiserCalculVerification"
         On Error GoTo Fin
     End If
-    ' Diamètres B0, B1, ... : « Calcul et vérification » recréée (un tableau de capacité
+    ' Diamètres B0, B1, ... : « Calcul Portance » recréée (un tableau de capacité
     ' portante par diamètre saisi)
     If Not Intersect(Target, ws.Range("G" & LIGNE_PIEU + 9 & ":G" & LIGNE_PIEU + 8 + NB_DIAMETRES)) _
         Is Nothing Then

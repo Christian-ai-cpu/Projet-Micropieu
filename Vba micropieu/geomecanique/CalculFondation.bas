@@ -7,7 +7,7 @@ Private Const COUL_SAISIE As Long = 15201485       ' RGB(205, 244, 231) : Vert �
 Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu Océan très clair
 Private Const COUL_ALERTE As Long = 192            ' RGB(192, 0, 0) : messages « non vérifié »
 
-' Module « Calcul et vérification » : crée (ou recrée) la feuille « Calcul et
+' Module « Calcul Portance » : crée (ou recrée) la feuille « Calcul et
 ' vérification » de la fondation, à partir des feuilles « Données du projet »
 ' (module DonneesProjet) et « Tableaux NF P94-262 » (module TableauxNFP94262).
 ' Toutes les valeurs sont des formules : elles suivent les saisies de ces feuilles.
@@ -50,7 +50,7 @@ Private Const COUL_ALERTE As Long = 192            ' RGB(192, 0, 0) : messages �
 '   colonne, sables et graves -> 2e, craies -> 3e, marnes -> 4e, roches -> 5e ;
 '   tableau qs max à 6 colonnes : dans l'ordre de la liste des catégories de sol.
 
-Private Const NOM_FEUILLE As String = "Calcul et vérification"
+Private Const NOM_FEUILLE As String = "Calcul Portance"
 Private Const DONNEES As String = "'Données du projet'!"
 ' Pas de calcul : saisie libre pour chaque couche (colonne A, en vert émeraude, sans valeur
 ' imposée) ; nombre de subdivisions k calculé d'après le pas et l'épaisseur hi :
@@ -88,11 +88,28 @@ Public Sub CreerCalculVerification()
     Construire True
 End Sub
 
-' Recrée la feuille « Calcul et vérification » (si elle existe) sans l'activer : appelée
+' Même macro sous le nouveau nom de la feuille
+Public Sub CreerCalculPortance()
+    Construire True
+End Sub
+
+' Ancienne feuille « Calcul et vérification » renommée « Calcul Portance » (classeurs
+' créés avant le changement de nom ; les formules des autres feuilles suivent)
+Public Sub RenommerFeuilleCalcul()
+    Dim f As Worksheet, ancien As Worksheet
+    For Each f In ActiveWorkbook.Worksheets
+        If f.Name = NOM_FEUILLE Then Exit Sub
+        If f.Name = "Calcul et v" & ChrW(233) & "rification" Then Set ancien = f
+    Next f
+    If Not ancien Is Nothing Then ancien.Name = NOM_FEUILLE
+End Sub
+
+' Recrée la feuille « Calcul Portance » (si elle existe) sans l'activer : appelée
 ' quand la méthode de calcul change dans « Données du projet »
 Public Sub ActualiserCalculVerification()
     Dim ws As Worksheet
     On Error Resume Next
+    RenommerFeuilleCalcul
     Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
     On Error GoTo 0
     If Not ws Is Nothing Then Construire False
@@ -139,6 +156,7 @@ Private Sub Construire(activer As Boolean)
 
     etape = "création de la feuille"
     On Error Resume Next
+    RenommerFeuilleCalcul
     Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
     On Error GoTo Erreur
     If ws Is Nothing Then
@@ -555,7 +573,7 @@ Fin:
     Application.ScreenUpdating = True
     Exit Sub
 Erreur:
-    MsgBox "Erreur pendant la création de la feuille « Calcul et vérification », partie « " & _
+    MsgBox "Erreur pendant la création de la feuille « Calcul Portance », partie « " & _
         etape & " »" & IIf(mCellule = "", "", ", cellule " & mCellule) & " : " & Err.Description & _
         " (n° " & Err.Number & ")", vbExclamation
     Resume Fin
@@ -567,6 +585,7 @@ End Sub
 Public Sub AfficherGroupe(Optional ws As Worksheet)
     If ws Is Nothing Then
         On Error Resume Next
+        RenommerFeuilleCalcul
         Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
         On Error GoTo 0
         If ws Is Nothing Then Exit Sub
@@ -598,12 +617,13 @@ End Sub
 ' Le nombre de micropieux et de murs est lu à la création : recréer cette feuille
 ' après un changement dans la descente de charges.
 ' Recrée le tableau de vérification de la profondeur des micropieux (si la feuille
-' « Calcul et vérification » existe), le choix de Gmin étant conservé. Appelée quand le
+' « Calcul Portance » existe), le choix de Gmin étant conservé. Appelée quand le
 ' nombre de murs ou de micropieux change dans la descente de charges
 ' (ConstruireMatrice, module MatriceMicropieux).
 Public Sub ActualiserVerificationProfondeur()
     Dim ws As Worksheet, L As Long, gmin As String
     On Error Resume Next
+    RenommerFeuilleCalcul
     Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
     On Error GoTo 0
     If ws Is Nothing Then Exit Sub
@@ -1160,6 +1180,7 @@ Public Sub AfficherInclinaison(Optional ws As Worksheet)
     Dim r0 As Long, c As Long, cI As Long, r As Long, n As Long
     If ws Is Nothing Then
         On Error Resume Next
+        RenommerFeuilleCalcul
         Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
         On Error GoTo 0
         If ws Is Nothing Then Exit Sub
@@ -1180,6 +1201,7 @@ End Sub
 Public Sub AppliquerInclinaisonDonnees()
     Dim ws As Worksheet, wp As Worksheet, cI As Long, r0 As Long, r As Long
     On Error Resume Next
+    RenommerFeuilleCalcul
     Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
     On Error GoTo 0
     If ws Is Nothing Then Exit Sub
@@ -1233,6 +1255,7 @@ Public Sub AfficherCouchesCalcul(Optional ws As Worksheet)
     Dim nb As Variant
     If ws Is Nothing Then
         On Error Resume Next
+        RenommerFeuilleCalcul
         Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
         On Error GoTo 0
         If ws Is Nothing Then Exit Sub
@@ -1253,6 +1276,7 @@ End Sub
 Public Sub ActualiserPas()
     Dim ws As Worksheet, n As Long
     On Error Resume Next
+    RenommerFeuilleCalcul
     Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
     On Error GoTo 0
     If ws Is Nothing Then Exit Sub
@@ -1266,7 +1290,7 @@ Public Sub ActualiserPas()
     End If
 End Sub
 
-' Appelée par le code de la feuille « Calcul et vérification » (CodeFeuilleCalcul.txt) :
+' Appelée par le code de la feuille « Calcul Portance » (CodeFeuilleCalcul.txt) :
 ' pas de calcul saisi (colonne A du frottement axial) -> tableau de la capacité
 ' portante adapté au nombre total de subdivisions
 Public Sub ChangementCalcul(ws As Worksheet, Target As Range)
@@ -1308,7 +1332,7 @@ Private Function ValeurPas(v As Variant) As Double
     If ValeurPas < 0 Then ValeurPas = 0
 End Function
 
-' Code de la feuille « Calcul et vérification » (Worksheet_Change -> ChangementCalcul)
+' Code de la feuille « Calcul Portance » (Worksheet_Change -> ChangementCalcul)
 ' installé automatiquement si Excel autorise l'accès au projet VBA (Fichier > Options >
 ' Centre de gestion de la confidentialité > Paramètres des macros > « Accès approuvé au
 ' modèle d'objet du projet VBA ») ; sinon, coller CodeFeuilleCalcul.txt à la main.

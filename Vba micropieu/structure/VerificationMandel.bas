@@ -9,14 +9,14 @@ Private Const COUL_ALERTE As Long = 192            ' RGB(192, 0, 0) : messages �
 
 ' Module « Vérification au flambement (Mandel) » : ajoute, sous la vérification de
 ' l'armature de la feuille « Vérification structurelle », l'étude du flambement de
-' chaque micropieu de « Calcul et vérification » selon l'abaque de Mandel (pieu dans
+' chaque micropieu de « Calcul Portance » selon l'abaque de Mandel (pieu dans
 ' un sol à raideur constante). Pointe toujours encastrée ; courbe selon la condition
 ' en tête (« Vérification structurelle », « Condition en tête ») :
 '   tête libre    : courbe 4 (une extrémité encastrée, l'autre libre) ;
 '   tête encastrée : courbe 2 (pieu encastré aux deux extrémités).
 ' Une ligne par micropieu, toutes les valeurs sont des formules :
 '   armature : diamètre extérieur d, épaisseur t0 (« Données du projet ») ;
-'   diamètre du forage B (Phi retenu de « Calcul et vérification ») ;
+'   diamètre du forage B (Phi retenu de « Calcul Portance ») ;
 '   enrobage c = (B - d) / 2, rayon de corrosion retenu (0 si protection par le coulis
 '   efficace : c >= 50 mm, C > 500 kg/m3, E/C < 0,5, compression), d après corrosion,
 '   inertie corrodée I, raideur de flexion EI = E x I ;
@@ -40,7 +40,7 @@ Private Const COUL_ALERTE As Long = 192            ' RGB(192, 0, 0) : messages �
 
 Private Const NOM_FEUILLE As String = "Vérification structurelle"
 Private Const DONNEES As String = "'Données du projet'!"
-Private Const CALCUL As String = "'Calcul et vérification'!"
+Private Const CALCUL As String = "'Calcul Portance'!"
 Private Const TITRE As String = "VÉRIFICATION AU FLAMBEMENT DES MICROPIEUX - ABAQUE DE MANDEL"
 Private Const LIB_F As String = "Coefficient de sécurité sur la charge critique à l'ELS (à saisir)"
 
@@ -56,19 +56,20 @@ Public Sub VerificationMandel()
 
     On Error Resume Next
     Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
-    Set wc = ActiveWorkbook.Worksheets("Calcul et vérification")
+    Application.Run "RenommerFeuilleCalcul"   ' ancienne feuille « Calcul et vérification »
+    Set wc = ActiveWorkbook.Worksheets("Calcul Portance")
     On Error GoTo Erreur
     If ws Is Nothing Or wc Is Nothing Then
-        MsgBox "Créez d'abord les feuilles « Calcul et vérification » et « " & NOM_FEUILLE & " ».", vbExclamation
+        MsgBox "Créez d'abord les feuilles « Calcul Portance » et « " & NOM_FEUILLE & " ».", vbExclamation
         Exit Sub
     End If
     a = LIGNE_ACIER: lp = LIGNE_PIEU: lm = LIGNE_COUCHE_MOLLE
 
-    ' --- Micropieux de la vérification de la profondeur (« Calcul et vérification ») ---
-    etape = "micropieux de « Calcul et vérification »"
+    ' --- Micropieux de la vérification de la profondeur (« Calcul Portance ») ---
+    etape = "micropieux de « Calcul Portance »"
     v = Application.Match("N° MICROPIEU", wc.Range("A1:A5000"), 0)
     If IsError(v) Then
-        MsgBox "Tableau des micropieux introuvable dans « Calcul et vérification ».", vbExclamation
+        MsgBox "Tableau des micropieux introuvable dans « Calcul Portance ».", vbExclamation
         Exit Sub
     End If
     r0 = CLng(v)
@@ -209,7 +210,7 @@ Public Sub VerificationMandel()
     Next k
     For i = 1 To m
         r = rH + 2 + i
-        ci = r0 + 2 + i                       ' ligne du micropieu dans « Calcul et vérification »
+        ci = r0 + 2 + i                       ' ligne du micropieu dans « Calcul Portance »
         ws.Range("A" & r).Formula = "=" & CALCUL & "$A$" & ci & "&"""""
         ws.Range("B" & r).Formula = "=" & dA
         ws.Range("C" & r).Formula = "=IF(" & tube & "," & t0 & ",""-"")"
