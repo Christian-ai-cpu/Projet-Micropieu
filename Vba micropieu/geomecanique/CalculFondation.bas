@@ -1511,7 +1511,7 @@ End Function
 Private Sub Commentaire(c As Range, texte As String)
     ' Commentaire en image (module CommentaireImage) ; à défaut, commentaire texte
     On Error Resume Next
-    Application.Run "CommentaireImage", c, texte
+    Application.Run "CommentaireImage.CommentaireImage", c, texte
     If Err.Number <> 0 Then
         Err.Clear
         c.ClearComments

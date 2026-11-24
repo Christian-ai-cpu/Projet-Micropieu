@@ -387,7 +387,7 @@ Fin2:
     ' (seulement si la macro est lancée seule : pendant CreerVerificationStructurelle,
     ' le flambement et les platines sont lancés ensuite par celle-ci)
     On Error Resume Next
-    If Not CBool(Application.Run("CreationVerificationEnCours")) Then Application.Run "VerificationMandel"
+    If Not CBool(Application.Run("CreationVerificationEnCours")) Then Application.Run "VerificationMandel.VerificationMandel"
     Exit Sub
 Erreur:
     MsgBox "Erreur pendant la vérification de l'armature, partie « " & etape & " » : " & Err.Description & _

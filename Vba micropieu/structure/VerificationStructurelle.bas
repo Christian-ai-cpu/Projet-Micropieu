@@ -888,8 +888,14 @@ Public Function CreationVerificationEnCours() As Boolean
     CreationVerificationEnCours = mEnCours
 End Function
 
-' Lance une vérification (module de la feuille) ; erreur signalée sans arrêter la suite
+' Lance une vérification ; erreur signalée sans arrêter la suite. La macro a le même nom
+' que son module (ex. VerificationArmature) : elle est appelée « Module.Macro », sinon
+' Application.Run désigne le module et échoue (erreur 1004)
 Private Sub LancerVerification(macro As String, libelle As String)
+    On Error Resume Next
+    Application.Run macro & "." & macro
+    If Err.Number = 0 Then Exit Sub
+    Err.Clear
     On Error GoTo Echec
     Application.Run macro
     Exit Sub
@@ -941,7 +947,7 @@ End Sub
 Private Sub Commentaire(c As Range, texte As String)
     ' Commentaire en image (module CommentaireImage) ; à défaut, commentaire texte
     On Error Resume Next
-    Application.Run "CommentaireImage", c, texte
+    Application.Run "CommentaireImage.CommentaireImage", c, texte
     If Err.Number <> 0 Then
         Err.Clear
         c.ClearComments

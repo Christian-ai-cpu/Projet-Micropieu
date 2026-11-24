@@ -333,7 +333,7 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
                 "h = hauteur totale de la poutre - épaisseur de la dalle " & _
                 "(retombée seule), pour ne pas compter deux fois le béton de la dalle."
             On Error Resume Next
-            Application.Run "CommentaireImage", ws.Cells(ligne, 6 + dc), texteNote
+            Application.Run "CommentaireImage.CommentaireImage", ws.Cells(ligne, 6 + dc), texteNote
             If Err.Number <> 0 Then
                 Err.Clear
                 ws.Cells(ligne, 6 + dc).ClearComments
