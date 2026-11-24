@@ -803,21 +803,28 @@ End Sub
 Public Sub InsererLogo(ws As Worksheet)
     Dim zone As Range, f As String, sh As Shape, ext As Variant, k As Long
     Set zone = ws.Range("F3:I9")
+    ' Sans erreur bloquante (chemin OneDrive / SharePoint en https, fichier illisible...) :
+    ' à défaut, cadre « Emplacement du logo »
+    On Error Resume Next
     For k = ws.Shapes.Count To 1 Step -1       ' ancien logo supprimé
         If ws.Shapes(k).Name = "LogoGeoskills" Then ws.Shapes(k).Delete
     Next k
     zone.UnMerge
     zone.ClearContents
     zone.Borders.LineStyle = xlNone
-    If ActiveWorkbook.Path <> "" Then
+    If ActiveWorkbook.Path <> "" And LCase(Left(ActiveWorkbook.Path, 4)) <> "http" Then
         For Each ext In Array("png", "jpg", "jpeg")
             f = ActiveWorkbook.Path & Application.PathSeparator & "logo_geoskills." & ext
-            If Dir(f) <> "" Then Exit For
+            If Len(Dir(f)) > 0 Then Exit For
             f = ""
         Next ext
     End If
     If f <> "" Then
+        Set sh = Nothing
         Set sh = ws.Shapes.AddPicture(f, msoFalse, msoTrue, zone.Left, zone.Top, -1, -1)
+        If sh Is Nothing Then f = ""
+    End If
+    If f <> "" Then
         sh.Name = "LogoGeoskills"
         sh.LockAspectRatio = msoTrue
         sh.Height = zone.Height - 6
@@ -837,6 +844,7 @@ Public Sub InsererLogo(ws As Worksheet)
             .BorderAround xlDash, xlThin, , COUL_TITRE
         End With
     End If
+    On Error GoTo 0
 End Sub
 
 ' Réinsère le logo dans « Données du projet » (après avoir placé le fichier)
