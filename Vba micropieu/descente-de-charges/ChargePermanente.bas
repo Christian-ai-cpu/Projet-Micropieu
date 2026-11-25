@@ -22,13 +22,16 @@ Private Const COUL_CALCUL As Long = 15590349       ' RGB(205, 227, 237) : Bleu O
 '   B39 à B45 : Étage 1, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
 '   B46 à B52 : RDC (liste), Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
 '               (toujours affiché). Liste en B46 : RDC, RDC+1SS (1 sous-sol),
-'               RDC+2SS (2 sous-sols), RDC+VS (vide sanitaire). Revêtement et
+'               RDC+2SS (2 sous-sols ; chaque sous-sol renommable en vide
+'               sanitaire par la liste de son titre). Revêtement et
 '               Plancher du RDC affichés sauf pour « RDC » seul.
 '   B53 à B59 : Sous-sol 1, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
 '               (affiché pour RDC+1SS et RDC+2SS ; Revêtement et Plancher
 '               seulement pour RDC+2SS)
 '   B60 à B64 : Sous-sol 2, Poutre, Poteau, Mur, Sous-total (RDC+2SS seulement)
-'   B65 à B68 : Vide sanitaire, Poteau, Mur, Sous-total (RDC+VS seulement)
+'   B65 à B68 : ancien bloc Vide sanitaire (toujours masqué)
+'   Poteaux : G = gamma x b x h x e (hauteur e en colonne L), charge ponctuelle en kN
+'   non comptée dans les sous-totaux (kN/ml)
 '   B69 à B73 : Soubassement, Poteau, Semelle (liste par matériau), Mur, Sous-total
 '               (toujours affiché)
 ' Une liste de plus de 255 caractères (limite d'Excel, ex. toitures) est écrite sur
@@ -60,7 +63,8 @@ Private Const PENTES As String = "18,20,25,30,45"   ' pentes des versants (°)
 
 ' Charte GEOSKILLS : saisies en vert émeraude clair, valeurs calculées en
 ' bleu très clair (comme les autres feuilles)
-Private Const NIVEAUX_RDC As String = "RDC,RDC+1SS,RDC+2SS,RDC+VS"   ' liste en B46
+Private Const NIVEAUX_RDC As String = "RDC,RDC+1SS,RDC+2SS"   ' liste en B46 (niveaux sous le RDC
+' renommables en vide sanitaire : liste du titre Sous-sol 1 / Vide sanitaire 1, ...)
 Private Const PLANCHERS As String = "Plancher dalle pleine,Plancher à poutrelles,Plancher bois traditionnel"
 Private Const POUTRES As String = "Poutre BA,Poutre bois,Poutre métallique"
 Private Const POTEAUX As String = "Poteau BA,Poteau bois,Poteau métallique"
@@ -128,8 +132,9 @@ Public Sub RemplirChargePermanente()
                 If i > 0 Then
                     .Range("C" & r & ":D" & r & ",G" & r).Interior.Color = COUL_CALCUL
                     .Range("E" & r & ":F" & r).Interior.Color = COUL_SAISIE
-                    ' hauteur e (colonne L, information) : planchers et soubassement
-                    If listes(i) = PLANCHERS Or e = -4 Then .Range("L" & r).Interior.Color = COUL_SAISIE
+                    ' hauteur e (colonne L) : poteaux (G = gamma x b x h x e) et éléments du
+                    ' soubassement (hauteur du poteau BA et de la semelle BA)
+                    If listes(i) = POTEAUX Or e = -4 Then .Range("L" & r).Interior.Color = COUL_SAISIE
                 End If
             End With
             r = r + 1
@@ -153,7 +158,10 @@ Public Sub RemplirChargePermanente()
         With ActiveSheet
             .Range("B" & r).Validation.Delete
             .Range("B" & r).Value = "Sous-total " & nomBloc
-            .Range("G" & r).Formula = "=SUBTOTAL(109,G" & debut & ":G" & r - 1 & ")"
+            ' somme des éléments visibles du bloc, poteaux exceptés (charge ponctuelle en kN,
+            ' G = gamma x b x h x e) ; références relatives (copies des murs)
+            .Range("G" & r).Formula = "=SUMPRODUCT(SUBTOTAL(109,OFFSET(G" & debut & ",ROW(G" & debut & ":G" & _
+                r - 1 & ")-ROW(G" & debut & "),0)),--(LEFT(B" & debut & ":B" & r - 1 & ",6)<>""Poteau""))"
             .Range("B" & r & ":K" & r).Font.Bold = True
             .Range("B" & r).Font.Italic = True
             .Range("G" & r & ":K" & r).Interior.Color = COUL_CALCUL   ' G, Q, ΣQ, αn, αn × ΣQ
@@ -340,6 +348,10 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
     ElseIf PoidsVolumique(typeElement) > 0 Then
         ws.Cells(ligne, 3 + dc).Value = PoidsVolumique(typeElement)
         ws.Cells(ligne, 4 + dc).ClearContents
+        ' Poteau : G = gamma x b x h x e (section b x h, hauteur e en colonne L), en kN
+        If Left(typeElement, 6) = "Poteau" Then
+            ws.Cells(ligne, 7 + dc).FormulaR1C1 = "=IF(RC[-5]="""","""",RC[-4]*RC[-2]*RC[-1]*RC[5])"
+        End If
         ' Rappel sur l'épaisseur h d'une poutre (commentaire sur la cellule F)
         If Left(typeElement, 6) = "Poutre" Then
             ' Commentaire en image (module CommentaireImage) ; à défaut, commentaire texte
@@ -408,7 +420,7 @@ End Sub
 '   RDC     : ni plancher du RDC, ni sous-sol, ni vide sanitaire
 '   RDC+1SS : revêtement et plancher du RDC (47-48) + sous-sol 1 (53-59, sans 54-55)
 '   RDC+2SS : idem + revêtement et plancher du sous-sol 1 (54-55) + sous-sol 2 (60-64)
-'   RDC+VS  : revêtement et plancher du RDC (47-48) + vide sanitaire (65-68)
+'   (RDC+VS supprimé : sous-sol 1 ou 2 renommable en vide sanitaire 1 ou 2)
 ' Appelée aussi automatiquement quand C1 change (voir CodeFeuille.txt).
 Public Sub AfficherEtages(ws As Worksheet)
     Dim niveau As Long, e As Long, rdc As String, terrasse As Boolean
@@ -421,7 +433,7 @@ Public Sub AfficherEtages(ws As Worksheet)
     ws.Rows("53:59").Hidden = (rdc <> "RDC+1SS" And rdc <> "RDC+2SS")   ' sous-sol 1
     ws.Rows("54:55").Hidden = (rdc <> "RDC+2SS")   ' plancher du sous-sol 1
     ws.Rows("60:64").Hidden = (rdc <> "RDC+2SS")   ' sous-sol 2
-    ws.Rows("65:68").Hidden = (rdc <> "RDC+VS")    ' vide sanitaire
+    ws.Rows("65:68").Hidden = True               ' ancien bloc vide sanitaire (sous-sols renommables)
     niveau = Val(ws.Range("C1").Value)     ' "RDC" donne 0
     For e = 1 To 5
         ' Bloc de l'étage e (sous-total compris) : 7 lignes à partir de 11 + 7 × (5 - e)
