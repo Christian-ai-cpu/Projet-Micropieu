@@ -281,6 +281,12 @@ Private Sub Construire(activer As Boolean)
     Next i
     mCellule = ""
     lt = r + 1 + MAX_COUCHES                 ' dernière ligne du tableau
+    ' Nom de couche et catégorie de sol centrés
+    With ws.Range("C" & r + 2 & ":D" & lt)
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .WrapText = True
+    End With
 
     ' --- Sous le frottement axial : valeurs caractéristiques puis valeurs de calcul ---
     ' Intitulé en B, symbole en C, valeur en D, unité en E
