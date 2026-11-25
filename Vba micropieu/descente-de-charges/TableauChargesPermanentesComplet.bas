@@ -49,80 +49,7 @@ Public Sub CreerTableauChargesPermanentesComplet()
     ws.Cells.Clear
     ws.Columns.ColumnWidth = ws.StandardWidth   ' largeurs d'origine (élargies à la fin, AjusterTextes)
 
-    ' --- Choix du niveau d'étage (liste déroulante RDC à 5) ---
-    ws.Range("B" & LIGNE_NIVEAU).Value = "Niveau d'étage"
-    ws.Range("B" & LIGNE_NIVEAU).Font.Bold = True
-    With ws.Range("C" & LIGNE_NIVEAU)
-        .Value = "RDC"
-        .Validation.Delete
-        .Validation.Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
-            Formula1:=NiveauxEtage()  ' RDC, RDC+1SS, RDC+2SS, R+1, ..., R+5+2SS
-        .Validation.InCellDropdown = True
-        .Validation.ErrorMessage = "Choisir un niveau d'étage : RDC à R+5, avec ou sans 1 ou 2 " & _
-            "niveaux sous le RDC (1SS, 2SS : sous-sol ou vide sanitaire)."
-        .Font.Bold = True
-        .HorizontalAlignment = xlCenter
-        .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
-    End With
-
-    ' --- Catégorie du bâtiment : reprise de « Données du projet » (C14) si la feuille
-    ' existe, sinon liste déroulante (sous-catégories comprises) ---
-    ws.Range("D" & LIGNE_NIVEAU).Value = "Catégorie du bâtiment"
-    ws.Range("D" & LIGNE_NIVEAU).Font.Bold = True
-    With ws.Range("E" & LIGNE_NIVEAU)
-        .Value = "A"
-        .Validation.Delete
-        .Validation.Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
-            Formula1:="A,B,C1,C2,C3,C4,C5,D1,D2,E1,E2,F,G"
-        .Validation.InCellDropdown = True
-        .Validation.ErrorMessage = "Choisir une catégorie de bâtiment (A à G et sous-catégories)."
-        If FeuilleExiste("Données du projet") Then .Formula = "='Données du projet'!C14"
-        .Font.Bold = True
-        .HorizontalAlignment = xlCenter
-        .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
-    End With
-
-    ' --- Nombre de murs (G1) : le tableau est dupliqué vers la droite (DuplicationMurs) ---
-    ws.Range("F" & LIGNE_NIVEAU).Value = "Entrez le nombre de murs"
-    ws.Range("F" & LIGNE_NIVEAU).Font.Bold = True
-    With ws.Range("G" & LIGNE_NIVEAU)
-        .Value = 1
-        .Validation.Delete
-        .Validation.Add Type:=xlValidateWholeNumber, AlertStyle:=xlValidAlertStop, _
-            Operator:=xlBetween, Formula1:="1", Formula2:="50"
-        .Validation.ErrorMessage = "Entrer un nombre entier de murs (1 à 50)."
-        .Font.Bold = True
-        .HorizontalAlignment = xlCenter
-        .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
-    End With
-
-    ' --- Nombre de micropieux (K1) : lignes MP1, MP2, ... de la matrice des micropieux ---
-    ws.Range("J" & LIGNE_NIVEAU).Value = "Nombre de micropieux"
-    ws.Range("J" & LIGNE_NIVEAU).Font.Bold = True
-    With ws.Range("K" & LIGNE_NIVEAU)
-        .Value = 1
-        .Validation.Delete
-        .Validation.Add Type:=xlValidateWholeNumber, AlertStyle:=xlValidAlertStop, _
-            Operator:=xlBetween, Formula1:="1", Formula2:="200"
-        .Validation.ErrorMessage = "Entrer un nombre entier de micropieux (1 à 200)."
-        .Font.Bold = True
-        .HorizontalAlignment = xlCenter
-        .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
-    End With
-
-    ' --- Pourcentage des ouvertures des murs (I1) : G du mur × (100 - I1) / 100 ---
-    ws.Range("H" & LIGNE_NIVEAU).Value = "Pourcentage des ouvertures des murs (%)"
-    ws.Range("H" & LIGNE_NIVEAU).Font.Bold = True
-    With ws.Range("I" & LIGNE_NIVEAU)
-        .Value = 0
-        .Validation.Delete
-        .Validation.Add Type:=xlValidateDecimal, AlertStyle:=xlValidAlertStop, _
-            Operator:=xlBetween, Formula1:="0", Formula2:="100"
-        .Validation.ErrorMessage = "Entrer un pourcentage d'ouvertures entre 0 et 100."
-        .Font.Bold = True
-        .HorizontalAlignment = xlCenter
-        .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
-    End With
+    CreerLigneNiveau ws                      ' ligne 1 : niveau, catégorie, murs, ouvertures, micropieux
 
     ' --- Titres (ligne 1) et sous-titres (ligne 2) remplis par boucle ---
     titres = Array("Désignation de l'ouvrage", "Poids volumique (kN/m3)", _
@@ -210,6 +137,101 @@ Public Sub CreerTableauChargesPermanentesComplet()
     Application.EnableEvents = True
     Application.ScreenUpdating = True
     MsgBox "Tableau des charges permanentes créé.", vbInformation
+End Sub
+
+' Ligne 1 de la feuille : niveau d'étage (C1, liste RDC à R+5 avec sous-sols),
+' catégorie du bâtiment (E1), nombre de murs (G1), pourcentage des ouvertures (I1) et
+' nombre de micropieux (K1). Les valeurs déjà saisies sont conservées. Appelée par
+' CreerTableauChargesPermanentesComplet et par RemplirChargePermanente.
+Public Sub CreerLigneNiveau(ws As Worksheet)
+    Dim vC1 As Variant, vG1 As Variant, vI1 As Variant, vK1 As Variant, evenements As Boolean
+    evenements = Application.EnableEvents
+    Application.EnableEvents = False
+    vC1 = ws.Range("C1").Value: vG1 = ws.Range("G1").Value
+    vI1 = ws.Range("I1").Value: vK1 = ws.Range("K1").Value
+    ' --- Choix du niveau d'étage (liste déroulante RDC à 5) ---
+    ws.Range("B" & LIGNE_NIVEAU).Value = "Niveau d'étage"
+    ws.Range("B" & LIGNE_NIVEAU).Font.Bold = True
+    With ws.Range("C" & LIGNE_NIVEAU)
+        .Value = "RDC"
+        .Validation.Delete
+        .Validation.Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
+            Formula1:=NiveauxEtage()  ' RDC, RDC+1SS, RDC+2SS, R+1, ..., R+5+2SS
+        .Validation.InCellDropdown = True
+        .Validation.ErrorMessage = "Choisir un niveau d'étage : RDC à R+5, avec ou sans 1 ou 2 " & _
+            "niveaux sous le RDC (1SS, 2SS : sous-sol ou vide sanitaire)."
+        .Font.Bold = True
+        .HorizontalAlignment = xlCenter
+        .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
+    End With
+
+    ' --- Catégorie du bâtiment : reprise de « Données du projet » (C14) si la feuille
+    ' existe, sinon liste déroulante (sous-catégories comprises) ---
+    ws.Range("D" & LIGNE_NIVEAU).Value = "Catégorie du bâtiment"
+    ws.Range("D" & LIGNE_NIVEAU).Font.Bold = True
+    With ws.Range("E" & LIGNE_NIVEAU)
+        .Value = "A"
+        .Validation.Delete
+        .Validation.Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
+            Formula1:="A,B,C1,C2,C3,C4,C5,D1,D2,E1,E2,F,G"
+        .Validation.InCellDropdown = True
+        .Validation.ErrorMessage = "Choisir une catégorie de bâtiment (A à G et sous-catégories)."
+        If FeuilleExiste("Données du projet") Then .Formula = "='Données du projet'!C14"
+        .Font.Bold = True
+        .HorizontalAlignment = xlCenter
+        .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
+    End With
+
+    ' --- Nombre de murs (G1) : le tableau est dupliqué vers la droite (DuplicationMurs) ---
+    ws.Range("F" & LIGNE_NIVEAU).Value = "Entrez le nombre de murs"
+    ws.Range("F" & LIGNE_NIVEAU).Font.Bold = True
+    With ws.Range("G" & LIGNE_NIVEAU)
+        .Value = 1
+        .Validation.Delete
+        .Validation.Add Type:=xlValidateWholeNumber, AlertStyle:=xlValidAlertStop, _
+            Operator:=xlBetween, Formula1:="1", Formula2:="50"
+        .Validation.ErrorMessage = "Entrer un nombre entier de murs (1 à 50)."
+        .Font.Bold = True
+        .HorizontalAlignment = xlCenter
+        .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
+    End With
+
+    ' --- Nombre de micropieux (K1) : lignes MP1, MP2, ... de la matrice des micropieux ---
+    ws.Range("J" & LIGNE_NIVEAU).Value = "Nombre de micropieux"
+    ws.Range("J" & LIGNE_NIVEAU).Font.Bold = True
+    With ws.Range("K" & LIGNE_NIVEAU)
+        .Value = 1
+        .Validation.Delete
+        .Validation.Add Type:=xlValidateWholeNumber, AlertStyle:=xlValidAlertStop, _
+            Operator:=xlBetween, Formula1:="1", Formula2:="200"
+        .Validation.ErrorMessage = "Entrer un nombre entier de micropieux (1 à 200)."
+        .Font.Bold = True
+        .HorizontalAlignment = xlCenter
+        .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
+    End With
+
+    ' --- Pourcentage des ouvertures des murs (I1) : G du mur × (100 - I1) / 100 ---
+    ws.Range("H" & LIGNE_NIVEAU).Value = "Pourcentage des ouvertures des murs (%)"
+    ws.Range("H" & LIGNE_NIVEAU).Font.Bold = True
+    With ws.Range("I" & LIGNE_NIVEAU)
+        .Value = 0
+        .Validation.Delete
+        .Validation.Add Type:=xlValidateDecimal, AlertStyle:=xlValidAlertStop, _
+            Operator:=xlBetween, Formula1:="0", Formula2:="100"
+        .Validation.ErrorMessage = "Entrer un pourcentage d'ouvertures entre 0 et 100."
+        .Font.Bold = True
+        .HorizontalAlignment = xlCenter
+        .BorderAround LineStyle:=xlContinuous, Weight:=xlMedium
+    End With
+
+    ' Valeurs conservées (niveau d'étage reconnu dans la nouvelle liste)
+    If InStr("," & NiveauxEtage() & ",", "," & CStr(vC1) & ",") > 0 Then ws.Range("C1").Value = vC1
+    If Val(vG1) >= 1 Then ws.Range("G1").Value = Val(vG1)
+    If IsNumeric(vI1) And Not IsEmpty(vI1) Then ws.Range("I1").Value = vI1
+    If Val(vK1) >= 1 Then ws.Range("K1").Value = Val(vK1)
+    ws.Range("C1,G1,I1,K1").Interior.Color = COUL_SAISIE
+    ws.Range("E1").Interior.Color = IIf(ws.Range("E1").HasFormula, COUL_CALCUL, COUL_SAISIE)
+    Application.EnableEvents = evenements
 End Sub
 
 ' Vrai si le classeur actif contient une feuille de ce nom

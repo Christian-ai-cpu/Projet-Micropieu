@@ -95,6 +95,14 @@ Public Sub RemplirChargePermanente()
     Dim listes As Variant, i As Long, e As Long, r As Long, debut As Long
     Dim nomBloc As String, sousTotaux As String, sousTotauxP As String
 
+    ' Tableau à la disposition actuelle (colonnes B à N, en-tête « Charge des poteaux
+    ' G (kN) » en J) : sinon recréé d'abord ; ligne 1 (niveau d'étage, nombre de murs,
+    ' nombre de micropieux...) toujours remise en place
+    If CStr(ActiveSheet.Range("J3").Value) <> "Charge des poteaux G (kN)" Then
+        CreerTableauChargesPermanentesComplet
+    Else
+        CreerLigneNiveau ActiveSheet
+    End If
     Application.ScreenUpdating = False       ' pas de scintillement pendant l'exécution
     Application.EnableEvents = False
     r = 5
