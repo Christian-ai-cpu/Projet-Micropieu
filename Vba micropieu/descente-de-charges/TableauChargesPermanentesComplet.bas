@@ -14,6 +14,7 @@ Private Const COUL_CALCUL As Long = 15590349       ' RGB(205, 227, 237) : Bleu O
 '   I : ΣQ (kN/ml) (Σ écrit ChrW(931)), cumul des Q de la toiture jusqu'au niveau
 '   J : αn (α écrit ChrW(945)), coefficient de réduction selon le nombre d'étages
 '   K : αn × ΣQ (kN/ml), charge d'exploitation cumulée réduite
+'   L : hauteur e (m), information (planchers, éléments du soubassement)
 ' Descente de charges en kN/ml pour un mur : les lignes de saisie calculent
 ' G = γ × b × h + g × b, b étant la largeur reprise (m).
 ' En ligne 1 : listes déroulantes du niveau d'étage (RDC à 5) et de la catégorie du bâtiment
@@ -138,9 +139,16 @@ Public Sub CreerTableauChargesPermanentesComplet()
         If Entete(2, c) = "" Then ws.Cells(LIGNE_TITRE, c + 1).Resize(2, 1).Merge
     Next c
     ws.Range("E" & LIGNE_TITRE & ":F" & LIGNE_TITRE).Merge
+    ' Colonne L : hauteur e (information : hauteur des planchers et des éléments du
+    ' soubassement, sans effet sur G ; reprise par « Vérification structurelle » pour la
+    ' hauteur du poteau BA et de la semelle BA)
+    With ws.Range("L" & LIGNE_TITRE & ":L" & LIGNE_SOUS_TITRE)
+        .Merge
+        .Value = "Hauteur e (m) (plancher, soubassement)"
+    End With
 
     ' --- Mise en forme de l'en-tête ---
-    With ws.Range("B" & LIGNE_TITRE & ":K" & LIGNE_SOUS_TITRE)
+    With ws.Range("B" & LIGNE_TITRE & ":L" & LIGNE_SOUS_TITRE)
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
@@ -162,16 +170,19 @@ Public Sub CreerTableauChargesPermanentesComplet()
     End With
 
     ' --- Bordures ---
-    With ws.Range("B" & LIGNE_TITRE & ":K" & derniereLigne + 1).Borders
+    With ws.Range("B" & LIGNE_TITRE & ":L" & derniereLigne + 1).Borders
         .LineStyle = xlContinuous
         .Weight = xlThin
         .Color = RGB(0, 0, 0)
     End With
-    ws.Range("B" & LIGNE_TITRE & ":K" & derniereLigne + 1).BorderAround _
+    ws.Range("B" & LIGNE_TITRE & ":L" & derniereLigne + 1).BorderAround _
         LineStyle:=xlContinuous, Weight:=xlMedium
 
     ' --- Renvoi à la ligne automatique (hauteur des lignes ajustée au texte) ---
-    With ws.Range("B" & LIGNE_TITRE & ":K" & derniereLigne + 1)
+    ws.Range("L" & PREMIERE_LIGNE & ":L" & derniereLigne).NumberFormat = "0.00"
+    ws.Range("L" & LIGNE_TITRE & ":L" & derniereLigne + 1).HorizontalAlignment = xlCenter
+    ws.Columns("L").ColumnWidth = 14
+    With ws.Range("B" & LIGNE_TITRE & ":L" & derniereLigne + 1)
         .WrapText = True
         .Rows.AutoFit
     End With

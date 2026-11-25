@@ -194,7 +194,7 @@ Public Sub CreerVerificationStructurelle()
         Loop
         rd = 88 + n + 3                       ' MP1 dans la matrice des micropieux
         dn = "'" & wd.Name & "'!"
-        ' Lignes du soubassement (descente de charges) : poteau et semelle (hauteurs en F)
+        ' Lignes du soubassement (descente de charges) : poteau et semelle (hauteurs e en L)
         For r = 5 To 79
             If CStr(wd.Range("B" & r).Value) = "Soubassement" Then
                 For i = r + 1 To r + 6
@@ -372,11 +372,11 @@ Public Sub CreerVerificationStructurelle()
     ws.Range("B" & rA + 1 & ":E" & rA + 1).Value = Array("Hauteur du poteau BA (soubassement)", "hp", "", "m")
     ws.Range("B" & rA + 2 & ":E" & rA + 2).Value = Array("Hauteur de la semelle BA (soubassement)", "hs", "", "m")
     ws.Range("B" & rA + 3 & ":E" & rA + 3).Value = Array("Hauteur de l'ancrage", "h", "", "m")
-    ws.Range("D" & rA + 1).Formula = IIf(rPo > 0, "=N(" & dn & "$F$" & rPo & ")", "=0")
-    ws.Range("D" & rA + 2).Formula = IIf(rS > 0, "=N(" & dn & "$F$" & rS & ")", "=0")
+    ws.Range("D" & rA + 1).Formula = IIf(rPo > 0, "=N(" & dn & "$L$" & rPo & ")", "=0")
+    ws.Range("D" & rA + 2).Formula = IIf(rS > 0, "=N(" & dn & "$L$" & rS & ")", "=0")
     ws.Range("D" & rA + 3).Formula = "=D" & rA + 1 & "+D" & rA + 2
-    Commentaire ws.Range("C" & rA + 1), "Descente de charges, soubassement : hauteur (colonne F) de la ligne Poteau"
-    Commentaire ws.Range("C" & rA + 2), "Descente de charges, soubassement : hauteur (colonne F) de la ligne Semelle"
+    Commentaire ws.Range("C" & rA + 1), "Descente de charges, soubassement : hauteur e (colonne L) de la ligne Poteau"
+    Commentaire ws.Range("C" & rA + 2), "Descente de charges, soubassement : hauteur e (colonne L) de la ligne Semelle"
     Commentaire ws.Range("C" & rA + 3), "h = hp + hs : hauteur de terrain en contact avec l'ancrage, " & _
         "répartie sur les couches de « Données du projet » à partir du TN"
     With ws.Range("B" & rA + 1 & ":E" & rA + 3)

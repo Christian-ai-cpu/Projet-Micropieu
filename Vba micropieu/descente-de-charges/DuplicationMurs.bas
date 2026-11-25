@@ -15,7 +15,7 @@ Option Explicit
 ' Appelé automatiquement quand G1 change (voir CodeFeuille.txt), ou à la main.
 ' À lancer après RemplirChargePermanente et RemplirChargeExploitation.
 
-Public Const PAS_MUR As Long = 11          ' 10 colonnes (B à K) + 1 colonne vide
+Public Const PAS_MUR As Long = 12          ' 11 colonnes (B à L, L = hauteur e) + 1 colonne vide
 
 Public Sub DupliquerMurs(Optional ws As Worksheet)
     Dim nbMurs As Long, k As Long, derniere As Long, c As Long
@@ -43,7 +43,7 @@ Public Sub DupliquerMurs(Optional ws As Worksheet)
     derniere = ws.Cells(LIGNE_MATRICE - 1, "B").End(xlUp).Row
     ws.Range("B2").Value = "Mur 1"
     ws.Range("B2").Font.Bold = True
-    Set source = ws.Range("B2:K" & derniere)
+    Set source = ws.Range("B2:L" & derniere)
 
     For k = 1 To nbMurs - 1
         source.Copy Destination:=ws.Cells(2, 2 + k * PAS_MUR)
@@ -59,7 +59,7 @@ Public Sub DupliquerMurs(Optional ws As Worksheet)
             LookAt:=xlPart, MatchCase:=False
 
         ' Mêmes largeurs de colonnes que le tableau d'origine
-        For c = 2 To 11
+        For c = 2 To 12
             ws.Columns(c + k * PAS_MUR).ColumnWidth = ws.Columns(c).ColumnWidth
         Next c
     Next k

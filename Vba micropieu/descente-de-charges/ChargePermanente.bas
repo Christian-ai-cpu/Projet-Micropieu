@@ -93,10 +93,10 @@ Public Sub RemplirChargePermanente()
             listes = Array(NIVEAUX_RDC, REVETEMENTS, PLANCHERS, POUTRES, POTEAUX, MURS)
             nomBloc = "RDC"
         ElseIf e = -1 Then
-            listes = Array("Sous-sol 1", REVETEMENTS, PLANCHERS, POUTRES, POTEAUX, MURS)
+            listes = Array("Sous-sol 1,Vide sanitaire 1", REVETEMENTS, PLANCHERS, POUTRES, POTEAUX, MURS)
             nomBloc = "sous-sol 1"
         ElseIf e = -2 Then
-            listes = Array("Sous-sol 2", POUTRES, POTEAUX, MURS)
+            listes = Array("Sous-sol 2,Vide sanitaire 2", POUTRES, POTEAUX, MURS)
             nomBloc = "sous-sol 2"
         ElseIf e = -3 Then
             listes = Array("Vide sanitaire", POTEAUX, MURS)
@@ -128,6 +128,8 @@ Public Sub RemplirChargePermanente()
                 If i > 0 Then
                     .Range("C" & r & ":D" & r & ",G" & r).Interior.Color = COUL_CALCUL
                     .Range("E" & r & ":F" & r).Interior.Color = COUL_SAISIE
+                    ' hauteur e (colonne L, information) : planchers et soubassement
+                    If listes(i) = PLANCHERS Or e = -4 Then .Range("L" & r).Interior.Color = COUL_SAISIE
                 End If
             End With
             r = r + 1
@@ -136,9 +138,9 @@ Public Sub RemplirChargePermanente()
         ' « Charge » de la toiture vidée et masquée (charge reportée sur la ligne Toiture)
         If e = 6 Then
             With ActiveSheet
-                .Range("B" & debut + 1 & ":K" & debut + 1).Validation.Delete
+                .Range("B" & debut + 1 & ":L" & debut + 1).Validation.Delete
                 .Range("B" & debut + 1 & ":F" & debut + 1).ClearContents
-                .Range("B" & debut + 1 & ":K" & debut + 1).Interior.Pattern = xlNone
+                .Range("B" & debut + 1 & ":L" & debut + 1).Interior.Pattern = xlNone
                 .Rows(debut + 1).Hidden = True
                 .Range("C" & debut & ":D" & debut & ",G" & debut).Interior.Color = COUL_CALCUL
                 .Range("E" & debut).Interior.Color = COUL_SAISIE
@@ -300,7 +302,7 @@ End Function
 
 ' Remplit les poids de la ligne selon l'élément choisi en B :
 '   poutre / poteau -> poids volumique en C ; mur -> épaisseur E et poids surfacique D.
-' dc : décalage de colonnes du tableau (0 pour le tableau d'origine, 11 × k pour la
+' dc : décalage de colonnes du tableau (0 pour le tableau d'origine, 12 × k pour la
 ' copie du mur k + 1, voir le module DuplicationMurs). Les formules sont écrites en
 ' références relatives (R1C1) pour rester justes dans les copies.
 Public Sub MajLigne(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
