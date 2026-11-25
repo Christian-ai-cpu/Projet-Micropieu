@@ -198,9 +198,11 @@ Public Sub CreerDonneesProjet()
     ws.Rows(3).RowHeight = 24
     ws.Range("G4").Value = "Date :"
     ws.Range("G4").HorizontalAlignment = xlRight
+    ' Date : aujourd'hui par défaut (=AUJOURDHUI(), mise à jour à chaque ouverture) ;
+    ' une autre date peut être saisie à la place
     With ws.Range("H4:I4")
         .Merge
-        .Value = Date
+        .Formula = "=TODAY()"
         .NumberFormat = "dd/mm/yyyy"
         .HorizontalAlignment = xlCenter
         .Interior.Color = COUL_SAISIE
