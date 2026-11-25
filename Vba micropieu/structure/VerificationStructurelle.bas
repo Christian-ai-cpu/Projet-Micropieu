@@ -890,14 +890,16 @@ End Function
 
 ' Lance une vérification ; erreur signalée sans arrêter la suite. La macro a le même nom
 ' que son module (ex. VerificationArmature) : elle est appelée « Module.Macro », sinon
-' Application.Run désigne le module et échoue (erreur 1004)
+' Application.Run désigne le module et échoue (erreur 1004) : appel direct
+' « Module.Macro » (modules VerificationArmature, VerificationMandel et
+' VerificationPlatine du même projet VBA)
 Private Sub LancerVerification(macro As String, libelle As String)
-    On Error Resume Next
-    Application.Run macro & "." & macro
-    If Err.Number = 0 Then Exit Sub
-    Err.Clear
     On Error GoTo Echec
-    Application.Run macro
+    Select Case macro
+        Case "VerificationArmature": VerificationArmature.VerificationArmature
+        Case "VerificationMandel": VerificationMandel.VerificationMandel
+        Case "VerificationPlatine": VerificationPlatine.VerificationPlatine
+    End Select
     Exit Sub
 Echec:
     MsgBox "« Vérification structurelle » : la " & libelle & " (macro " & macro & ") n'a pas pu " & _

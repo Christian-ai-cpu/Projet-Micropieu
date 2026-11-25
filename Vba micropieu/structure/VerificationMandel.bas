@@ -289,7 +289,7 @@ Public Sub VerificationMandel()
     ' Dimensionnement des platines (module VerificationPlatine), juste en dessous
     ' (seulement si la macro est lancée seule, voir VerificationArmature)
     On Error Resume Next
-    If Not CBool(Application.Run("CreationVerificationEnCours")) Then Application.Run "VerificationPlatine.VerificationPlatine"
+    If Not VerificationStructurelle.CreationVerificationEnCours Then VerificationPlatine.VerificationPlatine
     Exit Sub
 Erreur:
     MsgBox "Erreur pendant la vérification au flambement (Mandel), partie « " & etape & " » : " & _
