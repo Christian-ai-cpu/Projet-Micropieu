@@ -60,7 +60,7 @@ Public Sub CreerTableauChargesPermanentes()
         .Range("C3:K74").HorizontalAlignment = xlCenter
         .Range("B3:K74").Borders.LineStyle = xlContinuous
         .Range("B3:K74").BorderAround xlContinuous, xlMedium
-        .Columns("B").ColumnWidth = 35
+        .Columns("B").ColumnWidth = 48           ' désignation de l'ouvrage (intitulés longs)
         .Columns("C:K").ColumnWidth = 16
         .Columns("G").AutoFit                        ' colonne des charges ajustée au contenu
         If .Columns("G").ColumnWidth < 12 Then .Columns("G").ColumnWidth = 12   ' place pour le titre

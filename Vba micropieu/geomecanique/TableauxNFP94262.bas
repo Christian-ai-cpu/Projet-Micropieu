@@ -2,7 +2,7 @@ Attribute VB_Name = "TableauxNFP94262"
 Option Explicit
 ' Couleurs de la charte graphique GEOSKILLS (bleu nuit, bleu océan, vert émeraude)
 Private Const COUL_TITRE As Long = 5898259         ' RGB(19, 0, 90) : Bleu Nuit (charte GEOSKILLS)
-Private Const COUL_ENTETE As Long = 15458502       ' RGB(198, 224, 235) : Bleu Océan éclairci
+Private Const COUL_ENTETE As Long = 14337945       ' RGB(153, 199, 218) : Bleu Océan moyen (en-têtes)
 
 ' Module « Tableaux NF P94-262 » : crée (ou recrée) la feuille « Tableaux NF P94-262 »
 ' avec les tableaux de la norme NF P94-262 (juillet 2012) utiles au calcul des

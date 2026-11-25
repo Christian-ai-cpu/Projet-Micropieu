@@ -2,9 +2,9 @@ Attribute VB_Name = "DonneesProjet"
 Option Explicit
 ' Couleurs de la charte graphique GEOSKILLS (bleu nuit, bleu océan, vert émeraude)
 Private Const COUL_TITRE As Long = 5898259         ' RGB(19, 0, 90) : Bleu Nuit (charte GEOSKILLS)
-Private Const COUL_ENTETE As Long = 15458502       ' RGB(198, 224, 235) : Bleu Océan éclairci
+Private Const COUL_ENTETE As Long = 14337945       ' RGB(153, 199, 218) : Bleu Océan moyen (en-têtes)
 Private Const COUL_SAISIE As Long = 15201485       ' RGB(205, 244, 231) : Vert Émeraude éclairci
-Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu Océan très clair
+Private Const COUL_CALCUL As Long = 15590349       ' RGB(205, 227, 237) : Bleu Océan clair (valeurs calculées)
 
 ' Module « Données du projet » : crée (ou recrée) la feuille « Données du projet »
 ' avec les hypothèses générales du projet.
@@ -368,6 +368,9 @@ Public Sub CreerDonneesProjet()
         "Terrain neutralisé", "Prise comme couche d'ancrage")
     ' Unité de la profondeur : celle du niveau du terrain naturel (m + référentiel)
     ws.Range("E" & LIGNE_COUCHES - 1).Formula = "=""Prof. bas (""&$E$29&"")"""
+    ' Module : pressiométrique EM ou pénétrométrique selon la méthode de calcul retenue
+    ws.Range("H" & LIGNE_COUCHES - 1).Formula = "=IF(" & CELLULE_METHODE & "=""Méthode pénétrométrique""," & _
+        """Module pénétrométrique (MPa)"",""Module pressiométrique EM (MPa)"")"
     For r = LIGNE_COUCHES To LIGNE_COUCHES + MAX_COUCHES - 1
         ws.Range("B" & r).Value = r - LIGNE_COUCHES + 1
         ws.Range("C" & r).Validation.Delete  ' nom de couche : saisie libre (majuscule initiale)

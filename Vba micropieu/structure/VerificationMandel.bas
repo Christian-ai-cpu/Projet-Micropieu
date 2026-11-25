@@ -2,9 +2,9 @@ Attribute VB_Name = "VerificationMandel"
 Option Explicit
 ' Couleurs de la charte graphique GEOSKILLS (bleu nuit, bleu océan, vert émeraude)
 Private Const COUL_TITRE As Long = 5898259         ' RGB(19, 0, 90) : Bleu Nuit (charte GEOSKILLS)
-Private Const COUL_ENTETE As Long = 15458502       ' RGB(198, 224, 235) : Bleu Océan éclairci
+Private Const COUL_ENTETE As Long = 14337945       ' RGB(153, 199, 218) : Bleu Océan moyen (en-têtes)
 Private Const COUL_SAISIE As Long = 15201485       ' RGB(205, 244, 231) : Vert Émeraude éclairci
-Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu Océan très clair
+Private Const COUL_CALCUL As Long = 15590349       ' RGB(205, 227, 237) : Bleu Océan clair (valeurs calculées)
 Private Const COUL_ALERTE As Long = 192            ' RGB(192, 0, 0) : messages « non vérifié »
 
 ' Module « Vérification au flambement (Mandel) » : ajoute, sous la vérification de
@@ -187,7 +187,9 @@ Public Sub VerificationMandel()
     rH = rL + 2
     entetes = Array("N° micropieu", "Diamètre extérieur de l'armature", "Épaisseur de l'armature", _
         "Diamètre du forage", "Enrobage", "Rayon de corrosion retenu", "Diamètre après corrosion", _
-        "Inertie corrodée", "Raideur de flexion", "Module EM (ou qc) de la couche molle", _
+        "Inertie corrodée", "Raideur de flexion", IIf(CStr(ActiveWorkbook.Worksheets("Données du projet").Range( _
+        CELLULE_METHODE).Value) = "Méthode pénétrométrique", "Résistance de pointe qc de la couche molle " & _
+        "(méthode pénétrométrique)", "Module pressiométrique EM de la couche molle"), _
         "Coefficient rhéologique " & ChrW(945) & " (ou " & ChrW(946) & ")", "Kf (durée des charges : " & _
         LCase(CStr(ActiveWorkbook.Worksheets("Données du projet").Range("D" & lp + 23).Value)) & ")", "Profondeur réelle", "Demi-longueur", _
         "Demi-longueur réduite", ChrW(966) & " (" & ChrW(955) & " voisin de 0)", ChrW(966) & " (" & ChrW(955) & _

@@ -2,7 +2,7 @@ Attribute VB_Name = "TableauChargesPermanentesComplet"
 Option Explicit
 ' Couleurs de la charte graphique GEOSKILLS (bleu nuit, bleu océan, vert émeraude)
 Private Const COUL_SAISIE As Long = 15201485       ' RGB(205, 244, 231) : Vert Émeraude éclairci
-Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu Océan très clair
+Private Const COUL_CALCUL As Long = 15590349       ' RGB(205, 227, 237) : Bleu Océan clair (valeurs calculées)
 
 ' Crée l'en-tête du tableau de descente de charges (colonnes B à H) :
 '   B : Désignation de l'ouvrage
@@ -179,6 +179,7 @@ Public Sub CreerTableauChargesPermanentesComplet()
     ws.Range("G" & PREMIERE_LIGNE & ":G" & derniereLigne + 1).WrapText = False
     ws.Columns("G").AutoFit
     If ws.Columns("G").ColumnWidth < 12 Then ws.Columns("G").ColumnWidth = 12   ' place pour le titre
+    ws.Columns("B").ColumnWidth = 48           ' désignation de l'ouvrage (intitulés longs)
     ws.Range("B" & LIGNE_TITRE & ":K" & derniereLigne + 1).Rows.AutoFit
     ' Ligne 1 : niveau d'étage, catégorie du bâtiment, nombre de murs et % d'ouvertures
     ' Code couleur de la ligne 1 : niveau, nombre de murs, % d'ouvertures et nombre de

@@ -2,7 +2,7 @@ Attribute VB_Name = "ChargePermanente"
 Option Explicit
 ' Couleurs de la charte graphique GEOSKILLS (bleu nuit, bleu océan, vert émeraude)
 Private Const COUL_SAISIE As Long = 15201485       ' RGB(205, 244, 231) : Vert Émeraude éclairci
-Private Const COUL_CALCUL As Long = 16315885       ' RGB(237, 245, 248) : Bleu Océan très clair
+Private Const COUL_CALCUL As Long = 15590349       ' RGB(205, 227, 237) : Bleu Océan clair (valeurs calculées)
 
 ' Module « Charge permanente » : remplissage du tableau des charges permanentes G.
 ' Listes déroulantes sous « Désignation de l'ouvrage », à partir de B5.
@@ -132,7 +132,20 @@ Public Sub RemplirChargePermanente()
             End With
             r = r + 1
         Next i
-        ActiveSheet.Range("G" & debut).ClearContents   ' pas de charge sur le titre
+        ' pas de charge sur le titre, sauf la toiture (charge sur sa propre ligne) ; ligne
+        ' « Charge » de la toiture vidée et masquée (charge reportée sur la ligne Toiture)
+        If e = 6 Then
+            With ActiveSheet
+                .Range("B" & debut + 1 & ":K" & debut + 1).Validation.Delete
+                .Range("B" & debut + 1 & ":F" & debut + 1).ClearContents
+                .Range("B" & debut + 1 & ":K" & debut + 1).Interior.Pattern = xlNone
+                .Rows(debut + 1).Hidden = True
+                .Range("C" & debut & ":D" & debut & ",G" & debut).Interior.Color = COUL_CALCUL
+                .Range("E" & debut).Interior.Color = COUL_SAISIE
+            End With
+        Else
+            ActiveSheet.Range("G" & debut).ClearContents
+        End If
 
         ' Ligne de sous-total sous le dernier élément du bloc
         With ActiveSheet
@@ -295,23 +308,22 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
 
     typeElement = CStr(ws.Cells(ligne, 2 + dc).Value)
     If Left(typeElement, 7) = "Toiture" Then
-        ' Rien sur la ligne de titre : la toiture en pente est calculée sur la ligne
-        ' « Charge » juste en dessous, la toiture terrasse sur Revêtement et Plancher
-        ws.Cells(ligne, 4 + dc).ClearContents
+        ' Toiture en pente : charge directement sur la ligne Toiture (plus de ligne
+        ' « Charge ») : D = g / cos(pente de la désignation), G = b × D (kN/ml), b saisi
+        ' en E ; toiture terrasse : D vide, charge sur ses lignes Revêtement et Plancher.
+        ' Le sous-total de la toiture somme toutes les lignes du bloc.
+        ws.Cells(ligne, 3 + dc).ClearContents
         ws.Cells(ligne, 6 + dc).Validation.Delete
         ws.Cells(ligne, 6 + dc).ClearContents
-        ws.Cells(ligne, 7 + dc).ClearContents
         If ChargeToiture(typeElement) > 0 Then
-            ' D = g / cos(pente de la désignation), G = b × D (kN/ml), b saisi en E
-            ws.Cells(ligne + 1, 3 + dc).ClearContents
-            ws.Cells(ligne + 1, 4 + dc).Formula = "=" & _
+            ws.Cells(ligne, 4 + dc).Formula = "=" & _
                 Replace(CStr(ChargeToiture(typeElement)), ",", ".") & "/COS(RADIANS(" & _
                 PenteToiture(typeElement) & "))"
-            ws.Cells(ligne + 1, 7 + dc).FormulaR1C1 = _
-                "=IF(RC[-5]="""","""",RC[-2]*(RC[-4]*RC[-1]+RC[-3]))"
         Else
-            ws.Cells(ligne + 1, 4 + dc).ClearContents   ' terrasse : ligne Charge masquée
+            ws.Cells(ligne, 4 + dc).ClearContents
         End If
+        ws.Cells(ligne, 7 + dc).FormulaR1C1 = _
+            "=IF(RC[-5]="""","""",RC[-2]*(RC[-4]*RC[-1]+RC[-3]))"
         AfficherEtages ws                    ' ligne Charge ou plancher de toiture affichés
     ElseIf Left(typeElement, 3) = "RDC" Then
         AfficherEtages ws                    ' sous-sols / vide sanitaire affichés ou non
@@ -400,7 +412,7 @@ Public Sub AfficherEtages(ws As Worksheet)
     Dim niveau As Long, e As Long, rdc As String, terrasse As Boolean
 
     terrasse = (ws.Range("B5").Value = "Toiture terrasse")
-    ws.Rows(6).Hidden = terrasse
+    ws.Rows(6).Hidden = True                ' ancienne ligne « Charge » (charge sur la ligne Toiture)
     ws.Rows("7:8").Hidden = Not terrasse
     rdc = CStr(ws.Range("B46").Value)
     ws.Rows("47:48").Hidden = (rdc = "RDC")
