@@ -8,7 +8,9 @@ Private Const COUL_CALCUL As Long = 15590349       ' RGB(205, 227, 237) : Bleu O
 ' Listes déroulantes sous « Désignation de l'ouvrage », à partir de B5.
 ' Descente de charges en kN/ml pour un mur : G = b × (γ × h + g), b = largeur reprise (m).
 ' Chaque bloc se termine par une ligne « Sous-total » (somme du bloc en G).
-' La charge d'exploitation Q (colonne H) est remplie par le module ChargeExploitation.
+' Colonnes : B désignation, C gamma, D g, E b, F h, G profondeur e, H nombre n, I G (kN/ml),
+' J G poteaux (kN) = gamma x b x h x e x n, K Q, L ΣQ, M αn, N αn x ΣQ.
+' La charge d'exploitation Q (colonne K) est remplie par le module ChargeExploitation.
 '   B5 à B10  : Toiture (liste), Charge, Revêtement, Plancher, Poutre, Sous-total
 '               Toiture : fermettes industrielles + tuiles, fermettes industrielles +
 '               ardoises, charpente traditionnelle bois massif, chacune avec la pente
@@ -63,8 +65,6 @@ Private Const PENTES As String = "18,20,25,30,45"   ' pentes des versants (°)
 
 ' Charte GEOSKILLS : saisies en vert émeraude clair, valeurs calculées en
 ' bleu très clair (comme les autres feuilles)
-Private Const NIVEAUX_RDC As String = "RDC,RDC+1SS,RDC+2SS"   ' liste en B46 (niveaux sous le RDC
-' renommables en vide sanitaire : liste du titre Sous-sol 1 / Vide sanitaire 1, ...)
 Private Const PLANCHERS As String = "Plancher dalle pleine,Plancher à poutrelles,Plancher bois traditionnel"
 Private Const POUTRES As String = "Poutre BA,Poutre bois,Poutre métallique"
 Private Const POTEAUX As String = "Poteau BA,Poteau bois,Poteau métallique"
@@ -80,9 +80,20 @@ Private Const MURS As String = "Agglos béton creux + enduit et isolant," & _
     "Briques creuses + enduit et isolant,Briques Monomur + enduit et isolant," & _
     "Briques pleines + enduit et isolant,Pierre de taille + enduit et isolant"
 
+' Niveaux d'étage (liste en C1) : RDC à R+5, sans, avec 1 ou 2 niveaux sous le RDC
+' (sous-sol ou vide sanitaire, liste du titre Sous-sol n / Vide sanitaire n)
+Public Function NiveauxEtage() As String
+    Dim k As Long, s As String, base As String
+    For k = 0 To 5
+        base = IIf(k = 0, "RDC", "R+" & k)
+        s = s & "," & base & "," & base & "+1SS," & base & "+2SS"
+    Next k
+    NiveauxEtage = Mid(s, 2)
+End Function
+
 Public Sub RemplirChargePermanente()
     Dim listes As Variant, i As Long, e As Long, r As Long, debut As Long
-    Dim nomBloc As String, sousTotaux As String
+    Dim nomBloc As String, sousTotaux As String, sousTotauxP As String
 
     Application.ScreenUpdating = False       ' pas de scintillement pendant l'exécution
     Application.EnableEvents = False
@@ -94,7 +105,7 @@ Public Sub RemplirChargePermanente()
             listes = Array(ListeToitures(), "Charge", REVETEMENTS, PLANCHERS, POUTRES)
             nomBloc = "toiture"
         ElseIf e = 0 Then
-            listes = Array(NIVEAUX_RDC, REVETEMENTS, PLANCHERS, POUTRES, POTEAUX, MURS)
+            listes = Array("RDC", REVETEMENTS, PLANCHERS, POUTRES, POTEAUX, MURS)
             nomBloc = "RDC"
         ElseIf e = -1 Then
             listes = Array("Sous-sol 1,Vide sanitaire 1", REVETEMENTS, PLANCHERS, POUTRES, POTEAUX, MURS)
@@ -126,15 +137,19 @@ Public Sub RemplirChargePermanente()
             End With
             MajLigne ActiveSheet, r              ' poids volumique / surfacique
             ' Code couleur : désignation (liste) et dimensions b, h à saisir en vert ;
-            ' poids volumique / surfacique et charge G calculés en bleu clair
+            ' poids volumique / surfacique et charge G calculés en bleu clair ; poteaux :
+            ' profondeur e et nombre n à saisir, G (kN) = gamma x b x h x e x n en J
             With ActiveSheet
                 If InStr(listes(i), ",") > 0 Then .Range("B" & r).Interior.Color = COUL_SAISIE
                 If i > 0 Then
-                    .Range("C" & r & ":D" & r & ",G" & r).Interior.Color = COUL_CALCUL
+                    .Range("C" & r & ":D" & r & ",I" & r).Interior.Color = COUL_CALCUL
                     .Range("E" & r & ":F" & r).Interior.Color = COUL_SAISIE
-                    ' hauteur e (colonne L) : poteaux (G = gamma x b x h x e) et éléments du
-                    ' soubassement (hauteur du poteau BA et de la semelle BA)
-                    If listes(i) = POTEAUX Or e = -4 Then .Range("L" & r).Interior.Color = COUL_SAISIE
+                    If listes(i) = POTEAUX Then
+                        .Range("G" & r & ":H" & r).Interior.Color = COUL_SAISIE
+                        .Range("J" & r).Interior.Color = COUL_CALCUL
+                    ElseIf e = -4 Then          ' soubassement : profondeur e de la semelle
+                        .Range("G" & r).Interior.Color = COUL_SAISIE
+                    End If
                 End If
             End With
             r = r + 1
@@ -143,45 +158,47 @@ Public Sub RemplirChargePermanente()
         ' « Charge » de la toiture vidée et masquée (charge reportée sur la ligne Toiture)
         If e = 6 Then
             With ActiveSheet
-                .Range("B" & debut + 1 & ":L" & debut + 1).Validation.Delete
-                .Range("B" & debut + 1 & ":F" & debut + 1).ClearContents
-                .Range("B" & debut + 1 & ":L" & debut + 1).Interior.Pattern = xlNone
+                .Range("B" & debut + 1 & ":N" & debut + 1).Validation.Delete
+                .Range("B" & debut + 1 & ":H" & debut + 1).ClearContents
+                .Range("B" & debut + 1 & ":N" & debut + 1).Interior.Pattern = xlNone
                 .Rows(debut + 1).Hidden = True
-                .Range("C" & debut & ":D" & debut & ",G" & debut).Interior.Color = COUL_CALCUL
+                .Range("C" & debut & ":D" & debut & ",I" & debut).Interior.Color = COUL_CALCUL
                 .Range("E" & debut).Interior.Color = COUL_SAISIE
             End With
         Else
-            ActiveSheet.Range("G" & debut).ClearContents
+            ActiveSheet.Range("I" & debut).ClearContents
         End If
 
         ' Ligne de sous-total sous le dernier élément du bloc
         With ActiveSheet
             .Range("B" & r).Validation.Delete
             .Range("B" & r).Value = "Sous-total " & nomBloc
-            ' somme des éléments visibles du bloc, poteaux exceptés (charge ponctuelle en kN,
-            ' G = gamma x b x h x e) ; références relatives (copies des murs)
-            .Range("G" & r).Formula = "=SUMPRODUCT(SUBTOTAL(109,OFFSET(G" & debut & ",ROW(G" & debut & ":G" & _
-                r - 1 & ")-ROW(G" & debut & "),0)),--(LEFT(B" & debut & ":B" & r - 1 & ",6)<>""Poteau""))"
-            .Range("B" & r & ":K" & r).Font.Bold = True
+            ' G (kN/ml) : éléments visibles du bloc (poteaux sans G en kN/ml) ; G (kN) :
+            ' poteaux du bloc (gamma x b x h x e x n)
+            .Range("I" & r).Formula = "=SUBTOTAL(109,I" & debut & ":I" & r - 1 & ")"
+            .Range("J" & r).Formula = "=SUBTOTAL(109,J" & debut & ":J" & r - 1 & ")"
+            .Range("B" & r & ":N" & r).Font.Bold = True
             .Range("B" & r).Font.Italic = True
-            .Range("G" & r & ":K" & r).Interior.Color = COUL_CALCUL   ' G, Q, ΣQ, αn, αn × ΣQ
+            .Range("I" & r & ":N" & r).Interior.Color = COUL_CALCUL   ' G, G poteaux, Q, ΣQ, αn, αn × ΣQ
         End With
-        sousTotaux = sousTotaux & ",G" & r
+        sousTotaux = sousTotaux & ",I" & r
+        sousTotauxP = sousTotauxP & ",J" & r
         r = r + 1
     Next e
 
     ' TOTAL G = somme des sous-totaux de tous les blocs
     With ActiveSheet
         .Range("B" & r).Value = "TOTAL (somme des sous-totaux)"
-        .Range("G" & r).Formula = "=SUM(" & Mid(sousTotaux, 2) & ")"
-        .Range("B" & r & ":K" & r).Font.Bold = True
-        .Range("G" & r & ":K" & r).Interior.Color = COUL_CALCUL
+        .Range("I" & r).Formula = "=SUM(" & Mid(sousTotaux, 2) & ")"
+        .Range("J" & r).Formula = "=SUM(" & Mid(sousTotauxP, 2) & ")"
+        .Range("B" & r & ":N" & r).Font.Bold = True
+        .Range("I" & r & ":N" & r).Interior.Color = COUL_CALCUL
     End With
 
     AfficherEtages ActiveSheet
 
-    ' Colonnes G (charges G) et H (Q) ajustées à leur contenu, avec un minimum pour le titre
-    With ActiveSheet.Columns("G:H")
+    ' Colonnes I (G kN/ml) et J (G kN) ajustées à leur contenu, avec un minimum pour le titre
+    With ActiveSheet.Columns("I:J")
         .AutoFit
         If .Columns(1).ColumnWidth < 12 Then .Columns(1).ColumnWidth = 12
         If .Columns(2).ColumnWidth < 12 Then .Columns(2).ColumnWidth = 12
@@ -332,8 +349,9 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
         Else
             ws.Cells(ligne, 4 + dc).ClearContents
         End If
-        ws.Cells(ligne, 7 + dc).FormulaR1C1 = _
-            "=IF(RC[-5]="""","""",RC[-2]*(RC[-4]*RC[-1]+RC[-3]))"
+        ' G (kN/ml) en I : E x (C x F + D)
+        ws.Cells(ligne, 9 + dc).FormulaR1C1 = _
+            "=IF(RC[-7]="""","""",RC[-4]*(RC[-6]*RC[-3]+RC[-5]))"
         AfficherEtages ws                    ' ligne Charge ou plancher de toiture affichés
     ElseIf Left(typeElement, 3) = "RDC" Then
         AfficherEtages ws                    ' sous-sols / vide sanitaire affichés ou non
@@ -348,9 +366,11 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
     ElseIf PoidsVolumique(typeElement) > 0 Then
         ws.Cells(ligne, 3 + dc).Value = PoidsVolumique(typeElement)
         ws.Cells(ligne, 4 + dc).ClearContents
-        ' Poteau : G = gamma x b x h x e (section b x h, hauteur e en colonne L), en kN
+        ' Poteau : pas de G en kN/ml (I vide) ; G (kN) en J = gamma x b x h x e x n
+        ' (section b x h, profondeur e en G, nombre n en H)
         If Left(typeElement, 6) = "Poteau" Then
-            ws.Cells(ligne, 7 + dc).FormulaR1C1 = "=IF(RC[-5]="""","""",RC[-4]*RC[-2]*RC[-1]*RC[5])"
+            ws.Cells(ligne, 9 + dc).Formula = "="""""
+            ws.Cells(ligne, 10 + dc).FormulaR1C1 = "=IF(RC[-8]="""","""",RC[-7]*RC[-5]*RC[-4]*RC[-3]*RC[-2])"
         End If
         ' Rappel sur l'épaisseur h d'une poutre (commentaire sur la cellule F)
         If Left(typeElement, 6) = "Poutre" Then
@@ -409,8 +429,9 @@ Public Sub MajEpaisseurMur(ws As Worksheet, ligne As Long, Optional dc As Long =
     ws.Cells(ligne, 4 + dc).FormulaR1C1 = "=" & _
         Replace(CStr(PoidsVolumiqueMur(typeMur)), ",", ".") & "*RC[1]+" & _
         Replace(CStr(ENDUIT_ISOLANT), ",", ".")
-    ' G = (100 - % d'ouvertures en ligne 1, colonne I du même tableau) / 100 × D × h
-    ws.Cells(ligne, 7 + dc).FormulaR1C1 = "=IF(RC[-5]="""","""",(100-R1C[2])/100*RC[-3]*RC[-1])"
+    ' G (kN/ml, colonne I) = (100 - % d'ouvertures en ligne 1, colonne I du même
+    ' tableau) / 100 × D × h
+    ws.Cells(ligne, 9 + dc).FormulaR1C1 = "=IF(RC[-7]="""","""",(100-R1C)/100*RC[-5]*RC[-3])"
 End Sub
 
 ' Affiche la toiture et les étages 1 à niveau (C1), masque les autres.
@@ -423,18 +444,23 @@ End Sub
 '   (RDC+VS supprimé : sous-sol 1 ou 2 renommable en vide sanitaire 1 ou 2)
 ' Appelée aussi automatiquement quand C1 change (voir CodeFeuille.txt).
 Public Sub AfficherEtages(ws As Worksheet)
-    Dim niveau As Long, e As Long, rdc As String, terrasse As Boolean
+    Dim niveau As Long, e As Long, rdc As String, terrasse As Boolean, nSS As Long
 
     terrasse = (ws.Range("B5").Value = "Toiture terrasse")
     ws.Rows(6).Hidden = True                ' ancienne ligne « Charge » (charge sur la ligne Toiture)
     ws.Rows("7:8").Hidden = Not terrasse
-    rdc = CStr(ws.Range("B46").Value)
-    ws.Rows("47:48").Hidden = (rdc = "RDC")
-    ws.Rows("53:59").Hidden = (rdc <> "RDC+1SS" And rdc <> "RDC+2SS")   ' sous-sol 1
-    ws.Rows("54:55").Hidden = (rdc <> "RDC+2SS")   ' plancher du sous-sol 1
-    ws.Rows("60:64").Hidden = (rdc <> "RDC+2SS")   ' sous-sol 2
+    ' Niveau d'étage (C1) : RDC, RDC+1SS, RDC+2SS, R+1, R+1+1SS, ..., R+5+2SS
+    rdc = CStr(ws.Range("C1").Value)
+    nSS = 0
+    If InStr(rdc, "+1SS") > 0 Then nSS = 1
+    If InStr(rdc, "+2SS") > 0 Then nSS = 2
+    ws.Rows("47:48").Hidden = (nSS = 0)            ' plancher du RDC (au-dessus d'un sous-sol)
+    ws.Rows("53:59").Hidden = (nSS < 1)            ' sous-sol 1 (ou vide sanitaire 1)
+    ws.Rows("54:55").Hidden = (nSS < 2)            ' plancher du sous-sol 1
+    ws.Rows("60:64").Hidden = (nSS < 2)            ' sous-sol 2 (ou vide sanitaire 2)
     ws.Rows("65:68").Hidden = True               ' ancien bloc vide sanitaire (sous-sols renommables)
-    niveau = Val(ws.Range("C1").Value)     ' "RDC" donne 0
+    niveau = 0
+    If Left(rdc, 2) = "R+" Then niveau = Val(Mid(rdc, 3))   ' R+2+1SS -> 2 ; RDC -> 0
     For e = 1 To 5
         ' Bloc de l'étage e (sous-total compris) : 7 lignes à partir de 11 + 7 × (5 - e)
         ws.Rows(11 + 7 * (5 - e)).Resize(7).Hidden = (e > niveau)

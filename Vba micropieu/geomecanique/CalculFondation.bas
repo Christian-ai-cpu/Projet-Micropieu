@@ -704,7 +704,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     Dim reco As String, eMax As String, eMin As String, eAcc As String, phiT As String
     Dim incl As Boolean, cRe As Long, kb As String, capk As String, zk As String, cZ As Long
     Dim cI As Long, cA As Long, angle0 As Variant
-    Dim fx As String, kd As Long, cE As Long, tC As Long, tP As Long
+    Dim fx As String, kd As Long, cE As Long, tC As Long, tP As Long, cGd As Long, cEd As Long
 
     L = LigneVerif(ws)                       ' titre du tableau
     For Each f In ActiveWorkbook.Worksheets
@@ -779,12 +779,19 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         Loop
     End If
     dn = "'" & wd.Name & "'!"
+    ' Colonnes de la matrice des micropieux repérées par leur en-tête (ligne 88 + n) :
+    ' POIDS TOTAL ÉLÉMENTAIRE DDC (G, Q) et CHARGES DE L'EAU (EB, EH, EE)
+    cGd = 0: cEd = 0
+    For c = 3 To 250
+        If CStr(wd.Cells(88 + n, c).Value) = "POIDS TOTAL ÉLÉMENTAIRE DDC" Then cGd = c
+        If Left(CStr(wd.Cells(88 + n, c).Value), 15) = "CHARGES DE L'EA" Then cEd = c
+    Next c
+    If cGd = 0 Then cGd = 8 + n
 
     ' Charges de l'eau (EB basses eaux, EH hautes eaux, EE eaux exceptionnelles) : colonnes
     ' créées seulement s'il y a une nappe phréatique (« Données du projet », D34) et si la
-    ' matrice de la descente de charges les contient (colonnes 10 + n à 12 + n)
-    eau = (CStr(ActiveWorkbook.Worksheets("Données du projet").Range("D34").Value) = "Oui") And _
-        (Left(CStr(wd.Cells(88 + n, 10 + n).Value), 15) = "CHARGES DE L'EA")
+    ' matrice de la descente de charges les contient
+    eau = (CStr(ActiveWorkbook.Worksheets("Données du projet").Range("D34").Value) = "Oui") And (cEd > 0)
     ' Colonnes : A micropieu ; B à E Gmax, Gmin, Qmax, Qmin ; F, G Geo max, Geo min ;
     ' H, I, J eau EB, EH, EE (descente de charges, 0 sans nappe) ; K Gsn ; L, M A max,
     ' A min (saisis) ; cC
@@ -1022,9 +1029,9 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     For i = 1 To m
         r = r0 + 2 + i
         ws.Range("A" & r).Value = "MP" & i
-        ws.Range("B" & r).Formula = "=N(" & dn & wd.Cells(rd + i - 1, 8 + n).Address & ")"
+        ws.Range("B" & r).Formula = "=N(" & dn & wd.Cells(rd + i - 1, cGd).Address & ")"
         ws.Range("C" & r).Formula = "=IF($D$" & L + 2 & "=""G"",B" & r & ",0)"
-        ws.Range("D" & r).Formula = "=N(" & dn & wd.Cells(rd + i - 1, 9 + n).Address & ")"
+        ws.Range("D" & r).Formula = "=N(" & dn & wd.Cells(rd + i - 1, cGd + 1).Address & ")"
         ws.Range("E" & r).Value = 0
         ' Actions saisies (0 par défaut, conservées quand le tableau est recréé)
         ws.Range("F" & r).Value = Saisie(mGeo, i)
@@ -1035,7 +1042,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         ' Eau EB, EH, EE (H, I, J) de la descente de charges ; 0 sans nappe phréatique
         For k = 0 To 2
             If eau Then
-                ws.Cells(r, cE + k).Formula = "=N(" & dn & wd.Cells(rd + i - 1, 10 + n + k).Address & ")"
+                ws.Cells(r, cE + k).Formula = "=N(" & dn & wd.Cells(rd + i - 1, cEd + k).Address & ")"
             Else
                 ws.Cells(r, cE + k).Value = 0
             End If

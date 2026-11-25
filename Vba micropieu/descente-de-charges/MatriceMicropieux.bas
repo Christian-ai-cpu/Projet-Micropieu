@@ -11,13 +11,17 @@ Private Const COUL_CALCUL As Long = 15590349       ' RGB(205, 227, 237) : Bleu O
 '   L+1 à L+3 : tableau Élément / Poids volumique (kN/m3) / Base b (m) / Hauteur h (m)
 '               avec une ligne Massif (carré b x b, hauteur h) et une ligne Longrine
 '               (section b x h)
-'   L+5       : charges linéiques des murs, matrice n x 2 (n = nombre de murs, G1) :
-'               Mur 01, Mur 02, ... avec G et Q (kN/ml) du récapitulatif de chaque mur
+'   L+5       : charges des murs, matrice n x 3 (n = nombre de murs, G1) : Mur 01,
+'               Mur 02, ... avec G et Q (kN/ml) et G poteaux (kN) du récapitulatif de
+'               chaque mur
 '   plus bas  : matrice m x n des longueurs de murs reprises par chaque micropieu
 '               (m = nombre de micropieux, K1 ; lignes MP1, MP2, ..., colonnes Mur 01,
 '               Mur 02, ...) : longueur Li du mur sur la diagonale, 0 ailleurs, les
-'               valeurs peuvent être modifiées ; puis, à droite :
-'               CHARGES DES MURS G, Q (kN) = matrice des longueurs x matrice n x 2 ;
+'               valeurs peuvent être modifiées ; à côté, matrice IDENTIFICATION POTEAU
+'               (0 / 1 par micropieu et par mur : 1 = charge des poteaux du mur ajoutée) ;
+'               puis, à droite :
+'               CHARGES DES MURS G (kN) = longueurs x G (kN/ml) + identification x G
+'               poteaux (kN) ; Q (kN) = longueurs x Q (kN/ml) ;
 '               STRUCTURE GC : M (massif) ou L (longrine) ;
 '               POIDS MASSIF (kN) = poids volumique x b² x h (si M, sinon 0) ;
 '               POIDS LONGRINE (kN) = poids volumique x section x longueur, longueur =
@@ -47,6 +51,7 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     Dim li() As Variant, mat() As Variant, gc() As Variant, dims As Variant, dimsN() As Variant, eau() As Variant
     Dim ligne As String, cG As String, cQ As String, c As Range, evenements As Boolean
     Dim nappe As Boolean, f As Worksheet, xf As Long, xt As Long, talus() As Variant, cT As Long
+    Dim pot() As Variant, x0Old As Long, cP As String, ligneP As String
 
     If ws Is Nothing Then Set ws = ActiveSheet
     L = LIGNE_MATRICE
@@ -66,6 +71,7 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     ReDim gc(1 To m)
     ReDim eau(1 To m, 1 To 3)
     ReDim talus(1 To m, 1 To 2)
+    ReDim pot(1 To m, 1 To n)
     dims = ws.Range("C" & L + 1 & ":E" & L + 3).Value
     If Left(CStr(ws.Range("B" & L + 1).Value), 7) <> "Élément" Then
         ' Ancienne disposition (gamma ; massif l, b, h ; longrine b, h) : conversion
@@ -85,14 +91,23 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         For j = 1 To Application.Min(n, nOld)
             li(j) = ws.Cells(r0Old + 2, 2 + j).Value
         Next j
+        ' Matrice IDENTIFICATION POTEAU présente dans l'ancien tableau : colonnes après
+        ' celle des longueurs
+        x0Old = 3 + nOld
+        If Left(CStr(ws.Cells(r0Old, 3 + nOld).Value), 14) = "IDENTIFICATION" Then x0Old = 3 + 2 * nOld
         For i = 1 To Application.Min(m, mOld)
             For j = 1 To Application.Min(n, nOld)
                 Set c = ws.Cells(r0Old + 2 + i, 2 + j)
                 If Not c.HasFormula Then mat(i, j) = c.Value
             Next j
-            gc(i) = ws.Cells(r0Old + 2 + i, 5 + nOld).Value
+            If x0Old = 3 + 2 * nOld Then
+                For j = 1 To Application.Min(n, nOld)
+                    pot(i, j) = ws.Cells(r0Old + 2 + i, 2 + nOld + j).Value
+                Next j
+            End If
+            gc(i) = ws.Cells(r0Old + 2 + i, x0Old + 2).Value
             For j = 1 To 3                   ' eau EB, EH, EE
-                eau(i, j) = ws.Cells(r0Old + 2 + i, 9 + nOld + j).Value
+                eau(i, j) = ws.Cells(r0Old + 2 + i, x0Old + 6 + j).Value
             Next j
         Next i
         ' Charge du talus H0, M0 saisies (colonnes repérées par leur en-tête)
@@ -147,28 +162,34 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     ws.Range("C" & L + 2 & ":E" & L + 3).Interior.Color = COUL_SAISIE
     ws.Range("B" & L + 1 & ":E" & L + 3).Borders.LineStyle = xlContinuous
 
-    ' --- Matrice n x 2 : G et Q (kN/ml) de chaque mur (récapitulatif du mur k, colonne
-    ' C du tableau d'origine + (k - 1) x PAS_MUR) ---
-    ws.Range("B" & L + 5 & ":D" & L + 5).Value = Array("MUR", "G (kN/ml)", "Q (kN/ml)")
+    ' --- Matrice n x 3 : G et Q (kN/ml) et charge des poteaux G (kN) de chaque mur
+    ' (récapitulatif du mur k, colonne C du tableau d'origine + (k - 1) x PAS_MUR) ---
+    ws.Range("B" & L + 5 & ":E" & L + 5).Value = Array("MUR", "G (kN/ml)", "Q (kN/ml)", "G poteaux (kN)")
     For j = 1 To n
         r = L + 5 + j
         ws.Range("B" & r).Value = "Mur " & Format(j, "00")
         If rG > 0 Then
             ws.Range("C" & r).Formula = "=N(" & ws.Cells(rG, 3 + (j - 1) * PAS_MUR).Address & ")"
             ws.Range("D" & r).Formula = "=N(" & ws.Cells(rG + 1, 3 + (j - 1) * PAS_MUR).Address & ")"
+            ws.Range("E" & r).Formula = "=N(" & ws.Cells(rG + 2, 3 + (j - 1) * PAS_MUR).Address & ")"
         End If
     Next j
-    ws.Range("C" & L + 6 & ":D" & L + 5 + n).Interior.Color = COUL_CALCUL
+    ws.Range("C" & L + 6 & ":E" & L + 5 + n).Interior.Color = COUL_CALCUL
     cG = "$C$" & L + 6 & ":$C$" & L + 5 + n
     cQ = "$D$" & L + 6 & ":$D$" & L + 5 + n
+    cP = "$E$" & L + 6 & ":$E$" & L + 5 + n
 
     ' --- Matrice m x n des longueurs et résultats ---
     r0 = L + 8 + n                            ' 1re ligne d'en-tête
-    x0 = 3 + n                                ' 1re colonne après la matrice
+    x0 = 3 + 2 * n                            ' 1re colonne après les deux matrices
     ws.Cells(r0, 2).Value = "N° MICROPIEU"
     ws.Range(ws.Cells(r0, 2), ws.Cells(r0 + 1, 2)).Merge
     ws.Cells(r0, 3).Value = "LONGUEURS DES MURS REPRISES PAR LE MICROPIEU (m)"
     If n > 1 Then ws.Range(ws.Cells(r0, 3), ws.Cells(r0, 2 + n)).Merge
+    ' Matrice IDENTIFICATION POTEAU (0 / 1) juste à côté : 1 = charge des poteaux du mur
+    ' ajoutée à la charge G des murs du micropieu, 0 = non
+    ws.Cells(r0, 3 + n).Value = "IDENTIFICATION POTEAU (0 / 1)"
+    If n > 1 Then ws.Range(ws.Cells(r0, 3 + n), ws.Cells(r0, 2 + 2 * n)).Merge
     ws.Cells(r0, x0).Value = "CHARGES DES MURS"
     ws.Range(ws.Cells(r0, x0), ws.Cells(r0, x0 + 1)).Merge
     ws.Cells(r0, x0 + 2).Value = "STRUCTURE GC"
@@ -194,6 +215,7 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     End If
     For j = 1 To n
         ws.Cells(r0 + 1, 2 + j).Value = "Mur " & Format(j, "00")
+        ws.Cells(r0 + 1, 2 + n + j).Value = "Mur " & Format(j, "00")
     Next j
     ws.Cells(r0 + 1, x0).Value = "G (kN)"
     ws.Cells(r0 + 1, x0 + 1).Value = "Q (kN)"
@@ -218,9 +240,19 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
                 ws.Cells(r, 2 + j).Value = 0
             End If
         Next j
+        ' Identification des poteaux (0 / 1, saisie conservée, 0 par défaut)
+        For j = 1 To n
+            With ws.Cells(r, 2 + n + j)
+                .Value = IIf(IsEmpty(pot(i, j)), 0, pot(i, j))
+                .Validation.Delete
+                .Validation.Add xlValidateList, xlValidAlertStop, , "0,1"
+            End With
+        Next j
         ligne = ws.Range(ws.Cells(r, 3), ws.Cells(r, 2 + n)).Address(False, False)
-        ' Charges des murs = (ligne de la matrice des longueurs) x (matrice n x 2)
-        ws.Cells(r, x0).Formula = "=IFERROR(MMULT(" & ligne & "," & cG & "),"""")"
+        ligneP = ws.Range(ws.Cells(r, 3 + n), ws.Cells(r, 2 + 2 * n)).Address(False, False)
+        ' Charges des murs = (ligne de la matrice des longueurs) x (G, Q des murs) +
+        ' (ligne de la matrice d'identification des poteaux) x (G poteaux des murs)
+        ws.Cells(r, x0).Formula = "=IFERROR(MMULT(" & ligne & "," & cG & ")+MMULT(" & ligneP & "," & cP & "),"""")"
         ws.Cells(r, x0 + 1).Formula = "=IFERROR(MMULT(" & ligne & "," & cQ & "),"""")"
         ' Structure GC : M (massif) ou L (longrine), jamais les deux
         With ws.Cells(r, x0 + 2)
@@ -260,7 +292,7 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     ws.Range(ws.Cells(r, 2), ws.Cells(r, xt + 1)).Font.Bold = True
 
     ' --- Mise en forme ---
-    With ws.Range(ws.Cells(L + 5, 2), ws.Cells(L + 5 + n, 4))
+    With ws.Range(ws.Cells(L + 5, 2), ws.Cells(L + 5 + n, 5))
         .Borders.LineStyle = xlContinuous
         .HorizontalAlignment = xlCenter
     End With
@@ -269,13 +301,15 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
     End With
-    With Union(ws.Range("B" & L + 5 & ":D" & L + 5), _
+    With Union(ws.Range("B" & L + 5 & ":E" & L + 5), _
             ws.Range(ws.Cells(r0, 2), ws.Cells(r0 + 1, xt + 1)))
         .Font.Bold = True
         .Interior.Color = COUL_ENTETE
         .WrapText = True
     End With
     ws.Range(ws.Cells(r0 + 2, 3), ws.Cells(r - 1, 2 + n)).Interior.Color = COUL_SAISIE
+    ws.Range(ws.Cells(r0 + 3, 3 + n), ws.Cells(r - 1, 2 + 2 * n)).Interior.Color = COUL_SAISIE
+    ws.Range(ws.Cells(r0 + 3, 3 + n), ws.Cells(r - 1, 2 + 2 * n)).NumberFormat = "0"
     ws.Range(ws.Cells(r0 + 3, x0 + 2), ws.Cells(r - 1, x0 + 2)).Interior.Color = COUL_SAISIE
     ws.Range(ws.Cells(r0 + 3, x0), ws.Cells(r, x0 + 1)).Interior.Color = COUL_CALCUL
     ws.Range(ws.Cells(r0 + 3, x0 + 3), ws.Cells(r, x0 + 6)).Interior.Color = COUL_CALCUL
@@ -284,9 +318,10 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         ws.Range(ws.Cells(r, x0 + 7), ws.Cells(r, x0 + 9)).Interior.Color = COUL_CALCUL
     End If
     ws.Range(ws.Cells(r0 + 2, 3), ws.Cells(r, xt + 1)).NumberFormat = "0.00"
+    ws.Range(ws.Cells(r0 + 3, 3 + n), ws.Cells(r - 1, 2 + 2 * n)).NumberFormat = "0"   ' identification
     ws.Range(ws.Cells(r0 + 3, xt), ws.Cells(r - 1, xt + 1)).Interior.Color = COUL_SAISIE   ' talus
     ws.Range(ws.Cells(r, xt), ws.Cells(r, xt + 1)).Interior.Color = COUL_CALCUL
-    ws.Range("C" & L + 2 & ":E" & L + 3 & ",C" & L + 6 & ":D" & L + 5 + n).NumberFormat = "0.00"
+    ws.Range("C" & L + 2 & ":E" & L + 3 & ",C" & L + 6 & ":E" & L + 5 + n).NumberFormat = "0.00"
     ws.Range("C" & L + 2 & ":E" & L + 3).HorizontalAlignment = xlCenter
     ws.Rows(r0).RowHeight = 45
 
