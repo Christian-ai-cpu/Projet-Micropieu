@@ -11,14 +11,15 @@ Private Const COUL_CALCUL As Long = 15590349       ' RGB(205, 227, 237) : Bleu O
 ' Colonnes : B désignation, C gamma, D g, E b, F h, G profondeur e, H nombre n, I G (kN/ml),
 ' J G poteaux (kN) = gamma x b x h x e x n, K Q, L ΣQ, M αn, N αn x ΣQ.
 ' La charge d'exploitation Q (colonne K) est remplie par le module ChargeExploitation.
-'   B5 à B10  : Toiture (liste), Charge, Revêtement, Plancher, Poutre, Sous-total
+'   B5 à B10  : Toiture (liste), Poids surfacique de la toiture, Revêtement, Plancher,
+'               Poutre, Sous-total
 '               Toiture : fermettes industrielles + tuiles, fermettes industrielles +
 '               ardoises, charpente traditionnelle bois massif, chacune avec la pente
 '               du versant dans la désignation (18, 20, 25, 30 ou 45°), ou toiture
-'               terrasse. Toiture en pente : ligne « Charge » (6) avec le poids
+'               terrasse. Toiture en pente : ligne « Poids surfacique de la toiture » (6) avec le poids
 '               surfacique D = g / cos(pente) (voir ChargeToiture), b saisi en E et
 '               G = b × D. Toiture terrasse : lignes Revêtement et Plancher (7 et 8)
-'               à la place de la ligne Charge.
+'               à la place de cette ligne.
 '   B11 à B17 : Étage 5, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
 '   ...
 '   B39 à B45 : Étage 1, Revêtement, Plancher, Poutre, Poteau, Mur, Sous-total
@@ -61,6 +62,7 @@ Private Const COUL_CALCUL As Long = 15590349       ' RGB(205, 227, 237) : Bleu O
 ' Toitures en pente (type + pente du versant dans la désignation, voir ListeToitures)
 Private Const TYPES_TOITURE As String = "Toiture fermettes industrielles + tuiles," & _
     "Toiture fermettes industrielles + ardoises,Toiture charpente traditionnelle bois massif"
+Public Const LIGNE_POIDS_TOITURE As String = "Poids surfacique de la toiture"   ' ligne sous Toiture
 Private Const PENTES As String = "18,20,25,30,45"   ' pentes des versants (°)
 
 ' Charte GEOSKILLS : saisies en vert émeraude clair, valeurs calculées en
@@ -110,7 +112,7 @@ Public Sub RemplirChargePermanente()
     ' -3 = vide sanitaire, -4 = soubassement
     For e = 6 To -4 Step -1
         If e = 6 Then
-            listes = Array(ListeToitures(), "Charge", REVETEMENTS, PLANCHERS, POUTRES)
+            listes = Array(ListeToitures(), LIGNE_POIDS_TOITURE, REVETEMENTS, PLANCHERS, POUTRES)
             nomBloc = "toiture"
         ElseIf e = 0 Then
             listes = Array("RDC", REVETEMENTS, PLANCHERS, POUTRES, POTEAUX, MURS)
@@ -162,20 +164,9 @@ Public Sub RemplirChargePermanente()
             End With
             r = r + 1
         Next i
-        ' pas de charge sur le titre, sauf la toiture (charge sur sa propre ligne) ; ligne
-        ' « Charge » de la toiture vidée et masquée (charge reportée sur la ligne Toiture)
-        If e = 6 Then
-            With ActiveSheet
-                .Range("B" & debut + 1 & ":N" & debut + 1).Validation.Delete
-                .Range("B" & debut + 1 & ":H" & debut + 1).ClearContents
-                .Range("B" & debut + 1 & ":N" & debut + 1).Interior.Pattern = xlNone
-                .Rows(debut + 1).Hidden = True
-                .Range("C" & debut & ":D" & debut & ",I" & debut).Interior.Color = COUL_CALCUL
-                .Range("E" & debut).Interior.Color = COUL_SAISIE
-            End With
-        Else
-            ActiveSheet.Range("I" & debut).ClearContents
-        End If
+        ' pas de charge sur le titre (toiture : charge sur la ligne « Poids surfacique de
+        ' la toiture » juste en dessous)
+        ActiveSheet.Range("I" & debut & ":J" & debut).ClearContents
 
         ' Ligne de sous-total sous le dernier élément du bloc
         With ActiveSheet
@@ -343,24 +334,24 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
 
     typeElement = CStr(ws.Cells(ligne, 2 + dc).Value)
     If Left(typeElement, 7) = "Toiture" Then
-        ' Toiture en pente : charge directement sur la ligne Toiture (plus de ligne
-        ' « Charge ») : D = g / cos(pente de la désignation), G = b × D (kN/ml), b saisi
-        ' en E ; toiture terrasse : D vide, charge sur ses lignes Revêtement et Plancher.
-        ' Le sous-total de la toiture somme toutes les lignes du bloc.
-        ws.Cells(ligne, 3 + dc).ClearContents
-        ws.Cells(ligne, 6 + dc).Validation.Delete
-        ws.Cells(ligne, 6 + dc).ClearContents
+        ' Toiture en pente : ligne « Poids surfacique de la toiture » juste en dessous,
+        ' D = g / cos(pente de la désignation) (poids de la toiture choisie), G = b × D
+        ' (kN/ml), b saisi en E ; toiture terrasse : cette ligne masquée, charge sur les
+        ' lignes Revêtement et Plancher. Rien sur la ligne de titre.
+        ws.Range(ws.Cells(ligne, 3 + dc), ws.Cells(ligne, 4 + dc)).ClearContents
+        ws.Range(ws.Cells(ligne, 9 + dc), ws.Cells(ligne, 10 + dc)).ClearContents
+        ws.Cells(ligne + 1, 3 + dc).ClearContents
         If ChargeToiture(typeElement) > 0 Then
-            ws.Cells(ligne, 4 + dc).Formula = "=" & _
+            ws.Cells(ligne + 1, 4 + dc).Formula = "=" & _
                 Replace(CStr(ChargeToiture(typeElement)), ",", ".") & "/COS(RADIANS(" & _
                 PenteToiture(typeElement) & "))"
         Else
-            ws.Cells(ligne, 4 + dc).ClearContents
+            ws.Cells(ligne + 1, 4 + dc).ClearContents
         End If
         ' G (kN/ml) en I : E x (C x F + D)
-        ws.Cells(ligne, 9 + dc).FormulaR1C1 = _
+        ws.Cells(ligne + 1, 9 + dc).FormulaR1C1 = _
             "=IF(RC[-7]="""","""",RC[-4]*(RC[-6]*RC[-3]+RC[-5]))"
-        AfficherEtages ws                    ' ligne Charge ou plancher de toiture affichés
+        AfficherEtages ws                    ' poids de la toiture ou plancher de toiture affichés
     ElseIf Left(typeElement, 3) = "RDC" Then
         AfficherEtages ws                    ' sous-sols / vide sanitaire affichés ou non
     ElseIf EpaisseursMur(typeElement) <> "" Then
@@ -374,9 +365,12 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
     ElseIf PoidsVolumique(typeElement) > 0 Then
         ws.Cells(ligne, 3 + dc).Value = PoidsVolumique(typeElement)
         ws.Cells(ligne, 4 + dc).ClearContents
-        ' Poteau : pas de G en kN/ml (I vide) ; G (kN) en J = gamma x b x h x e x n
-        ' (section b x h, profondeur e en G, nombre n en H ; formule du tableau)
-        If Left(typeElement, 6) = "Poteau" Then ws.Cells(ligne, 9 + dc).Formula = "="""""
+        ' Poteau : fondation mixte : pas de G en kN/ml (I vide), G (kN) séparé en J =
+        ' gamma x b x h x e x n ; semelle filante ou isolée : G calculé comme les autres
+        ' éléments de l'étage (I = gamma x b x h, J en kN en semelle isolée) ; type de
+        ' fondation en M1 (R1C13, absolu : vaut pour les copies)
+        If Left(typeElement, 6) = "Poteau" Then ws.Cells(ligne, 9 + dc).FormulaR1C1 = _
+            "=IF(R1C13=""Mixte"","""",IF(RC[-7]="""","""",RC[-6]*RC[-4]*RC[-3]+RC[-5]*RC[-4]))"
         ' Rappel sur l'épaisseur h d'une poutre (commentaire sur la cellule F)
         If Left(typeElement, 6) = "Poutre" Then
             ' Commentaire en image (module CommentaireImage) ; à défaut, commentaire texte
@@ -450,14 +444,14 @@ End Sub
 ' Appelée aussi automatiquement quand C1 change (voir CodeFeuille.txt).
 Public Sub AfficherEtages(ws As Worksheet)
     Dim niveau As Long, e As Long, rdc As String, terrasse As Boolean, nSS As Long
-    Dim typeF As String, r As Long, k As Long, nb As Long
+    Dim typeF As String, r As Long, k As Long, nb As Long, t As String
 
     ' Toutes les lignes affichées, puis règles ci-dessous (niveau, sous-sols, type de
     ' fondation)
     ws.Rows("5:73").Hidden = False
 
     terrasse = (ws.Range("B5").Value = "Toiture terrasse")
-    ws.Rows(6).Hidden = True                ' ancienne ligne « Charge » (charge sur la ligne Toiture)
+    ws.Rows(6).Hidden = terrasse            ' poids surfacique de la toiture (toiture en pente)
     ws.Rows("7:8").Hidden = Not terrasse
     ' Niveau d'étage (C1) : RDC, RDC+1SS, RDC+2SS, R+1, R+1+1SS, ..., R+5+2SS
     rdc = CStr(ws.Range("C1").Value)
@@ -476,18 +470,33 @@ Public Sub AfficherEtages(ws As Worksheet)
         ws.Rows(11 + 7 * (5 - e)).Resize(7).Hidden = (e > niveau)
     Next e
     ' Type de fondation (M1) :
-    '   semelle filante : lignes Poteau et Poutre masquées, colonne G (kN) masquée ;
-    '   semelle isolée  : colonne G (kN/ml) masquée (tout en kN) ;
-    '   mixte           : tout affiché
+    '   semelle filante : lignes Poutre masquées, poteaux comptés avec l'étage (kN/ml),
+    '                     colonne G (kN) masquée ;
+    '   semelle isolée  : colonne G (kN/ml) masquée (tout en kN), profondeur e et
+    '                     nombre n à saisir sur tous les éléments ;
+    '   mixte           : tout affiché, e et n à saisir sur les poteaux
     typeF = CStr(ws.Range("M1").Value)
-    If typeF = "Semelle filante" Then
-        For r = 5 To 73
-            If Left(CStr(ws.Range("B" & r).Value), 6) = "Poteau" Or _
-                Left(CStr(ws.Range("B" & r).Value), 6) = "Poutre" Then ws.Rows(r).Hidden = True
-        Next r
-    End If
     nb = Val(ws.Range("G1").Value)
     If nb < 1 Then nb = 1
+    For r = 5 To 73
+        t = CStr(ws.Range("B" & r).Value)
+        If typeF = "Semelle filante" And Left(t, 6) = "Poutre" Then ws.Rows(r).Hidden = True
+        ' cases e et n (colonnes G et H) à saisir selon le type de fondation
+        If ws.Range("C" & r).Interior.Color = COUL_CALCUL Then   ' ligne d'élément
+            For k = 0 To nb - 1
+                With ws.Range(ws.Cells(r, 7 + k * PAS_MUR), ws.Cells(r, 8 + k * PAS_MUR))
+                    If typeF = "Semelle isolée" Or (typeF = "Mixte" And Left(t, 6) = "Poteau") Then
+                        .Interior.Color = COUL_SAISIE
+                    ElseIf r >= 69 And r <= 72 Then    ' soubassement : profondeur e (vérification)
+                        .Cells(1, 1).Interior.Color = COUL_SAISIE
+                        .Cells(1, 2).Interior.Pattern = xlNone
+                    Else
+                        .Interior.Pattern = xlNone
+                    End If
+                End With
+            Next k
+        End If
+    Next r
     For k = 0 To nb - 1
         ws.Columns(9 + k * PAS_MUR).Hidden = (typeF = "Semelle isolée")
         ws.Columns(10 + k * PAS_MUR).Hidden = (typeF = "Semelle filante")

@@ -53,6 +53,7 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     Dim nappe As Boolean, f As Worksheet, xf As Long, xt As Long, talus() As Variant, cT As Long
     Dim pot() As Variant, x0Old As Long, cP As String, ligneP As String, cLo As Long, cIo As Long
     Dim typeF As String, isolee As Boolean, nom As String, nL As Long, nP As Long, fG As String, fQ As String
+    Dim nE As Long
 
     If ws Is Nothing Then Set ws = ActiveSheet
     L = LIGNE_MATRICE
@@ -177,10 +178,15 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     nom = IIf(isolee, "Pot ", "Mur ")
     nL = IIf(isolee, 0, n)                    ' colonnes de la matrice des longueurs
     nP = IIf(typeF = "Semelle filante", 0, n) ' colonnes de la matrice d'identification
+    ' colonne G poteaux (kN) seulement en fondation mixte (poteaux comptés à part) ;
+    ' semelle filante ou isolée : poteaux compris dans G de chaque étage
+    nE = IIf(typeF = "Mixte", 5, 4)            ' dernière colonne du tableau des murs / poteaux
     If isolee Then
-        ws.Range("B" & L + 5 & ":E" & L + 5).Value = Array("POTEAU", "G (kN)", "Q (kN)", "G poteaux (kN)")
-    Else
+        ws.Range("B" & L + 5 & ":D" & L + 5).Value = Array("POTEAU", "G (kN)", "Q (kN)")
+    ElseIf nE = 5 Then
         ws.Range("B" & L + 5 & ":E" & L + 5).Value = Array("MUR", "G (kN/ml)", "Q (kN/ml)", "G poteaux (kN)")
+    Else
+        ws.Range("B" & L + 5 & ":D" & L + 5).Value = Array("MUR", "G (kN/ml)", "Q (kN/ml)")
     End If
     For j = 1 To n
         r = L + 5 + j
@@ -188,10 +194,10 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         If rG > 0 Then
             ws.Range("C" & r).Formula = "=N(" & ws.Cells(rG, 3 + (j - 1) * PAS_MUR).Address & ")"
             ws.Range("D" & r).Formula = "=N(" & ws.Cells(rG + 1, 3 + (j - 1) * PAS_MUR).Address & ")"
-            ws.Range("E" & r).Formula = "=N(" & ws.Cells(rG + 2, 3 + (j - 1) * PAS_MUR).Address & ")"
+            If nE = 5 Then ws.Range("E" & r).Formula = "=N(" & ws.Cells(rG + 2, 3 + (j - 1) * PAS_MUR).Address & ")"
         End If
     Next j
-    ws.Range("C" & L + 6 & ":E" & L + 5 + n).Interior.Color = COUL_CALCUL
+    ws.Range(ws.Cells(L + 6, 3), ws.Cells(L + 5 + n, nE)).Interior.Color = COUL_CALCUL
     cG = "$C$" & L + 6 & ":$C$" & L + 5 + n
     cQ = "$D$" & L + 6 & ":$D$" & L + 5 + n
     cP = "$E$" & L + 6 & ":$E$" & L + 5 + n
@@ -328,7 +334,7 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     ws.Range(ws.Cells(r, 2), ws.Cells(r, xt + 1)).Font.Bold = True
 
     ' --- Mise en forme ---
-    With ws.Range(ws.Cells(L + 5, 2), ws.Cells(L + 5 + n, 5))
+    With ws.Range(ws.Cells(L + 5, 2), ws.Cells(L + 5 + n, nE))
         .Borders.LineStyle = xlContinuous
         .HorizontalAlignment = xlCenter
     End With
@@ -337,7 +343,7 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
     End With
-    With Union(ws.Range("B" & L + 5 & ":E" & L + 5), _
+    With Union(ws.Range(ws.Cells(L + 5, 2), ws.Cells(L + 5, nE)), _
             ws.Range(ws.Cells(r0, 2), ws.Cells(r0 + 1, xt + 1)))
         .Font.Bold = True
         .Interior.Color = COUL_ENTETE
@@ -356,7 +362,8 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     If nP > 0 Then ws.Range(ws.Cells(r0 + 3, 3 + nL), ws.Cells(r - 1, 2 + nL + nP)).NumberFormat = "0"   ' identification
     ws.Range(ws.Cells(r0 + 3, xt), ws.Cells(r - 1, xt + 1)).Interior.Color = COUL_SAISIE   ' talus
     ws.Range(ws.Cells(r, xt), ws.Cells(r, xt + 1)).Interior.Color = COUL_CALCUL
-    ws.Range("C" & L + 2 & ":E" & L + 3 & ",C" & L + 6 & ":E" & L + 5 + n).NumberFormat = "0.00"
+    ws.Range("C" & L + 2 & ":E" & L + 3).NumberFormat = "0.00"
+    ws.Range(ws.Cells(L + 6, 3), ws.Cells(L + 5 + n, nE)).NumberFormat = "0.00"
     ws.Range("C" & L + 2 & ":E" & L + 3).HorizontalAlignment = xlCenter
     ws.Rows(r0).RowHeight = 45
 
