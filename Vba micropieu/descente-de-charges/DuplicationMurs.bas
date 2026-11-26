@@ -37,10 +37,10 @@ Public Sub DupliquerMurs(Optional ws As Worksheet)
 
     ' Anciennes copies effacées (tout ce qui est à droite du tableau d'origine, au-dessus
     ' de la matrice des micropieux, recréée ensuite)
-    ws.Range(ws.Cells(1, 2 + PAS_MUR - 1), ws.Cells(LIGNE_MATRICE - 1, ws.Columns.Count)).Clear
+    ws.Range(ws.Cells(1, 2 + PAS_MUR - 1), ws.Cells(LigneMatrice(ws) - 1, ws.Columns.Count)).Clear
 
     ' Tableau d'origine : de la ligne 2 jusqu'au récapitulatif G / Q
-    derniere = ws.Cells(LIGNE_MATRICE - 1, "B").End(xlUp).Row
+    derniere = ws.Cells(LigneMatrice(ws) - 1, "B").End(xlUp).Row
     ' Semelle isolée (type de fondation en M1) : descente de charges sur les poteaux
     nom = IIf(CStr(ws.Range("M1").Value) = "Semelle isolée", "Pot ", "Mur ")
     ws.Range("B2").Value = nom & "1"

@@ -39,7 +39,8 @@ Private Const COUL_CALCUL As Long = 15590349       ' RGB(205, 227, 237) : Bleu O
 ' met ensuite à jour la vérification de la profondeur des micropieux de « Calcul et
 ' vérification » (ActualiserVerificationProfondeur, module CalculFondation).
 
-Public Const LIGNE_MATRICE As Long = 80             ' titre du tableau
+Public Const LIGNE_MATRICE As Long = 80             ' titre du tableau (sans ligne insérée)
+Public Const TITRE_MATRICE As String = "RÉPARTITION DES CHARGES DES MURS SUR LES MICROPIEUX"
 Public Const CELLULE_NB_MICROPIEUX As String = "K1"
 
 ' Charte GEOSKILLS : saisies en vert émeraude clair, valeurs calculées en
@@ -56,7 +57,7 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     Dim nE As Long
 
     If ws Is Nothing Then Set ws = ActiveSheet
-    L = LIGNE_MATRICE
+    L = LigneMatrice(ws)                     ' titre du tableau (décalé si des lignes sont insérées)
     n = Val(ws.Range("G1").Value)
     If n < 1 Then n = 1
     m = Val(ws.Range(CELLULE_NB_MICROPIEUX).Value)
@@ -145,7 +146,7 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
 
     ' --- Titre et données d'entrée ---
     With ws.Range("B" & L)
-        .Value = "RÉPARTITION DES CHARGES DES MURS SUR LES MICROPIEUX"
+        .Value = TITRE_MATRICE
         .Font.Bold = True
         .Font.Size = 12
     End With
@@ -379,3 +380,26 @@ Fin:
     Application.EnableEvents = evenements
     Application.ScreenUpdating = True
 End Sub
+
+' Ligne du titre de la matrice des micropieux (« RÉPARTITION DES CHARGES DES MURS SUR LES
+' MICROPIEUX », colonne B) de la feuille ws ; 0 si la feuille n'en a pas (ce n'est pas
+' une feuille de descente de charges)
+Public Function TrouverLigneMatrice(ws As Worksheet) As Long
+    Dim v As Variant
+    v = Application.Match(TITRE_MATRICE, ws.Range("B1:B3000"), 0)
+    If Not IsError(v) Then TrouverLigneMatrice = CLng(v)
+End Function
+
+' Ligne du titre de la matrice : celle trouvée, sinon 2 lignes sous le récapitulatif du
+' tableau de descente de charges (au moins LIGNE_MATRICE). Des lignes peuvent être
+' insérées dans le tableau (InsererElement) : la matrice descend d'autant.
+Public Function LigneMatrice(ws As Worksheet) As Long
+    Dim r As Long
+    r = TrouverLigneMatrice(ws)
+    If r > 0 Then
+        LigneMatrice = r
+    Else
+        r = ws.Cells(3000, "B").End(xlUp).Row + 2
+        LigneMatrice = Application.WorksheetFunction.Max(LIGNE_MATRICE, r)
+    End If
+End Function

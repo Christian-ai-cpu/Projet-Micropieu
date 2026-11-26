@@ -95,7 +95,7 @@ End Function
 
 Public Sub RemplirChargePermanente()
     Dim listes As Variant, i As Long, e As Long, r As Long, debut As Long
-    Dim nomBloc As String, sousTotaux As String
+    Dim nomBloc As String, sousTotaux As String, k As Long
 
     ' Tableau à la disposition actuelle (colonnes B à N, en-tête « Charge des poteaux
     ' G (kN) » en J) : sinon recréé d'abord ; ligne 1 (niveau d'étage, nombre de murs,
@@ -105,6 +105,10 @@ Public Sub RemplirChargePermanente()
     Else
         CreerLigneNiveau ActiveSheet
     End If
+    ' Lignes insérées (InsererElement) supprimées : le tableau est recréé à sa
+    ' disposition standard (matrice des micropieux en ligne LIGNE_MATRICE)
+    k = TrouverLigneMatrice(ActiveSheet)
+    If k > LIGNE_MATRICE Then ActiveSheet.Range(ActiveSheet.Rows(5), ActiveSheet.Rows(4 + k - LIGNE_MATRICE)).Delete
     Application.ScreenUpdating = False       ' pas de scintillement pendant l'exécution
     Application.EnableEvents = False
     r = 5
@@ -174,7 +178,9 @@ Public Sub RemplirChargePermanente()
             .Range("B" & r).Value = "Sous-total " & nomBloc
             ' G (kN/ml) : éléments visibles du bloc (poteaux sans G en kN/ml) ; G (kN) :
             ' poteaux du bloc (gamma x b x h x e x n)
-            .Range("I" & r).Formula = "=SUBTOTAL(109,I" & debut & ":I" & r - 1 & ")"
+            ' (plage jusqu'à la ligne au-dessus du sous-total : les lignes insérées dans le
+            ' bloc, voir InsererElement, sont comptées)
+            .Range("I" & r).Formula = "=SUBTOTAL(109,I" & debut & ":INDEX(I:I,ROW()-1))"
             .Range("J" & r).ClearContents       ' pas de sous-total des G (kN) par étage
             .Range("B" & r & ":N" & r).Font.Bold = True
             .Range("B" & r).Font.Italic = True
@@ -190,7 +196,7 @@ Public Sub RemplirChargePermanente()
         .Range("I" & r).Formula = "=SUM(" & Mid(sousTotaux, 2) & ")"
         ' G (kN) : somme directe des lignes affichées (poteaux en fondation mixte, tous les
         ' éléments en semelle isolée), sans sous-total par étage
-        .Range("J" & r).Formula = "=SUBTOTAL(109,J5:J" & r - 1 & ")"
+        .Range("J" & r).Formula = "=SUBTOTAL(109,J5:INDEX(J:J,ROW()-1))"
         .Range("B" & r & ":N" & r).Font.Bold = True
         .Range("I" & r & ":N" & r).Interior.Color = COUL_CALCUL
     End With
@@ -425,6 +431,7 @@ Public Sub MajEpaisseurMur(ws As Worksheet, ligne As Long, Optional dc As Long =
     With ws.Cells(ligne, 5 + dc)            ' épaisseur en E
         .Validation.Delete
         .Validation.Add xlValidateList, xlValidAlertStop, , liste
+        .Validation.ShowError = False       ' autre épaisseur saisissable à la main
         .Value = Val(liste) / 100           ' "15 cm" -> 0.15 m
         .NumberFormat = "0.000"
     End With
@@ -448,53 +455,75 @@ End Sub
 '   (RDC+VS supprimé : sous-sol 1 ou 2 renommable en vide sanitaire 1 ou 2)
 ' Appelée aussi automatiquement quand C1 change (voir CodeFeuille.txt).
 Public Sub AfficherEtages(ws As Worksheet)
-    Dim niveau As Long, e As Long, rdc As String, terrasse As Boolean, nSS As Long
-    Dim typeF As String, r As Long, k As Long, nb As Long, t As String
+    Dim niveau As Long, rdc As String, terrasse As Boolean, nSS As Long, bloc As String
+    Dim typeF As String, r As Long, k As Long, nb As Long, t As String, rFin As Long
+    Dim cache As Boolean, numE As Long, revPl As Boolean
 
-    ' Toutes les lignes affichées, puis règles ci-dessous (niveau, sous-sols, type de
-    ' fondation)
-    ws.Rows("5:73").Hidden = False
-
-    terrasse = (ws.Range("B5").Value = "Toiture terrasse")
-    ws.Rows(6).Hidden = terrasse            ' poids surfacique de la toiture (toiture en pente)
-    ws.Rows("7:8").Hidden = Not terrasse
+    ' Blocs repérés par leur titre (lignes insérées admises, voir InsererElement) :
+    ' toiture, Étage n, RDC, Sous-sol / Vide sanitaire 1 et 2, ancien vide sanitaire,
+    ' soubassement ; chaque bloc finit par sa ligne « Sous-total ».
+    rFin = LigneMatrice(ws) - 1
+    ws.Range(ws.Rows(5), ws.Rows(rFin)).Hidden = False
+    terrasse = (CStr(ws.Range("B5").Value) = "Toiture terrasse")
     ' Niveau d'étage (C1) : RDC, RDC+1SS, RDC+2SS, R+1, R+1+1SS, ..., R+5+2SS
     rdc = CStr(ws.Range("C1").Value)
     nSS = 0
     If InStr(rdc, "+1SS") > 0 Then nSS = 1
     If InStr(rdc, "+2SS") > 0 Then nSS = 2
-    ws.Rows("47:48").Hidden = (nSS = 0)            ' plancher du RDC (au-dessus d'un sous-sol)
-    ws.Rows("53:59").Hidden = (nSS < 1)            ' sous-sol 1 (ou vide sanitaire 1)
-    ws.Rows("54:55").Hidden = (nSS < 2)            ' plancher du sous-sol 1
-    ws.Rows("60:64").Hidden = (nSS < 2)            ' sous-sol 2 (ou vide sanitaire 2)
-    ws.Rows("65:68").Hidden = True               ' ancien bloc vide sanitaire (sous-sols renommables)
     niveau = 0
     If Left(rdc, 2) = "R+" Then niveau = Val(Mid(rdc, 3))   ' R+2+1SS -> 2 ; RDC -> 0
-    For e = 1 To 5
-        ' Bloc de l'étage e (sous-total compris) : 7 lignes à partir de 11 + 7 × (5 - e)
-        ws.Rows(11 + 7 * (5 - e)).Resize(7).Hidden = (e > niveau)
-    Next e
-    ' Type de fondation (M1) :
-    '   semelle filante : lignes Poutre, Poteau et Semelle masquées, colonne G (kN)
-    '                     masquée ;
-    '   semelle isolée  : colonne G (kN/ml) masquée (tout en kN), profondeur e et
-    '                     nombre n à saisir sur tous les éléments ;
-    '   mixte           : tout affiché, e et n à saisir sur les poteaux
     typeF = CStr(ws.Range("M1").Value)
     nb = Val(ws.Range("G1").Value)
     If nb < 1 Then nb = 1
-    For r = 5 To 73
+
+    For r = 5 To rFin
         t = CStr(ws.Range("B" & r).Value)
-        ' semelle filante : poutres, poteaux et semelles masqués
+        If Left(t, 5) = "TOTAL" Then Exit For
+        ' Titre de bloc
+        If Left(t, 7) = "Toiture" Then
+            bloc = "T"
+        ElseIf Left(t, 6) = "Étage " Then
+            bloc = "E": numE = Val(Mid(t, 7))
+        ElseIf t = "RDC" Then
+            bloc = "R"
+        ElseIf t = "Sous-sol 1" Or t = "Vide sanitaire 1" Then
+            bloc = "S1"
+        ElseIf t = "Sous-sol 2" Or t = "Vide sanitaire 2" Then
+            bloc = "S2"
+        ElseIf t = "Vide sanitaire" Then
+            bloc = "V"
+        ElseIf t = "Soubassement" Then
+            bloc = "B"
+        End If
+        ' Bloc entier masqué (sous-total compris)
+        Select Case bloc
+            Case "E": cache = (numE > niveau)
+            Case "S1": cache = (nSS < 1)
+            Case "S2": cache = (nSS < 2)
+            Case "V": cache = True        ' ancien bloc vide sanitaire (sous-sols renommables)
+            Case Else: cache = False
+        End Select
+        ' Lignes Revêtement / Plancher : toiture terrasse seulement ; RDC si un niveau
+        ' sous le RDC ; sous-sol 1 si deux niveaux sous le RDC
+        revPl = (InStr("," & REVETEMENTS & ",", "," & t & ",") > 0 Or Left(t, 8) = "Plancher")
+        If revPl Then
+            If bloc = "T" And Not terrasse Then cache = True
+            If bloc = "R" And nSS = 0 Then cache = True
+            If bloc = "S1" And nSS < 2 Then cache = True
+        End If
+        If t = LIGNE_POIDS_TOITURE And terrasse Then cache = True
+        ' Semelle filante : poutres, poteaux et semelles masqués
         If typeF = "Semelle filante" And (Left(t, 6) = "Poutre" Or Left(t, 6) = "Poteau" Or _
-            Left(t, 7) = "Semelle") Then ws.Rows(r).Hidden = True
-        ' cases e et n (colonnes G et H) à saisir selon le type de fondation
-        If ws.Range("C" & r).Interior.Color = COUL_CALCUL Then   ' ligne d'élément
+            Left(t, 7) = "Semelle") Then cache = True
+        If cache Then ws.Rows(r).Hidden = True
+        ' Cases e et n (colonnes G et H) à saisir selon le type de fondation (lignes
+        ' d'élément : poids en C coloré)
+        If ws.Range("C" & r).Interior.Color = COUL_CALCUL Then
             For k = 0 To nb - 1
                 With ws.Range(ws.Cells(r, 7 + k * PAS_MUR), ws.Cells(r, 8 + k * PAS_MUR))
                     If typeF = "Semelle isolée" Or (typeF = "Mixte" And Left(t, 6) = "Poteau") Then
                         .Interior.Color = COUL_SAISIE
-                    ElseIf r >= 69 And r <= 72 Then    ' soubassement : profondeur e (vérification)
+                    ElseIf bloc = "B" Then       ' soubassement : profondeur e (vérification)
                         .Cells(1, 1).Interior.Color = COUL_SAISIE
                         .Cells(1, 2).Interior.Pattern = xlNone
                     Else
@@ -503,9 +532,49 @@ Public Sub AfficherEtages(ws As Worksheet)
                 End With
             Next k
         End If
+        If Left(t, 10) = "Sous-total" Then bloc = ""
     Next r
+    ' Type de fondation (M1) : semelle isolée -> colonne G (kN/ml) masquée (tout en kN) ;
+    ' semelle filante -> colonne G (kN) masquée ; mixte -> tout affiché
     For k = 0 To nb - 1
         ws.Columns(9 + k * PAS_MUR).Hidden = (typeF = "Semelle isolée")
         ws.Columns(10 + k * PAS_MUR).Hidden = (typeF = "Semelle filante")
     Next k
+End Sub
+
+' Insère une ligne d'élément dans le tableau de descente de charges, au-dessus de la
+' ligne sélectionnée (dans un étage, entre son titre et son sous-total) : copie de la
+' ligne au-dessus (formules, listes, couleurs), dans le tableau d'origine et dans les
+' copies des murs (ligne entière). Le sous-total de l'étage et les totaux la comptent ;
+' la matrice des micropieux descend d'une ligne. Désignation et dimensions à modifier.
+Public Sub InsererElement()
+    Dim ws As Worksheet, r As Long, t As String, tPrec As String
+    Set ws = ActiveSheet
+    r = ActiveCell.Row
+    If r <= 5 Or r >= LigneMatrice(ws) - 1 Then
+        MsgBox "Sélectionnez une ligne du tableau de descente de charges (dans un étage, sous " & _
+            "son titre), puis relancez InsererElement.", vbExclamation
+        Exit Sub
+    End If
+    t = CStr(ws.Range("B" & r).Value)
+    tPrec = CStr(ws.Range("B" & r - 1).Value)
+    If Left(tPrec, 10) = "Sous-total" Or Left(t, 5) = "TOTAL" Then
+        MsgBox "La ligne doit être insérée dans un étage, entre son titre et son sous-total.", _
+            vbExclamation
+        Exit Sub
+    End If
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    ws.Rows(r).Insert Shift:=xlDown
+    ws.Rows(r - 1).Copy Destination:=ws.Rows(r)
+    ' titre d'étage copié (ligne juste sous le titre) : désignation à saisir
+    If ws.Range("B" & r - 1).Font.Bold Then
+        ws.Range("B" & r).Font.Bold = False
+        ws.Range("B" & r).ClearContents
+    End If
+    Application.CutCopyMode = False
+    Application.EnableEvents = True
+    AfficherEtages ws
+    Application.ScreenUpdating = True
+    ws.Range("B" & r).Select
 End Sub

@@ -723,7 +723,7 @@ Public Sub ChangementDonnees(ws As Worksheet, Target As Range)
     If Not Intersect(Target, ws.Range("D" & LIGNE_DONNEES_FONDATION + 3)) Is Nothing Then
         On Error Resume Next
         For Each f In ws.Parent.Worksheets
-            If CStr(f.Range("B80").Value) = "RÉPARTITION DES CHARGES DES MURS SUR LES MICROPIEUX" Then _
+            If TrouverLigneMatrice(f) > 0 Then _
                 Application.Run "ConstruireMatrice", f
         Next f
         Application.Run "ActualiserVerificationProfondeur"

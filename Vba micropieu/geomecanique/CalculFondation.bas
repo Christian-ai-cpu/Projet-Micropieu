@@ -705,11 +705,13 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     Dim incl As Boolean, cRe As Long, kb As String, capk As String, zk As String, cZ As Long
     Dim cI As Long, cA As Long, angle0 As Variant
     Dim fx As String, kd As Long, cE As Long, tC As Long, tP As Long, cGd As Long, cEd As Long
+    Dim lMat As Long
 
     L = LigneVerif(ws)                       ' titre du tableau
     For Each f In ActiveWorkbook.Worksheets
-        If CStr(f.Range("B80").Value) = "RÉPARTITION DES CHARGES DES MURS SUR LES MICROPIEUX" Then
+        If TrouverLigneMatrice(f) > 0 Then
             Set wd = f
+            lMat = TrouverLigneMatrice(f)     ' titre de la matrice (80, plus les lignes insérées)
             Exit For
         End If
     Next f
@@ -753,10 +755,10 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     ' Matrice des micropieux : murs (Mur 01...) à partir de la ligne 86, en-tête à 88 + n,
     ' micropieux (MP1...) à partir de 91 + n, POIDS TOTAL ÉLÉMENTAIRE DDC G et Q en
     ' colonnes 8 + n et 9 + n, eau EB, EH, EE en colonnes 10 + n à 12 + n
-    Do While InStr("|Mur |Pot |", "|" & Left(CStr(wd.Range("B" & 86 + n).Value), 4) & "|") > 0
+    Do While InStr("|Mur |Pot |", "|" & Left(CStr(wd.Range("B" & lMat + 6 + n).Value), 4) & "|") > 0
         n = n + 1
     Loop
-    rd = 88 + n + 3
+    rd = lMat + 8 + n + 3
     Do While Left(CStr(wd.Range("B" & rd + m).Value), 2) = "MP"
         m = m + 1
     Loop
@@ -770,10 +772,10 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         On Error GoTo 0
         mReconstruction = False
         n = 0: m = 0
-        Do While InStr("|Mur |Pot |", "|" & Left(CStr(wd.Range("B" & 86 + n).Value), 4) & "|") > 0
+        Do While InStr("|Mur |Pot |", "|" & Left(CStr(wd.Range("B" & lMat + 6 + n).Value), 4) & "|") > 0
             n = n + 1
         Loop
-        rd = 88 + n + 3
+        rd = lMat + 8 + n + 3
         Do While Left(CStr(wd.Range("B" & rd + m).Value), 2) = "MP"
             m = m + 1
         Loop
@@ -783,8 +785,8 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     ' POIDS TOTAL ÉLÉMENTAIRE DDC (G, Q) et CHARGES DE L'EAU (EB, EH, EE)
     cGd = 0: cEd = 0
     For c = 3 To 250
-        If CStr(wd.Cells(88 + n, c).Value) = "POIDS TOTAL ÉLÉMENTAIRE DDC" Then cGd = c
-        If Left(CStr(wd.Cells(88 + n, c).Value), 15) = "CHARGES DE L'EA" Then cEd = c
+        If CStr(wd.Cells(lMat + 8 + n, c).Value) = "POIDS TOTAL ÉLÉMENTAIRE DDC" Then cGd = c
+        If Left(CStr(wd.Cells(lMat + 8 + n, c).Value), 15) = "CHARGES DE L'EA" Then cEd = c
     Next c
     If cGd = 0 Then cGd = 8 + n
 

@@ -12,7 +12,7 @@
 ' rien n'est fait dans la matrice des micropieux (lignes à partir de LIGNE_MATRICE).
 
 Private Sub Worksheet_Change(ByVal Target As Range)
-    Dim c As Range, m As Long, dc As Long
+    Dim c As Range, m As Long, dc As Long, lmx As Long
 
     If Not Intersect(Target, Me.Range("C1")) Is Nothing Then AfficherEtages Me
     If Not Intersect(Target, Me.Range("G1")) Is Nothing Then DupliquerMurs Me
@@ -23,8 +23,9 @@ Private Sub Worksheet_Change(ByVal Target As Range)
 
     On Error GoTo Fin
     Application.EnableEvents = False
+    lmx = LigneMatrice(Me)                        ' titre de la matrice des micropieux
     For Each c In Target.Cells
-        If c.Row >= 5 And c.Row < LIGNE_MATRICE And c.Column >= 2 Then
+        If c.Row >= 5 And c.Row < lmx And c.Column >= 2 Then
             m = (c.Column - 2) Mod PAS_MUR            ' position dans le tableau
             dc = c.Column - 2 - m                     ' décalage du tableau (mur)
             If m = 0 Then                             ' colonne Désignation

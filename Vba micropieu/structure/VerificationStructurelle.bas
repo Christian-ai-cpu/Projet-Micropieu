@@ -88,6 +88,7 @@ Public Sub CreerVerificationStructurelle()
     Dim vEx As String, vPas As String, pasZ As Variant, hF As Variant, nbC As Long, rA As Long
     Dim vDur As String
     Dim vBut As String, rV As Long, calcY As Boolean, v As Variant
+    Dim lMat As Long
     Dim libre As Variant, cTal As Long, fH0 As String, fM0 As String
 
     Application.ScreenUpdating = False
@@ -97,8 +98,9 @@ Public Sub CreerVerificationStructurelle()
     Application.Run "RenommerFeuilleCalcul"   ' ancienne feuille « Calcul et vérification »
     Set wc = ActiveWorkbook.Worksheets("Calcul Portance")
     For Each f In ActiveWorkbook.Worksheets
-        If CStr(f.Range("B80").Value) = "RÉPARTITION DES CHARGES DES MURS SUR LES MICROPIEUX" Then
+        If TrouverLigneMatrice(f) > 0 Then
             Set wd = f
+            lMat = TrouverLigneMatrice(f)     ' titre de la matrice (80, plus les lignes insérées)
             Exit For
         End If
     Next f
@@ -189,10 +191,10 @@ Public Sub CreerVerificationStructurelle()
         Next r
     End If
     If Not wd Is Nothing Then
-        Do While InStr("|Mur |Pot |", "|" & Left(CStr(wd.Range("B" & 86 + n).Value), 4) & "|") > 0
+        Do While InStr("|Mur |Pot |", "|" & Left(CStr(wd.Range("B" & lMat + 6 + n).Value), 4) & "|") > 0
             n = n + 1
         Loop
-        rd = 88 + n + 3                       ' MP1 dans la matrice des micropieux
+        rd = lMat + 8 + n + 3                       ' MP1 dans la matrice des micropieux
         dn = "'" & wd.Name & "'!"
         ' Lignes du soubassement (descente de charges) : poteau et semelle (profondeur e en G)
         For r = 5 To 79
@@ -475,7 +477,7 @@ Public Sub CreerVerificationStructurelle()
     cTal = 0
     If Not wd Is Nothing Then
         For j = 3 To 250
-            If CStr(wd.Cells(88 + n, j).Value) = "CHARGE DU TALUS" Then cTal = j: Exit For
+            If CStr(wd.Cells(lMat + 8 + n, j).Value) = "CHARGE DU TALUS" Then cTal = j: Exit For
         Next j
     End If
     If cTal > 0 Then
@@ -585,7 +587,7 @@ Public Sub CreerVerificationStructurelle()
         cl = Chr(Asc("E") + k)
         ws.Range(cl & r + 1).Formula = "=N(" & vBut & ")"
         ' (matrice des longueurs absente en semelle isolée : L = 0, butée non comptée)
-        If Not wd Is Nothing And n > 0 And Left(CStr(wd.Cells(88 + n, 3).Value), 9) = "LONGUEURS" Then
+        If Not wd Is Nothing And n > 0 And Left(CStr(wd.Cells(lMat + 8 + n, 3).Value), 9) = "LONGUEURS" Then
             ws.Range(cl & r + 2).Formula = "=MAX(" & dn & wd.Range(wd.Cells(rd + iMax - 1, 3), _
                 wd.Cells(rd + iMax - 1, 2 + n)).Address & ")"
         Else
@@ -915,7 +917,7 @@ Public Sub VerifierNombreMicropieux(ws As Worksheet)
     Dim f As Worksheet, k As Long, v As Variant
     If mEnCours Then Exit Sub
     For Each f In ActiveWorkbook.Worksheets
-        If CStr(f.Range("B80").Value) = "RÉPARTITION DES CHARGES DES MURS SUR LES MICROPIEUX" Then
+        If TrouverLigneMatrice(f) > 0 Then
             k = CLng(N0(f.Range("K1").Value))
             Exit For
         End If
