@@ -256,12 +256,15 @@ End Function
 ' Met une liste déroulante sur la cellule c. Au-delà de 255 caractères (limite
 ' d'Excel), les choix sont écrits dans une colonne de la feuille masquée « Listes »
 ' (titre nom en ligne 1) et la liste déroulante renvoie à cette colonne.
+' Liste déroulante de la désignation : choix proposés, mais toute autre désignation
+' peut être saisie (poids volumique / surfacique alors à saisir en C / D)
 Public Sub AjouterListe(c As Range, liste As String, nom As String)
     Dim wl As Worksheet, wb As Workbook, choix As Variant, col As Long
 
     c.Validation.Delete
     If Len(liste) <= 255 Then
         c.Validation.Add xlValidateList, xlValidAlertStop, , liste
+        c.Validation.ShowError = False      ' saisie libre admise (autre désignation)
         Exit Sub
     End If
     Set wb = c.Worksheet.Parent
@@ -285,6 +288,7 @@ Public Sub AjouterListe(c As Range, liste As String, nom As String)
     wl.Cells(2, col).Resize(UBound(choix) + 1, 1).Value = Application.Transpose(choix)
     c.Validation.Add xlValidateList, xlValidAlertStop, , "=Listes!" & _
         wl.Cells(2, col).Resize(UBound(choix) + 1, 1).Address
+    c.Validation.ShowError = False          ' saisie libre admise (autre désignation)
 End Sub
 
 ' Charge permanente (kN/m²) du revêtement de sol posé sur le plancher ; 0 sinon.
