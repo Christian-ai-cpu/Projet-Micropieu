@@ -189,7 +189,7 @@ Public Sub CreerVerificationStructurelle()
         Next r
     End If
     If Not wd Is Nothing Then
-        Do While Left(CStr(wd.Range("B" & 86 + n).Value), 4) = "Mur "
+        Do While InStr("|Mur |Pot |", "|" & Left(CStr(wd.Range("B" & 86 + n).Value), 4) & "|") > 0
             n = n + 1
         Loop
         rd = 88 + n + 3                       ' MP1 dans la matrice des micropieux
@@ -584,7 +584,8 @@ Public Sub CreerVerificationStructurelle()
     For k = 0 To 3
         cl = Chr(Asc("E") + k)
         ws.Range(cl & r + 1).Formula = "=N(" & vBut & ")"
-        If Not wd Is Nothing And n > 0 Then
+        ' (matrice des longueurs absente en semelle isolée : L = 0, butée non comptée)
+        If Not wd Is Nothing And n > 0 And Left(CStr(wd.Cells(88 + n, 3).Value), 9) = "LONGUEURS" Then
             ws.Range(cl & r + 2).Formula = "=MAX(" & dn & wd.Range(wd.Cells(rd + iMax - 1, 3), _
                 wd.Cells(rd + iMax - 1, 2 + n)).Address & ")"
         Else

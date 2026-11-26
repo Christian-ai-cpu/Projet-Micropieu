@@ -98,7 +98,7 @@ Public Sub RemplirChargePermanente()
     ' Tableau à la disposition actuelle (colonnes B à N, en-tête « Charge des poteaux
     ' G (kN) » en J) : sinon recréé d'abord ; ligne 1 (niveau d'étage, nombre de murs,
     ' nombre de micropieux...) toujours remise en place
-    If CStr(ActiveSheet.Range("J3").Value) <> "Charge des poteaux G (kN)" Then
+    If CStr(ActiveSheet.Range("H4").Value) <> "Nombre n" Then
         CreerTableauChargesPermanentesComplet
     Else
         CreerLigneNiveau ActiveSheet
@@ -375,11 +375,8 @@ Public Sub MajLigne(ws As Worksheet, ligne As Long, Optional dc As Long = 0)
         ws.Cells(ligne, 3 + dc).Value = PoidsVolumique(typeElement)
         ws.Cells(ligne, 4 + dc).ClearContents
         ' Poteau : pas de G en kN/ml (I vide) ; G (kN) en J = gamma x b x h x e x n
-        ' (section b x h, profondeur e en G, nombre n en H)
-        If Left(typeElement, 6) = "Poteau" Then
-            ws.Cells(ligne, 9 + dc).Formula = "="""""
-            ws.Cells(ligne, 10 + dc).FormulaR1C1 = "=IF(RC[-8]="""","""",RC[-7]*RC[-5]*RC[-4]*RC[-3]*RC[-2])"
-        End If
+        ' (section b x h, profondeur e en G, nombre n en H ; formule du tableau)
+        If Left(typeElement, 6) = "Poteau" Then ws.Cells(ligne, 9 + dc).Formula = "="""""
         ' Rappel sur l'épaisseur h d'une poutre (commentaire sur la cellule F)
         If Left(typeElement, 6) = "Poutre" Then
             ' Commentaire en image (module CommentaireImage) ; à défaut, commentaire texte
@@ -453,6 +450,11 @@ End Sub
 ' Appelée aussi automatiquement quand C1 change (voir CodeFeuille.txt).
 Public Sub AfficherEtages(ws As Worksheet)
     Dim niveau As Long, e As Long, rdc As String, terrasse As Boolean, nSS As Long
+    Dim typeF As String, r As Long, k As Long, nb As Long
+
+    ' Toutes les lignes affichées, puis règles ci-dessous (niveau, sous-sols, type de
+    ' fondation)
+    ws.Rows("5:73").Hidden = False
 
     terrasse = (ws.Range("B5").Value = "Toiture terrasse")
     ws.Rows(6).Hidden = True                ' ancienne ligne « Charge » (charge sur la ligne Toiture)
@@ -473,4 +475,21 @@ Public Sub AfficherEtages(ws As Worksheet)
         ' Bloc de l'étage e (sous-total compris) : 7 lignes à partir de 11 + 7 × (5 - e)
         ws.Rows(11 + 7 * (5 - e)).Resize(7).Hidden = (e > niveau)
     Next e
+    ' Type de fondation (M1) :
+    '   semelle filante : lignes Poteau et Poutre masquées, colonne G (kN) masquée ;
+    '   semelle isolée  : colonne G (kN/ml) masquée (tout en kN) ;
+    '   mixte           : tout affiché
+    typeF = CStr(ws.Range("M1").Value)
+    If typeF = "Semelle filante" Then
+        For r = 5 To 73
+            If Left(CStr(ws.Range("B" & r).Value), 6) = "Poteau" Or _
+                Left(CStr(ws.Range("B" & r).Value), 6) = "Poutre" Then ws.Rows(r).Hidden = True
+        Next r
+    End If
+    nb = Val(ws.Range("G1").Value)
+    If nb < 1 Then nb = 1
+    For k = 0 To nb - 1
+        ws.Columns(9 + k * PAS_MUR).Hidden = (typeF = "Semelle isolée")
+        ws.Columns(10 + k * PAS_MUR).Hidden = (typeF = "Semelle filante")
+    Next k
 End Sub

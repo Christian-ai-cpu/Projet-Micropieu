@@ -19,7 +19,7 @@ Public Const PAS_MUR As Long = 14          ' 13 colonnes (B à N) + 1 colonne vi
 
 Public Sub DupliquerMurs(Optional ws As Worksheet)
     Dim nbMurs As Long, k As Long, derniere As Long, c As Long
-    Dim source As Range, colB As String, ouvertures() As Variant
+    Dim source As Range, colB As String, ouvertures() As Variant, nom As String
 
     If ws Is Nothing Then Set ws = ActiveSheet
     nbMurs = Val(ws.Range("G1").Value)
@@ -41,13 +41,15 @@ Public Sub DupliquerMurs(Optional ws As Worksheet)
 
     ' Tableau d'origine : de la ligne 2 jusqu'au récapitulatif G / Q
     derniere = ws.Cells(LIGNE_MATRICE - 1, "B").End(xlUp).Row
-    ws.Range("B2").Value = "Mur 1"
+    ' Semelle isolée (type de fondation en M1) : descente de charges sur les poteaux
+    nom = IIf(CStr(ws.Range("M1").Value) = "Semelle isolée", "Pot ", "Mur ")
+    ws.Range("B2").Value = nom & "1"
     ws.Range("B2").Font.Bold = True
     Set source = ws.Range("B2:N" & derniere)
 
     For k = 1 To nbMurs - 1
         source.Copy Destination:=ws.Cells(2, 2 + k * PAS_MUR)
-        ws.Cells(2, 2 + k * PAS_MUR).Value = "Mur " & k + 1
+        ws.Cells(2, 2 + k * PAS_MUR).Value = nom & k + 1
         ' Pourcentage des ouvertures propre à ce mur (repris s'il existait déjà)
         ws.Range("H1:I1").Copy Destination:=ws.Cells(1, 8 + k * PAS_MUR)
         If Not IsEmpty(ouvertures(k)) Then ws.Cells(1, 9 + k * PAS_MUR).Value = ouvertures(k)
@@ -66,9 +68,17 @@ Public Sub DupliquerMurs(Optional ws As Worksheet)
 
     ' Matrice des micropieux : une colonne par mur
     ConstruireMatrice ws
+    AfficherEtages ws                        ' lignes et colonnes selon le niveau et le type de fondation
 
 Fin:
     Application.CutCopyMode = False
     Application.EnableEvents = True
     Application.ScreenUpdating = True
+End Sub
+
+' Applique le type de fondation (M1) de la feuille active : titres Mur / Pot, copies
+' des murs ou poteaux, matrice des micropieux et affichage (macro à lancer à la main si
+' le code de la feuille, CodeFeuille.txt, n'est pas installé)
+Public Sub AppliquerTypeFondation()
+    DupliquerMurs ActiveSheet
 End Sub

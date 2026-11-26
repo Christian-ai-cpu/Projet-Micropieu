@@ -753,7 +753,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
     ' Matrice des micropieux : murs (Mur 01...) à partir de la ligne 86, en-tête à 88 + n,
     ' micropieux (MP1...) à partir de 91 + n, POIDS TOTAL ÉLÉMENTAIRE DDC G et Q en
     ' colonnes 8 + n et 9 + n, eau EB, EH, EE en colonnes 10 + n à 12 + n
-    Do While Left(CStr(wd.Range("B" & 86 + n).Value), 4) = "Mur "
+    Do While InStr("|Mur |Pot |", "|" & Left(CStr(wd.Range("B" & 86 + n).Value), 4) & "|") > 0
         n = n + 1
     Loop
     rd = 88 + n + 3
@@ -770,7 +770,7 @@ Private Sub VerificationProfondeur(ws As Worksheet, Optional gmin As String = "G
         On Error GoTo 0
         mReconstruction = False
         n = 0: m = 0
-        Do While Left(CStr(wd.Range("B" & 86 + n).Value), 4) = "Mur "
+        Do While InStr("|Mur |Pot |", "|" & Left(CStr(wd.Range("B" & 86 + n).Value), 4) & "|") > 0
             n = n + 1
         Loop
         rd = 88 + n + 3

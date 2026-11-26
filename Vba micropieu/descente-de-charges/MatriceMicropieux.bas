@@ -51,7 +51,8 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     Dim li() As Variant, mat() As Variant, gc() As Variant, dims As Variant, dimsN() As Variant, eau() As Variant
     Dim ligne As String, cG As String, cQ As String, c As Range, evenements As Boolean
     Dim nappe As Boolean, f As Worksheet, xf As Long, xt As Long, talus() As Variant, cT As Long
-    Dim pot() As Variant, x0Old As Long, cP As String, ligneP As String
+    Dim pot() As Variant, x0Old As Long, cP As String, ligneP As String, cLo As Long, cIo As Long
+    Dim typeF As String, isolee As Boolean, nom As String, nL As Long, nP As Long, fG As String, fQ As String
 
     If ws Is Nothing Then Set ws = ActiveSheet
     L = LIGNE_MATRICE
@@ -80,7 +81,8 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         dimsN(3, 1) = dims(1, 1): dimsN(3, 2) = dims(3, 1): dimsN(3, 3) = dims(3, 2)
         dims = dimsN
     End If
-    Do While Left(CStr(ws.Range("B" & L + 6 + nOld).Value), 4) = "Mur "
+    Do While Left(CStr(ws.Range("B" & L + 6 + nOld).Value), 4) = "Mur " Or _
+            Left(CStr(ws.Range("B" & L + 6 + nOld).Value), 4) = "Pot "
         nOld = nOld + 1
     Loop
     r0Old = L + 8 + nOld
@@ -88,30 +90,33 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         Do While Left(CStr(ws.Range("B" & r0Old + 3 + mOld).Value), 2) = "MP"
             mOld = mOld + 1
         Loop
-        For j = 1 To Application.Min(n, nOld)
-            li(j) = ws.Cells(r0Old + 2, 2 + j).Value
+        ' Blocs de l'ancien tableau repérés par leur en-tête : longueurs des murs,
+        ' identification des poteaux, charges (1re colonne des résultats)
+        cLo = 0: cIo = 0: x0Old = 0
+        For j = 3 To 3 + 2 * nOld
+            If Left(CStr(ws.Cells(r0Old, j).Value), 9) = "LONGUEURS" Then cLo = j
+            If Left(CStr(ws.Cells(r0Old, j).Value), 14) = "IDENTIFICATION" Then cIo = j
+            If Left(CStr(ws.Cells(r0Old, j).Value), 11) = "CHARGES DES" Then x0Old = j: Exit For
         Next j
-        ' Matrice IDENTIFICATION POTEAU présente dans l'ancien tableau : colonnes après
-        ' celle des longueurs
-        x0Old = 3 + nOld
-        If Left(CStr(ws.Cells(r0Old, 3 + nOld).Value), 14) = "IDENTIFICATION" Then x0Old = 3 + 2 * nOld
+        If x0Old = 0 Then x0Old = 3 + nOld
+        For j = 1 To Application.Min(n, nOld)
+            If cLo > 0 Then li(j) = ws.Cells(r0Old + 2, cLo - 1 + j).Value
+        Next j
         For i = 1 To Application.Min(m, mOld)
             For j = 1 To Application.Min(n, nOld)
-                Set c = ws.Cells(r0Old + 2 + i, 2 + j)
-                If Not c.HasFormula Then mat(i, j) = c.Value
+                If cLo > 0 Then
+                    Set c = ws.Cells(r0Old + 2 + i, cLo - 1 + j)
+                    If Not c.HasFormula Then mat(i, j) = c.Value
+                End If
+                If cIo > 0 Then pot(i, j) = ws.Cells(r0Old + 2 + i, cIo - 1 + j).Value
             Next j
-            If x0Old = 3 + 2 * nOld Then
-                For j = 1 To Application.Min(n, nOld)
-                    pot(i, j) = ws.Cells(r0Old + 2 + i, 2 + nOld + j).Value
-                Next j
-            End If
             gc(i) = ws.Cells(r0Old + 2 + i, x0Old + 2).Value
             For j = 1 To 3                   ' eau EB, EH, EE
                 eau(i, j) = ws.Cells(r0Old + 2 + i, x0Old + 6 + j).Value
             Next j
         Next i
         ' Charge du talus H0, M0 saisies (colonnes repérées par leur en-tête)
-        For j = 3 To 80
+        For j = 3 To 250
             If CStr(ws.Cells(r0Old, j).Value) = "CHARGE DU TALUS" Then cT = j: Exit For
         Next j
         If cT > 0 Then
@@ -134,7 +139,7 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
 
     ' --- Ligne du récapitulatif G / Q des murs (sous le tableau de chaque mur) ---
     For r = 5 To L - 1
-        If CStr(ws.Range("B" & r).Value) = "G (kN/ml)" Then rG = r
+        If CStr(ws.Range("B" & r).Value) = "G (kN/ml)" Or CStr(ws.Range("B" & r).Value) = "G (kN)" Then rG = r
     Next r
 
     ' --- Titre et données d'entrée ---
@@ -164,10 +169,22 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
 
     ' --- Matrice n x 3 : G et Q (kN/ml) et charge des poteaux G (kN) de chaque mur
     ' (récapitulatif du mur k, colonne C du tableau d'origine + (k - 1) x PAS_MUR) ---
-    ws.Range("B" & L + 5 & ":E" & L + 5).Value = Array("MUR", "G (kN/ml)", "Q (kN/ml)", "G poteaux (kN)")
+    ' Type de fondation (M1) : semelle isolée -> descente de charges sur les poteaux
+    ' (Pot 01, ...), charges en kN, matrice d'identification seule ; semelle filante ->
+    ' matrice des longueurs seule ; mixte -> les deux
+    typeF = CStr(ws.Range("M1").Value)
+    isolee = (typeF = "Semelle isolée")
+    nom = IIf(isolee, "Pot ", "Mur ")
+    nL = IIf(isolee, 0, n)                    ' colonnes de la matrice des longueurs
+    nP = IIf(typeF = "Semelle filante", 0, n) ' colonnes de la matrice d'identification
+    If isolee Then
+        ws.Range("B" & L + 5 & ":E" & L + 5).Value = Array("POTEAU", "G (kN)", "Q (kN)", "G poteaux (kN)")
+    Else
+        ws.Range("B" & L + 5 & ":E" & L + 5).Value = Array("MUR", "G (kN/ml)", "Q (kN/ml)", "G poteaux (kN)")
+    End If
     For j = 1 To n
         r = L + 5 + j
-        ws.Range("B" & r).Value = "Mur " & Format(j, "00")
+        ws.Range("B" & r).Value = nom & Format(j, "00")
         If rG > 0 Then
             ws.Range("C" & r).Formula = "=N(" & ws.Cells(rG, 3 + (j - 1) * PAS_MUR).Address & ")"
             ws.Range("D" & r).Formula = "=N(" & ws.Cells(rG + 1, 3 + (j - 1) * PAS_MUR).Address & ")"
@@ -181,16 +198,20 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
 
     ' --- Matrice m x n des longueurs et résultats ---
     r0 = L + 8 + n                            ' 1re ligne d'en-tête
-    x0 = 3 + 2 * n                            ' 1re colonne après les deux matrices
+    x0 = 3 + nL + nP                          ' 1re colonne après les matrices
     ws.Cells(r0, 2).Value = "N° MICROPIEU"
     ws.Range(ws.Cells(r0, 2), ws.Cells(r0 + 1, 2)).Merge
-    ws.Cells(r0, 3).Value = "LONGUEURS DES MURS REPRISES PAR LE MICROPIEU (m)"
-    If n > 1 Then ws.Range(ws.Cells(r0, 3), ws.Cells(r0, 2 + n)).Merge
-    ' Matrice IDENTIFICATION POTEAU (0 / 1) juste à côté : 1 = charge des poteaux du mur
-    ' ajoutée à la charge G des murs du micropieu, 0 = non
-    ws.Cells(r0, 3 + n).Value = "IDENTIFICATION POTEAU (0 / 1)"
-    If n > 1 Then ws.Range(ws.Cells(r0, 3 + n), ws.Cells(r0, 2 + 2 * n)).Merge
-    ws.Cells(r0, x0).Value = "CHARGES DES MURS"
+    If nL > 0 Then
+        ws.Cells(r0, 3).Value = "LONGUEURS DES MURS REPRISES PAR LE MICROPIEU (m)"
+        If n > 1 Then ws.Range(ws.Cells(r0, 3), ws.Cells(r0, 2 + n)).Merge
+    End If
+    ' Matrice IDENTIFICATION POTEAU (0 / 1) à côté : 1 = charge des poteaux (Pot n en
+    ' semelle isolée, poteaux du mur en mixte) ajoutée à la charge du micropieu, 0 = non
+    If nP > 0 Then
+        ws.Cells(r0, 3 + nL).Value = "IDENTIFICATION POTEAU (0 / 1)"
+        If n > 1 Then ws.Range(ws.Cells(r0, 3 + nL), ws.Cells(r0, 2 + nL + nP)).Merge
+    End If
+    ws.Cells(r0, x0).Value = IIf(isolee, "CHARGES DES POTEAUX", "CHARGES DES MURS")
     ws.Range(ws.Cells(r0, x0), ws.Cells(r0, x0 + 1)).Merge
     ws.Cells(r0, x0 + 2).Value = "STRUCTURE GC"
     ws.Cells(r0, x0 + 3).Value = "POIDS MASSIF (kN)"
@@ -214,8 +235,8 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         ws.Range(ws.Cells(r0 + 1, x0 + 7), ws.Cells(r0 + 1, x0 + 9)).Value = Array("EAU EB", "EAU EH", "EAU EE")
     End If
     For j = 1 To n
-        ws.Cells(r0 + 1, 2 + j).Value = "Mur " & Format(j, "00")
-        ws.Cells(r0 + 1, 2 + n + j).Value = "Mur " & Format(j, "00")
+        If nL > 0 Then ws.Cells(r0 + 1, 2 + j).Value = "Mur " & Format(j, "00")
+        If nP > 0 Then ws.Cells(r0 + 1, 2 + nL + j).Value = nom & Format(j, "00")
     Next j
     ws.Cells(r0 + 1, x0).Value = "G (kN)"
     ws.Cells(r0 + 1, x0 + 1).Value = "Q (kN)"
@@ -223,15 +244,17 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
     ws.Cells(r0 + 1, x0 + 6).Value = "Q (kN)"
 
     ' Longueur Li de chaque mur (saisie), reprise sur la diagonale de la matrice
-    ws.Cells(r0 + 2, 2).Value = "Longueur du mur Li (m)"
-    For j = 1 To n
-        ws.Cells(r0 + 2, 2 + j).Value = li(j)
-    Next j
+    If nL > 0 Then
+        ws.Cells(r0 + 2, 2).Value = "Longueur du mur Li (m)"
+        For j = 1 To n
+            ws.Cells(r0 + 2, 2 + j).Value = li(j)
+        Next j
+    End If
 
     For i = 1 To m
         r = r0 + 2 + i
         ws.Cells(r, 2).Value = "MP" & i
-        For j = 1 To n
+        For j = 1 To nL
             If Not IsEmpty(mat(i, j)) Then
                 ws.Cells(r, 2 + j).Value = mat(i, j)
             ElseIf i = j Then
@@ -240,20 +263,33 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
                 ws.Cells(r, 2 + j).Value = 0
             End If
         Next j
-        ' Identification des poteaux (0 / 1, saisie conservée, 0 par défaut)
-        For j = 1 To n
-            With ws.Cells(r, 2 + n + j)
-                .Value = IIf(IsEmpty(pot(i, j)), 0, pot(i, j))
+        ' Identification des poteaux (0 / 1, saisie conservée ; par défaut 0, ou 1 sur la
+        ' diagonale en semelle isolée : micropieu i sous le poteau Pot i)
+        For j = 1 To nP
+            With ws.Cells(r, 2 + nL + j)
+                If Not IsEmpty(pot(i, j)) Then
+                    .Value = pot(i, j)
+                Else
+                    .Value = IIf(isolee And i = j, 1, 0)
+                End If
                 .Validation.Delete
                 .Validation.Add xlValidateList, xlValidAlertStop, , "0,1"
             End With
         Next j
-        ligne = ws.Range(ws.Cells(r, 3), ws.Cells(r, 2 + n)).Address(False, False)
-        ligneP = ws.Range(ws.Cells(r, 3 + n), ws.Cells(r, 2 + 2 * n)).Address(False, False)
-        ' Charges des murs = (ligne de la matrice des longueurs) x (G, Q des murs) +
-        ' (ligne de la matrice d'identification des poteaux) x (G poteaux des murs)
-        ws.Cells(r, x0).Formula = "=IFERROR(MMULT(" & ligne & "," & cG & ")+MMULT(" & ligneP & "," & cP & "),"""")"
-        ws.Cells(r, x0 + 1).Formula = "=IFERROR(MMULT(" & ligne & "," & cQ & "),"""")"
+        If nL > 0 Then ligne = ws.Range(ws.Cells(r, 3), ws.Cells(r, 2 + n)).Address(False, False)
+        If nP > 0 Then ligneP = ws.Range(ws.Cells(r, 3 + nL), ws.Cells(r, 2 + nL + n)).Address(False, False)
+        ' Charges du micropieu :
+        '   semelle filante : longueurs x (G, Q des murs, kN/ml) ;
+        '   mixte           : idem + identification x G poteaux des murs (kN) ;
+        '   semelle isolée  : identification x (G, Q des poteaux Pot n, kN)
+        If isolee Then
+            fG = "MMULT(" & ligneP & "," & cG & ")": fQ = "MMULT(" & ligneP & "," & cQ & ")"
+        Else
+            fG = "MMULT(" & ligne & "," & cG & ")": fQ = "MMULT(" & ligne & "," & cQ & ")"
+            If nP > 0 Then fG = fG & "+MMULT(" & ligneP & "," & cP & ")"
+        End If
+        ws.Cells(r, x0).Formula = "=IFERROR(" & fG & ","""")"
+        ws.Cells(r, x0 + 1).Formula = "=IFERROR(" & fQ & ","""")"
         ' Structure GC : M (massif) ou L (longrine), jamais les deux
         With ws.Cells(r, x0 + 2)
             .Validation.Add xlValidateList, xlValidAlertStop, , "M,L"
@@ -262,7 +298,7 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         ws.Cells(r, x0 + 3).Formula = "=IF(" & ws.Cells(r, x0 + 2).Address(False, False) & "=""M""," & _
             "$C$" & L + 2 & "*$D$" & L + 2 & "^2*$E$" & L + 2 & ",0)"
         ws.Cells(r, x0 + 4).Formula = "=IF(" & ws.Cells(r, x0 + 2).Address(False, False) & "=""L""," & _
-            "$C$" & L + 3 & "*$D$" & L + 3 & "*$E$" & L + 3 & "*SUM(" & ligne & ")/2,0)"
+            "$C$" & L + 3 & "*$D$" & L + 3 & "*$E$" & L + 3 & "*" & IIf(nL > 0, "SUM(" & ligne & ")", "0") & "/2,0)"
         ws.Cells(r, x0 + 5).Formula = "=N(" & ws.Cells(r, x0).Address(False, False) & ")+" & _
             ws.Cells(r, x0 + 3).Address(False, False) & "+" & ws.Cells(r, x0 + 4).Address(False, False)
         ws.Cells(r, x0 + 6).Formula = "=N(" & ws.Cells(r, x0 + 1).Address(False, False) & ")"
@@ -307,9 +343,8 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         .Interior.Color = COUL_ENTETE
         .WrapText = True
     End With
-    ws.Range(ws.Cells(r0 + 2, 3), ws.Cells(r - 1, 2 + n)).Interior.Color = COUL_SAISIE
-    ws.Range(ws.Cells(r0 + 3, 3 + n), ws.Cells(r - 1, 2 + 2 * n)).Interior.Color = COUL_SAISIE
-    ws.Range(ws.Cells(r0 + 3, 3 + n), ws.Cells(r - 1, 2 + 2 * n)).NumberFormat = "0"
+    If nL > 0 Then ws.Range(ws.Cells(r0 + 2, 3), ws.Cells(r - 1, 2 + nL)).Interior.Color = COUL_SAISIE
+    If nP > 0 Then ws.Range(ws.Cells(r0 + 3, 3 + nL), ws.Cells(r - 1, 2 + nL + nP)).Interior.Color = COUL_SAISIE
     ws.Range(ws.Cells(r0 + 3, x0 + 2), ws.Cells(r - 1, x0 + 2)).Interior.Color = COUL_SAISIE
     ws.Range(ws.Cells(r0 + 3, x0), ws.Cells(r, x0 + 1)).Interior.Color = COUL_CALCUL
     ws.Range(ws.Cells(r0 + 3, x0 + 3), ws.Cells(r, x0 + 6)).Interior.Color = COUL_CALCUL
@@ -318,7 +353,7 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         ws.Range(ws.Cells(r, x0 + 7), ws.Cells(r, x0 + 9)).Interior.Color = COUL_CALCUL
     End If
     ws.Range(ws.Cells(r0 + 2, 3), ws.Cells(r, xt + 1)).NumberFormat = "0.00"
-    ws.Range(ws.Cells(r0 + 3, 3 + n), ws.Cells(r - 1, 2 + 2 * n)).NumberFormat = "0"   ' identification
+    If nP > 0 Then ws.Range(ws.Cells(r0 + 3, 3 + nL), ws.Cells(r - 1, 2 + nL + nP)).NumberFormat = "0"   ' identification
     ws.Range(ws.Cells(r0 + 3, xt), ws.Cells(r - 1, xt + 1)).Interior.Color = COUL_SAISIE   ' talus
     ws.Range(ws.Cells(r, xt), ws.Cells(r, xt + 1)).Interior.Color = COUL_CALCUL
     ws.Range("C" & L + 2 & ":E" & L + 3 & ",C" & L + 6 & ":E" & L + 5 + n).NumberFormat = "0.00"
