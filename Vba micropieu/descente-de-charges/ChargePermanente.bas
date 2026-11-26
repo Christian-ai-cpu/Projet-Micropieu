@@ -95,7 +95,7 @@ End Function
 
 Public Sub RemplirChargePermanente()
     Dim listes As Variant, i As Long, e As Long, r As Long, debut As Long
-    Dim nomBloc As String, sousTotaux As String, sousTotauxP As String
+    Dim nomBloc As String, sousTotaux As String
 
     ' Tableau à la disposition actuelle (colonnes B à N, en-tête « Charge des poteaux
     ' G (kN) » en J) : sinon recréé d'abord ; ligne 1 (niveau d'étage, nombre de murs,
@@ -175,13 +175,12 @@ Public Sub RemplirChargePermanente()
             ' G (kN/ml) : éléments visibles du bloc (poteaux sans G en kN/ml) ; G (kN) :
             ' poteaux du bloc (gamma x b x h x e x n)
             .Range("I" & r).Formula = "=SUBTOTAL(109,I" & debut & ":I" & r - 1 & ")"
-            .Range("J" & r).Formula = "=SUBTOTAL(109,J" & debut & ":J" & r - 1 & ")"
+            .Range("J" & r).ClearContents       ' pas de sous-total des G (kN) par étage
             .Range("B" & r & ":N" & r).Font.Bold = True
             .Range("B" & r).Font.Italic = True
             .Range("I" & r & ":N" & r).Interior.Color = COUL_CALCUL   ' G, G poteaux, Q, ΣQ, αn, αn × ΣQ
         End With
         sousTotaux = sousTotaux & ",I" & r
-        sousTotauxP = sousTotauxP & ",J" & r
         r = r + 1
     Next e
 
@@ -189,7 +188,9 @@ Public Sub RemplirChargePermanente()
     With ActiveSheet
         .Range("B" & r).Value = "TOTAL (somme des sous-totaux)"
         .Range("I" & r).Formula = "=SUM(" & Mid(sousTotaux, 2) & ")"
-        .Range("J" & r).Formula = "=SUM(" & Mid(sousTotauxP, 2) & ")"
+        ' G (kN) : somme directe des lignes affichées (poteaux en fondation mixte, tous les
+        ' éléments en semelle isolée), sans sous-total par étage
+        .Range("J" & r).Formula = "=SUBTOTAL(109,J5:J" & r - 1 & ")"
         .Range("B" & r & ":N" & r).Font.Bold = True
         .Range("I" & r & ":N" & r).Interior.Color = COUL_CALCUL
     End With
@@ -470,8 +471,8 @@ Public Sub AfficherEtages(ws As Worksheet)
         ws.Rows(11 + 7 * (5 - e)).Resize(7).Hidden = (e > niveau)
     Next e
     ' Type de fondation (M1) :
-    '   semelle filante : lignes Poutre masquées, poteaux comptés avec l'étage (kN/ml),
-    '                     colonne G (kN) masquée ;
+    '   semelle filante : lignes Poutre, Poteau et Semelle masquées, colonne G (kN)
+    '                     masquée ;
     '   semelle isolée  : colonne G (kN/ml) masquée (tout en kN), profondeur e et
     '                     nombre n à saisir sur tous les éléments ;
     '   mixte           : tout affiché, e et n à saisir sur les poteaux
@@ -480,7 +481,9 @@ Public Sub AfficherEtages(ws As Worksheet)
     If nb < 1 Then nb = 1
     For r = 5 To 73
         t = CStr(ws.Range("B" & r).Value)
-        If typeF = "Semelle filante" And Left(t, 6) = "Poutre" Then ws.Rows(r).Hidden = True
+        ' semelle filante : poutres, poteaux et semelles masqués
+        If typeF = "Semelle filante" And (Left(t, 6) = "Poutre" Or Left(t, 6) = "Poteau" Or _
+            Left(t, 7) = "Semelle") Then ws.Rows(r).Hidden = True
         ' cases e et n (colonnes G et H) à saisir selon le type de fondation
         If ws.Range("C" & r).Interior.Color = COUL_CALCUL Then   ' ligne d'élément
             For k = 0 To nb - 1
