@@ -1,0 +1,27 @@
+Private Sub Worksheet_Change(ByVal Target As Range)
+    Dim c As Range, m As Long, dc As Long, lmx As Long
+    If Not Intersect(Target, Me.Range("C1")) Is Nothing Then AfficherEtages Me
+    If Not Intersect(Target, Me.Range("G1")) Is Nothing Then DupliquerMurs Me
+    If Not Intersect(Target, Me.Range(CELLULE_NB_MICROPIEUX)) Is Nothing Then ConstruireMatrice Me
+    If Not Intersect(Target, Me.Range("M1")) Is Nothing Then DupliquerMurs Me
+    If Target.CountLarge > 1000 Then Exit Sub
+    On Error GoTo Fin
+    Application.EnableEvents = False
+    lmx = LigneMatrice(Me)
+    For Each c In Target.Cells
+        If c.Row >= 5 And c.Row < lmx And c.Column >= 2 Then
+            m = (c.Column - 2) Mod PAS_MUR
+            dc = c.Column - 2 - m
+            If m = 0 Then
+                MajLigne Me, c.Row, dc
+            ElseIf m = 3 And VarType(c.Value) = vbString Then
+                If EpaisseursMur(CStr(Me.Cells(c.Row, 2 + dc).Value)) <> "" Then
+                    c.Value = Val(c.Value) / 100
+                    c.NumberFormat = "0.000"
+                End If
+            End If
+        End If
+    Next c
+Fin:
+    Application.EnableEvents = True
+End Sub

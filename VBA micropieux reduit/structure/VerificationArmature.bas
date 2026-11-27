@@ -1,0 +1,336 @@
+Attribute VB_Name = "VerificationArmature"
+Option Explicit
+Private Const COUL_TITRE As Long = 5898259
+Private Const COUL_ENTETE As Long = 14337945
+Private Const COUL_SAISIE As Long = 15201485
+Private Const COUL_CALCUL As Long = 15590349
+Private Const COUL_SOUS_TITRE As Long = 16117988
+Private Const COUL_ALERTE As Long = 192
+Private Const NOM_FEUILLE As String = "Vérification structurelle"
+Private Const DONNEES As String = "'Données du projet'!"
+Private Const TITRE As String = "VÉRIFICATION DE L'ARMATURE (NF EN 1993-1-1, 6.2) - TUBE APRÈS CORROSION"
+Private Const TITRE2 As String = "EFFORTS SUR LE MICROPIEU - VÉRIFICATION DES DÉPLACEMENTS ET DES CONTRAINTES ADMISSIBLES"
+Private Const LIB_YADM As String = "Déplacement horizontal admissible (à saisir)"
+Private mR As Long
+Private mWs As Worksheet
+Private mN As Long
+Private mP1 As Long, mPn As Long
+Public Sub VerificationArmature()
+    Dim ws As Worksheet, co As ChartObject, v As Variant, r0 As Long, etape As String
+    Dim bas As Double, hP As Long, rN As Long, nP As Long, rFin As Long
+    Dim rde As String, rdi As String, rAs As String, rI As String, rrc As String
+    Dim d0 As String, t0 As String, rc As String, d As String, di As String, t As String
+    Dim A As String, I As String, Wel As String, Wpl As String, fy As String, gM0 As String
+    Dim NEd As String, VEd As String, MEd As String, eps As String, dt As String, cl As String
+    Dim NcRd As String, Av As String, VplRd As String, McRd As String
+    Dim rap1 As String, rap2 As String, rap3 As String, rap4 As String
+    Dim ok1 As String, ok2 As String, ok3 As String, ok4 As String
+    Dim r2 As Long, yAdm As Variant, vYa As String, xN As Long, xV As Long, xM As Long, xY0 As Long
+    Dim xYm As Long, xRy As Long, xOkY As Long, xsN As Long, xsM As Long, xsx As Long, xtau As Long
+    Dim xsa As Long, xta As Long, xcr As Long, xOkS As Long, xin As Long, xOkI As Long
+    Dim xSy As Long, xb As Long, xsv As Long, xR As Long, nMP As String
+    Dim fT As String, fM As String, k As Long
+    Dim vInc As String, vAng As String, cosA As String, vNc As String, rap5 As String, ok5 As String
+    On Error Resume Next
+    Set ws = ActiveWorkbook.Worksheets(NOM_FEUILLE)
+    On Error GoTo Erreur
+    If ws Is Nothing Then
+        MsgBox "Créez d'abord la feuille « " & NOM_FEUILLE & " » (CreerVerificationStructurelle).", vbExclamation
+        Exit Sub
+    End If
+    Set mWs = ws
+    yAdm = LireD(ws, LIB_YADM)
+    nMP = CStr(LireD(ws, "Micropieu le plus long (plus grande profondeur réelle)"))
+    etape = "lecture de la feuille"
+    rde = Valeur(ws, "Diamètre après corrosion d - 2 rc")
+    rdi = Valeur(ws, "Diamètre intérieur di (tube)")
+    rAs = Valeur(ws, "Section après corrosion As")
+    rI = Valeur(ws, "Inertie de la section après corrosion I")
+    rrc = Valeur(ws, "Rayon de corrosion retenu rc (0 si protection efficace)")
+    v = Application.Match("Nc", ws.Range("C1:C500"), 0)
+    If rde = "" Or rAs = "" Or rI = "" Or IsError(v) Then
+        MsgBox "Tableaux de la feuille « " & NOM_FEUILLE & " » introuvables : relancez " & "CreerVerificationStructurelle.", vbExclamation
+        Exit Sub
+    End If
+    rN = CLng(v)
+    mN = rN
+    vInc = Valeur(ws, "Micropieu incliné")
+    vAng = Valeur(ws, "Angle d'inclinaison sur la verticale " & ChrW(945))
+    If vInc = "" Or vAng = "" Then
+        cosA = "1"
+    Else
+        cosA = "IF(AND(" & vInc & "=""Oui"",N(" & vAng & ")>0,N(" & vAng & ")<90),COS(RADIANS(" & vAng & ")),1)"
+    End If
+    v = Application.Match("z (m)", ws.Range("A1:A1000"), 0)
+    If Not IsError(v) Then
+        hP = CLng(v)
+        Do While Not IsEmpty(ws.Cells(hP + 2 + nP, 1).Value) Or ws.Cells(hP + 2 + nP, 1).HasFormula
+            nP = nP + 1
+            If nP > 5000 Then Exit Do
+        Loop
+        rFin = hP + 2 + nP
+        mP1 = hP + 2: mPn = nP
+    Else
+        rFin = rN + 12
+        v = Application.Match(TITRE_FRONTALE & "*", ws.Range("A1:A1000"), 0)
+        If Not IsError(v) Then rFin = CLng(v) + 12
+    End If
+    etape = "position du tableau"
+    v = Application.Match(TITRE & "*", ws.Range("A1:A5000"), 0)
+    If Not IsError(v) Then ws.Range(ws.Rows(CLng(v)), ws.Rows(CLng(v) + 160)).Clear
+    bas = ws.Cells(rFin, 1).Top
+    For Each co In ws.ChartObjects
+        If co.Top + co.Height > bas Then bas = co.Top + co.Height
+    Next co
+    r0 = rFin
+    Do While ws.Cells(r0, 1).Top < bas + 10
+        r0 = r0 + 1
+    Loop
+    r0 = r0 + 1
+    With ws.Range("A" & r0)
+        .Value = TITRE & IIf(nMP <> "", " - MICROPIEU " & nMP, "")
+        .Font.Bold = True
+        .Font.Size = 14
+        .Font.Color = COUL_TITRE
+    End With
+    mR = r0 + 1
+    ws.Range("B" & mR & ":E" & mR).Value = Array("Caractéristique", "", "Valeur", "Unité")
+    ws.Range("B" & mR & ":C" & mR).Merge
+    With ws.Range("B" & mR & ":E" & mR)
+        .Font.Bold = True
+        .Interior.Color = COUL_ENTETE
+        .HorizontalAlignment = xlCenter
+    End With
+    etape = "caractéristiques de la section"
+    MiniTitre "1. Caractéristiques de la section (tube après corrosion)", "d, di, A = As et I : tableau des caractéristiques de l'armature plus haut dans la feuille"
+    d = rde
+    di = IIf(rdi = "", "0", rdi)
+    A = rAs
+    I = rI
+    t0 = Lig("Épaisseur nominale de la paroi", "t0", "=N(" & DONNEES & "$D$" & LIGNE_ACIER + 3 & ")", "mm", "0.0")
+    t = Lig("Épaisseur de paroi après corrosion", "t", "=(" & d & "-" & di & ")/2", "mm", "0.00")
+    Wel = Lig("Module de flexion élastique", "Wel", "=IF(N(" & d & ")>0,2*" & I & "/" & d & ","""")", "mm³", "0.000E+00")
+    Wpl = Lig("Module de flexion plastique", "Wpl", "=(" & d & "^3-" & di & "^3)/6", "mm³", "0.000E+00")
+    fy = Lig("Limite d'élasticité de l'acier", "fy", "=N(" & DONNEES & "$D$" & LIGNE_ACIER + 7 & ")", "MPa", "0")
+    gM0 = Lig("Coefficient partiel (résistance des sections)", ChrW(947) & "M0", "=IF(N(" & DONNEES & "$D$" & LIGNE_ACIER + 20 & ")>0,N(" & DONNEES & "$D$" & LIGNE_ACIER + 20 & "),1)", "", "0.00")
+    etape = "sollicitations"
+    MiniTitre "2. Sollicitations de calcul (maximum des combinaisons, après le calcul du micropieu)", ""
+    vNc = Lig("Effort vertical de compression (descente de charges, maximum)", "Nc", "=MAX(ABS(N(E" & rN & ")),ABS(N(F" & rN & ")),ABS(N(G" & rN & ")),ABS(N(H" & rN & ")))", "kN", "0.0")
+    NEd = Lig("Effort normal de compression dans l'axe du micropieu", "NEd = Nc / cos " & ChrW(945), "=" & vNc & "/" & cosA, "kN", "0.0")
+    If hP > 0 Then
+        fT = "": fM = ""
+        For k = 0 To 3
+            fT = fT & IIf(k > 0, ",", "") & ws.Range(ws.Cells(mP1, 6 + 3 * k), ws.Cells(mP1 + mPn - 1, 6 + 3 * k)).Address
+            fM = fM & IIf(k > 0, ",", "") & ws.Range(ws.Cells(mP1, 7 + 3 * k), ws.Cells(mP1 + mPn - 1, 7 + 3 * k)).Address
+        Next k
+        VEd = Lig("Effort tranchant maximal le long du micropieu (calcul Y, T, M)", "VEd = max|T(z)|", "=MAX(MAX(" & fT & "),-MIN(" & fT & "))", "kN", "0.0")
+        MEd = Lig("Moment fléchissant maximal le long du micropieu (calcul Y, T, M)", "MEd = max|M(z)|", "=MAX(MAX(" & fM & "),-MIN(" & fM & "))", "kN.m", "0.00")
+    Else
+        VEd = Lig("Effort tranchant en tête", "VEd = H0", "=MAX(ABS(N(E" & rN + 1 & ")),ABS(N(F" & rN + 1 & ")),ABS(N(G" & rN + 1 & ")),ABS(N(H" & rN + 1 & ")))", "kN", "0.0")
+        MEd = Lig("Moment fléchissant en tête", "MEd = M0", "=MAX(ABS(N(E" & rN + 2 & ")),ABS(N(F" & rN + 2 & ")),ABS(N(G" & rN + 2 & ")),ABS(N(H" & rN + 2 & ")))", "kN.m", "0.00")
+    End If
+    etape = "classification"
+    MiniTitre "3.1 Classification de la section (tableau 5.2, section tubulaire)", "Condition : classe 1 si d/t " & ChrW(8804) & " 50" & ChrW(949) & "² ; classe 2 si d/t " & ChrW(8804) & " 70" & ChrW(949) & "² ; classe 3 si d/t " & ChrW(8804) & " 90" & ChrW(949) & "²"
+    eps = Lig("Coefficient dépendant de fy", ChrW(949) & " = " & ChrW(8730) & "(235/fy)", "=IF(N(" & fy & ")>0,SQRT(235/" & fy & "),"""")", "", "0.000")
+    dt = Lig("Élancement de la paroi", "d/t", "=IF(N(" & t & ")>0," & d & "/" & t & ","""")", "", "0.00")
+    Lig "Limite de la classe 3", "90" & ChrW(949) & "²", "=IF(" & eps & "="""",""""," & "90*" & eps & "^2)", "", "0.00"
+    cl = Lig("Classe de la section", "Classe", "=IF(OR(" & dt & "=""""," & eps & "=""""),""-"",IF(" & dt & "<=50*" & eps & "^2,1,IF(" & dt & "<=70*" & eps & "^2,2,IF(" & dt & "<=90*" & eps & "^2,3,4))))", "", "0")
+    rap1 = Lig("Rapport d/t / 90" & ChrW(949) & "²", "d/t / 90" & ChrW(949) & "²", "=IF(OR(" & dt & "=""""," & eps & "=""""),""""," & dt & "/(90*" & eps & "^2))", "", "0.00")
+    ok1 = Lig("Vérification", "", "=IF(" & rap1 & "="""",""-"",IF(" & rap1 & "<=1,""OK (classe ""&" & cl & "&"")""," & """Classe 4 : changer de section""))", "", "@")
+    etape = "compression"
+    MiniTitre "3.2 Vérification en compression (6.2.4)", "Condition : NEd / Nc,Rd " & ChrW(8804) & " 1,0 (6.9) avec Nc,Rd = A.fy / " & ChrW(947) & "M0 (6.10)"
+    NcRd = Lig("Résistance de calcul à la compression", "Nc,Rd", "=IF(N(" & gM0 & ")>0," & A & "*" & fy & "/" & gM0 & "/1000,"""")", "kN", "0.0")
+    rap2 = Lig("Rapport effort agissant / effort résistant", "NEd / Nc,Rd", "=IF(N(" & NcRd & ")>0," & NEd & "/" & NcRd & ","""")", "", "0.00")
+    ok2 = Lig("Vérification", "", Conclusion(rap2), "", "@")
+    etape = "cisaillement"
+    MiniTitre "3.3 Vérification au cisaillement (6.2.6)", "Condition : VEd / Vpl,Rd " & ChrW(8804) & " 1,0 (6.17) avec Vpl,Rd = Av (fy/" & ChrW(8730) & "3) / " & ChrW(947) & "M0 (6.18) et Av = 2A/" & ChrW(960) & " (6.2.6(3) g)"
+    Av = Lig("Aire de cisaillement (tube)", "Av = 2A/" & ChrW(960), "=2*" & A & "/PI()", "mm²", "0.0")
+    VplRd = Lig("Résistance plastique de calcul au cisaillement", "Vpl,Rd", "=IF(N(" & gM0 & ")>0," & Av & "*(" & fy & "/SQRT(3))/" & gM0 & "/1000,"""")", "kN", "0.0")
+    rap3 = Lig("Rapport effort agissant / effort résistant", "VEd / Vpl,Rd", "=IF(N(" & VplRd & ")>0," & VEd & "/" & VplRd & ","""")", "", "0.00")
+    ok3 = Lig("Vérification", "", Conclusion(rap3), "", "@")
+    etape = "moment fléchissant"
+    MiniTitre "3.4 Vérification au moment fléchissant (6.2.5)", "Condition : MEd / Mc,Rd " & ChrW(8804) & " 1,0 (6.12) avec Mc,Rd = Wpl.fy / " & ChrW(947) & "M0 (classes 1 et 2, 6.13) ou Wel.fy / " & ChrW(947) & "M0 (classe 3, 6.14)"
+    McRd = Lig("Moment résistant de calcul", "Mc,Rd", "=IF(OR(N(" & gM0 & ")<=0,N(" & cl & ")=0,N(" & cl & ")>3),""""," & "IF(" & cl & "<=2," & Wpl & "," & Wel & ")*" & fy & "/" & gM0 & "/1000000)", "kN.m", "0.00")
+    rap4 = Lig("Rapport effort agissant / effort résistant", "MEd / Mc,Rd", "=IF(N(" & McRd & ")>0," & MEd & "/" & McRd & ","""")", "", "0.00")
+    ok4 = Lig("Vérification", "", Conclusion(rap4), "", "@")
+    etape = "interaction"
+    MiniTitre "3.5 Interaction effort normal et moment fléchissant (6.2.1(7))", "Condition (6.2) : NEd / Nc,Rd + MEd / Mc,Rd " & ChrW(8804) & " 1 (Nc,Rd et Mc,Rd de 3.2 et 3.4)"
+    rap5 = Lig("Somme des rapports effort agissant / effort résistant", "NEd/Nc,Rd + MEd/Mc,Rd", "=IF(OR(N(" & NcRd & ")=0,N(" & McRd & ")=0),""""," & NEd & "/" & NcRd & "+" & MEd & "/" & McRd & ")", "", "0.00")
+    ok5 = Lig("Vérification", "", Conclusion(rap5), "", "@")
+    MiniTitre "Conclusion", ""
+    Lig "Section du tube", "", "=IF(AND(LEFT(" & ok1 & ",2)=""OK"",LEFT(" & ok2 & ",2)=""OK"",LEFT(" & ok3 & ",2)=""OK"",LEFT(" & ok4 & ",2)=""OK"",LEFT(" & ok5 & ",2)=""OK""),""Section vérifiée : OK"",""Section non vérifiée : changer de section"")", "", "@"
+    etape = "mise en forme"
+    With ws.Range("B" & r0 + 1 & ":E" & mR)
+        .Borders.LineStyle = xlContinuous
+        .VerticalAlignment = xlCenter
+        .WrapText = True
+    End With
+    With ws.Range("B" & r0 + 1 & ":E" & mR).FormatConditions
+        .Delete
+        .Add(xlTextString, String:="changer", TextOperator:=xlContains).Font.Color = COUL_ALERTE
+    End With
+    etape = "efforts sur le micropieu"
+    If hP = 0 Then GoTo Fin2
+    mR = mR + 3
+    r2 = mR
+    With ws.Range("A" & r2)
+        .Value = TITRE2 & IIf(nMP <> "", " - MICROPIEU " & nMP, "")
+        .Font.Bold = True
+        .Font.Size = 14
+        .Font.Color = COUL_TITRE
+    End With
+    mR = r2 + 1
+    ws.Range("B" & mR & ":H" & mR).Value = Array("Caractéristique", "", "ELS CARA", "ELS QP", "ELU FOND", "ELU ACC", "Unité")
+    ws.Range("B" & mR & ":C" & mR).Merge
+    With ws.Range("B" & mR & ":H" & mR)
+        .Font.Bold = True
+        .Interior.Color = COUL_ENTETE
+        .HorizontalAlignment = xlCenter
+    End With
+    MiniTitre2 "4. Efforts et déplacements le long du micropieu (profil, par combinaison)", ""
+    xN = LigC("Effort normal de compression dans l'axe du micropieu", "NEd = Nc / cos " & ChrW(945), "=ABS(N(@" & rN & "))/" & cosA, "kN", "0.0")
+    xV = LigC("Effort tranchant maximal le long du micropieu", "VEd = max|T(z)|", "=IF(COUNT({T})=0,0,MAX(MAX({T}),-MIN({T})))", "kN", "0.0")
+    xM = LigC("Moment fléchissant maximal le long du micropieu", "MEd = max|M(z)|", "=IF(COUNT({M})=0,0,MAX(MAX({M}),-MIN({M})))", "kN.m", "0.00")
+    xY0 = LigC("Déplacement horizontal en tête", "y0 = Y(z = 0)", "=N({Y0})", "mm", "0.00")
+    xYm = LigC("Déplacement horizontal maximal", "ymax = max|Y(z)|", "=IF(COUNT({Y})=0,0,MAX(MAX({Y}),-MIN({Y})))", "mm", "0.00")
+    MiniTitre2 "5. Vérification des déplacements", "Condition : ymax / yadm " & ChrW(8804) & " 1,0 ; yadm : déplacement horizontal admissible fixé par " & "le projet (compatibilité avec l'ouvrage)"
+    mR = mR + 1
+    ws.Range("B" & mR).Value = LIB_YADM
+    ws.Range("C" & mR).Value = "yadm"
+    With ws.Range("D" & mR & ":G" & mR)
+        .Merge
+        .Value = IIf(N0(yAdm) > 0, N0(yAdm), 10)
+        .Interior.Color = COUL_SAISIE
+        .NumberFormat = "0.00"
+    End With
+    ws.Range("H" & mR).Value = "mm"
+    ws.Range("C" & mR & ":H" & mR).HorizontalAlignment = xlCenter
+    vYa = "$D$" & mR
+    xRy = LigC("Rapport déplacement agissant / admissible", "ymax / yadm", "=IF(N(" & vYa & ")>0,#" & xYm & "/" & vYa & ","""")", "", "0.00")
+    xOkY = LigC("Vérification", "", ConclusionC(xRy), "", "@")
+    MiniTitre2 "6. Contraintes dans le tube et critère de von Mises (élasticité, théorie des poutres)", "Condition : " & ChrW(963) & "VM = " & ChrW(8730) & "(" & ChrW(963) & "² + 3" & ChrW(964) & "²) " & ChrW(8804) & " fy/" & ChrW(947) & "M0 avec " & ChrW(963) & " = N/A + M.v/I et " & ChrW(964) & "max = V.R²/Iy ; " & ChrW(964) & " " & ChrW(8804) & " " & ChrW(964) & "e = fy/(" & ChrW(8730) & "3." & ChrW(947) & "M0)"
+    xsN = LigC("Contrainte normale de compression", ChrW(963) & "N = NEd / A", "=IF(N(" & A & ")>0,1000*#" & xN & "/" & A & ","""")", "MPa", "0.0")
+    xsM = LigC("Contrainte normale de flexion (fibre extrême, v = d/2)", ChrW(963) & "M = MEd.v / I", "=IF(N(" & I & ")>0,1000000*#" & xM & "*(" & d & "/2)/" & I & ","""")", "MPa", "0.0")
+    xsx = LigC("Contrainte normale totale", ChrW(963) & " = " & ChrW(963) & "N + " & ChrW(963) & "M", "=IF(OR(#" & xsN & "="""",#" & xsM & "=""""),"""",#" & xsN & "+#" & xsM & ")", "MPa", "0.0")
+    xR = LigC("Rayon de la section", "R = d / 2", "=" & d & "/2", "mm", "0.00")
+    xSy = LigC("Moment statique de la coupe au droit de l'axe neutre (z' = R)", "Sy(A') = 2Rt" & ChrW(8730) & "(2Rz' - z'²) = 2R²t", "=2*#" & xR & "^2*" & t, "mm³", "0.000E+00")
+    xb = LigC("Largeur coupée (deux parois)", "b = 2t", "=2*" & t, "mm", "0.00")
+    xtau = LigC("Contrainte de cisaillement maximale (axe neutre)", ChrW(964) & "max = VEd.Sy(A') / (2t.Iy) = " & "VEd.R² / Iy", "=IF(N(" & I & ")>0,1000*#" & xV & "*#" & xR & "^2/" & I & ","""")", "MPa", "0.00")
+    xta = LigC("Limite élastique en cisaillement pur", ChrW(964) & "e = fy / (" & ChrW(8730) & "3." & ChrW(947) & "M0)", "=IF(N(" & gM0 & ")>0," & fy & "/(SQRT(3)*" & gM0 & "),"""")", "MPa", "0.0")
+    LigC "Rapport cisaillement agissant / limite", ChrW(964) & " / " & ChrW(964) & "e", "=IF(N(#" & xta & ")>0,#" & xtau & "/#" & xta & ","""")", "", "0.00"
+    xsv = LigC("Contrainte équivalente de von Mises", ChrW(963) & "VM = " & ChrW(8730) & "(" & ChrW(963) & "² + 3" & ChrW(964) & "²)", "=IF(OR(#" & xsx & "="""",#" & xtau & "=""""),"""",SQRT(#" & xsx & "^2+3*#" & xtau & "^2))", "MPa", "0.0")
+    xsa = LigC("Contrainte admissible", "fy / " & ChrW(947) & "M0", "=IF(N(" & gM0 & ")>0," & fy & "/" & gM0 & ","""")", "MPa", "0.0")
+    xcr = LigC("Rapport contrainte agissante / admissible", ChrW(963) & "VM / (fy/" & ChrW(947) & "M0)", "=IF(OR(#" & xsv & "="""",N(#" & xsa & ")=0),"""",#" & xsv & "/#" & xsa & ")", "", "0.00")
+    xOkS = LigC("Vérification", "", ConclusionC(xcr), "", "@")
+    MiniTitre2 "Conclusion", ""
+    LigC "Micropieu (déplacements, contraintes)", "", "=IF(AND(LEFT(#" & xOkY & ",2)=""OK"",LEFT(#" & xOkS & ",2)=""OK""),""OK"",""Non vérifié : changer de section"")", "", "@"
+    With ws.Range("B" & r2 + 1 & ":H" & mR)
+        .Borders.LineStyle = xlContinuous
+        .VerticalAlignment = xlCenter
+        .WrapText = True
+    End With
+    With ws.Range("B" & r2 + 1 & ":H" & mR).FormatConditions
+        .Delete
+        .Add(xlTextString, String:="changer", TextOperator:=xlContains).Font.Color = COUL_ALERTE
+    End With
+Fin2:
+    On Error Resume Next
+    If Not VerificationStructurelle.CreationVerificationEnCours Then VerificationMandel.VerificationMandel
+    Exit Sub
+Erreur:
+    MsgBox "Erreur pendant la vérification de l'armature, partie « " & etape & " » : " & Err.Description & " (n° " & Err.Number & ")", vbExclamation
+End Sub
+Private Sub MiniTitre(texte As String, condition As String)
+    mR = mR + 1
+    With mWs.Range("B" & mR & ":E" & mR)
+        .Merge
+        .Value = texte
+        .Font.Bold = True
+        .Font.Color = COUL_TITRE
+        .Interior.Color = COUL_SOUS_TITRE
+    End With
+    If condition <> "" Then
+        mR = mR + 1
+        With mWs.Range("B" & mR & ":E" & mR)
+            .Merge
+            .Value = condition
+            .Font.Italic = True
+            .WrapText = True
+        End With
+        mWs.Rows(mR).RowHeight = 30
+    End If
+End Sub
+Private Function Lig(designation As String, symbole As String, formule As String, unite As String, fmt As String) As String
+    mR = mR + 1
+    mWs.Range("B" & mR).Value = designation
+    mWs.Range("C" & mR).Value = symbole
+    mWs.Range("D" & mR).Formula = formule
+    mWs.Range("E" & mR).Value = unite
+    mWs.Range("C" & mR & ":E" & mR).HorizontalAlignment = xlCenter
+    mWs.Range("D" & mR).Interior.Color = COUL_CALCUL
+    If fmt <> "@" Then mWs.Range("D" & mR).NumberFormat = fmt
+    If designation = "Vérification" Or Left(designation, 7) = "Section" Then mWs.Range("B" & mR & ":D" & mR).Font.Bold = True
+    Lig = "$D$" & mR
+End Function
+Private Function Conclusion(rapport As String) As String
+    Conclusion = "=IF(" & rapport & "="""",""-"",IF(" & rapport & "<=1,""OK (taux ""&TEXT(" & rapport & ",""0%"")&"")"",""Non vérifiée : changer de section""))"
+End Function
+Private Sub MiniTitre2(texte As String, condition As String)
+    mR = mR + 1
+    With mWs.Range("B" & mR & ":H" & mR)
+        .Merge
+        .Value = texte
+        .Font.Bold = True
+        .Font.Color = COUL_TITRE
+        .Interior.Color = COUL_SOUS_TITRE
+    End With
+    If condition <> "" Then
+        mR = mR + 1
+        With mWs.Range("B" & mR & ":H" & mR)
+            .Merge
+            .Value = condition
+            .Font.Italic = True
+            .WrapText = True
+        End With
+        mWs.Rows(mR).RowHeight = 30
+    End If
+End Sub
+Private Function LigC(designation As String, symbole As String, tpl As String, unite As String, fmt As String) As Long
+    Dim k As Long, f As String, cP As Long
+    mR = mR + 1
+    mWs.Range("B" & mR).Value = designation
+    mWs.Range("C" & mR).Value = symbole
+    mWs.Range("H" & mR).Value = unite
+    For k = 0 To 3
+        cP = 5 + 3 * k
+        f = tpl
+        f = Replace(f, "{Y0}", mWs.Cells(mP1, cP).Address)
+        f = Replace(f, "{Y}", mWs.Range(mWs.Cells(mP1, cP), mWs.Cells(mP1 + mPn - 1, cP)).Address)
+        f = Replace(f, "{T}", mWs.Range(mWs.Cells(mP1, cP + 1), mWs.Cells(mP1 + mPn - 1, cP + 1)).Address)
+        f = Replace(f, "{M}", mWs.Range(mWs.Cells(mP1, cP + 2), mWs.Cells(mP1 + mPn - 1, cP + 2)).Address)
+        f = Replace(f, "#", Chr(Asc("D") + k))
+        f = Replace(f, "@", Chr(Asc("E") + k))
+        mWs.Cells(mR, 4 + k).Formula = f
+        If fmt <> "@" Then mWs.Cells(mR, 4 + k).NumberFormat = fmt
+    Next k
+    mWs.Range("C" & mR & ":H" & mR).HorizontalAlignment = xlCenter
+    mWs.Range("D" & mR & ":G" & mR).Interior.Color = COUL_CALCUL
+    If designation = "Vérification" Or Left(designation, 9) = "Micropieu" Then mWs.Range("B" & mR & ":G" & mR).Font.Bold = True
+    LigC = mR
+End Function
+Private Function ConclusionC(r As Long) As String
+    ConclusionC = "=IF(#" & r & "="""",""-"",IF(#" & r & "<=1,""OK (taux ""&TEXT(#" & r & ",""0%"")&"")"",""Non vérifiée : changer de section""))"
+End Function
+Private Function LireD(ws As Worksheet, lib As String) As Variant
+    Dim v As Variant
+    v = Application.Match(lib, ws.Range("B1:B5000"), 0)
+    If Not IsError(v) Then LireD = ws.Range("D" & CLng(v)).Value
+End Function
+Private Function N0(v As Variant) As Double
+    If Not IsEmpty(v) And IsNumeric(v) Then N0 = CDbl(v)
+End Function
+Private Function Valeur(ws As Worksheet, lib As String) As String
+    Dim v As Variant
+    v = Application.Match(lib, ws.Range("B1:B500"), 0)
+    If Not IsError(v) Then Valeur = "$D$" & CLng(v)
+End Function

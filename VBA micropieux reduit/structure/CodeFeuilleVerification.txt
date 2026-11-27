@@ -1,0 +1,3 @@
+Private Sub Worksheet_Activate()
+    VerifierNombreMicropieux Me
+End Sub
