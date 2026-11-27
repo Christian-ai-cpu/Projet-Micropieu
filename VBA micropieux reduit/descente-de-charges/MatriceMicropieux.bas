@@ -184,21 +184,11 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         r = r0 + 2 + i
         ws.Cells(r, 2).Value = "MP" & i
         For j = 1 To nL
-            If Not IsEmpty(mat(i, j)) Then
-                ws.Cells(r, 2 + j).Value = mat(i, j)
-            ElseIf i = j Then
-                ws.Cells(r, 2 + j).Formula = "=N(" & ws.Cells(r0 + 2, 2 + j).Address & ")"
-            Else
-                ws.Cells(r, 2 + j).Value = 0
-            End If
+            If Not IsEmpty(mat(i, j)) Then ws.Cells(r, 2 + j).Value = mat(i, j)
         Next j
         For j = 1 To nP
             With ws.Cells(r, 2 + nL + j)
-                If Not IsEmpty(pot(i, j)) Then
-                    .Value = pot(i, j)
-                Else
-                    .Value = IIf(isolee And i = j, 1, 0)
-                End If
+                If Not IsEmpty(pot(i, j)) Then .Value = pot(i, j)
                 .Validation.Delete
                 .Validation.Add xlValidateList, xlValidAlertStop, , "0,1"
             End With
@@ -206,10 +196,10 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         If nL > 0 Then ligne = ws.Range(ws.Cells(r, 3), ws.Cells(r, 2 + n)).Address(False, False)
         If nP > 0 Then ligneP = ws.Range(ws.Cells(r, 3 + nL), ws.Cells(r, 2 + nL + n)).Address(False, False)
         If isolee Then
-            fG = "MMULT(" & ligneP & "," & cG & ")": fQ = "MMULT(" & ligneP & "," & cQ & ")"
+            fG = SommeProduits(ws, r, 3 + nL, n, "C", L + 6): fQ = SommeProduits(ws, r, 3 + nL, n, "D", L + 6)
         Else
-            fG = "MMULT(" & ligne & "," & cG & ")": fQ = "MMULT(" & ligne & "," & cQ & ")"
-            If nP > 0 Then fG = fG & "+MMULT(" & ligneP & "," & cP & ")"
+            fG = SommeProduits(ws, r, 3, n, "C", L + 6): fQ = SommeProduits(ws, r, 3, n, "D", L + 6)
+            If nP > 0 Then fG = fG & "+" & SommeProduits(ws, r, 3 + nL, n, "E", L + 6)
         End If
         ws.Cells(r, x0).Formula = "=IFERROR(" & fG & ","""")"
         ws.Cells(r, x0 + 1).Formula = "=IFERROR(" & fQ & ","""")"
@@ -223,11 +213,11 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         ws.Cells(r, x0 + 6).Formula = "=N(" & ws.Cells(r, x0 + 1).Address(False, False) & ")"
         If nappe Then
             For j = 7 To 9
-                ws.Cells(r, x0 + j).Value = IIf(IsEmpty(eau(i, j - 6)), 0, eau(i, j - 6))
+                If Not IsEmpty(eau(i, j - 6)) Then ws.Cells(r, x0 + j).Value = eau(i, j - 6)
             Next j
         End If
-        ws.Cells(r, xt).Value = IIf(IsEmpty(talus(i, 1)), 0, talus(i, 1))
-        ws.Cells(r, xt + 1).Value = IIf(IsEmpty(talus(i, 2)), 0, talus(i, 2))
+        If Not IsEmpty(talus(i, 1)) Then ws.Cells(r, xt).Value = talus(i, 1)
+        If Not IsEmpty(talus(i, 2)) Then ws.Cells(r, xt + 1).Value = talus(i, 2)
     Next i
     r = r0 + 3 + m
     ws.Cells(r, 2).Value = "TOTAL"
@@ -276,6 +266,13 @@ Fin:
     Application.EnableEvents = evenements
     Application.ScreenUpdating = True
 End Sub
+Private Function SommeProduits(ws As Worksheet, r As Long, c1 As Long, n As Long, col As String, l1 As Long) As String
+    Dim j As Long, s As String
+    For j = 0 To n - 1
+        s = s & IIf(j > 0, "+", "") & "N(" & ws.Cells(r, c1 + j).Address(False, False) & ")*$" & col & "$" & l1 + j
+    Next j
+    SommeProduits = s
+End Function
 Public Function TrouverLigneMatrice(ws As Worksheet) As Long
     Dim v As Variant
     v = Application.Match(TITRE_MATRICE, ws.Range("B1:B3000"), 0)

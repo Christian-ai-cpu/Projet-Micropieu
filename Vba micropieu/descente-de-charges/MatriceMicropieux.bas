@@ -262,23 +262,13 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         r = r0 + 2 + i
         ws.Cells(r, 2).Value = "MP" & i
         For j = 1 To nL
-            If Not IsEmpty(mat(i, j)) Then
-                ws.Cells(r, 2 + j).Value = mat(i, j)
-            ElseIf i = j Then
-                ws.Cells(r, 2 + j).Formula = "=N(" & ws.Cells(r0 + 2, 2 + j).Address & ")"
-            Else
-                ws.Cells(r, 2 + j).Value = 0
-            End If
+            ' vide par défaut (saisie conservée sinon)
+            If Not IsEmpty(mat(i, j)) Then ws.Cells(r, 2 + j).Value = mat(i, j)
         Next j
-        ' Identification des poteaux (0 / 1, saisie conservée ; par défaut 0, ou 1 sur la
-        ' diagonale en semelle isolée : micropieu i sous le poteau Pot i)
+        ' Identification des poteaux (0 / 1, saisie conservée ; vide par défaut = 0)
         For j = 1 To nP
             With ws.Cells(r, 2 + nL + j)
-                If Not IsEmpty(pot(i, j)) Then
-                    .Value = pot(i, j)
-                Else
-                    .Value = IIf(isolee And i = j, 1, 0)
-                End If
+                If Not IsEmpty(pot(i, j)) Then .Value = pot(i, j)
                 .Validation.Delete
                 .Validation.Add xlValidateList, xlValidAlertStop, , "0,1"
             End With
@@ -289,11 +279,12 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         '   semelle filante : longueurs x (G, Q des murs, kN/ml) ;
         '   mixte           : idem + identification x G poteaux des murs (kN) ;
         '   semelle isolée  : identification x (G, Q des poteaux Pot n, kN)
+        ' (sommes de produits écrites terme à terme : les cases vides valent 0)
         If isolee Then
-            fG = "MMULT(" & ligneP & "," & cG & ")": fQ = "MMULT(" & ligneP & "," & cQ & ")"
+            fG = SommeProduits(ws, r, 3 + nL, n, "C", L + 6): fQ = SommeProduits(ws, r, 3 + nL, n, "D", L + 6)
         Else
-            fG = "MMULT(" & ligne & "," & cG & ")": fQ = "MMULT(" & ligne & "," & cQ & ")"
-            If nP > 0 Then fG = fG & "+MMULT(" & ligneP & "," & cP & ")"
+            fG = SommeProduits(ws, r, 3, n, "C", L + 6): fQ = SommeProduits(ws, r, 3, n, "D", L + 6)
+            If nP > 0 Then fG = fG & "+" & SommeProduits(ws, r, 3 + nL, n, "E", L + 6)
         End If
         ws.Cells(r, x0).Formula = "=IFERROR(" & fG & ","""")"
         ws.Cells(r, x0 + 1).Formula = "=IFERROR(" & fQ & ","""")"
@@ -313,12 +304,12 @@ Public Sub ConstruireMatrice(Optional ws As Worksheet)
         ' phréatique (« Données du projet », D34) ; à saisir sinon
         If nappe Then
             For j = 7 To 9
-                ws.Cells(r, x0 + j).Value = IIf(IsEmpty(eau(i, j - 6)), 0, eau(i, j - 6))
+                If Not IsEmpty(eau(i, j - 6)) Then ws.Cells(r, x0 + j).Value = eau(i, j - 6)   ' vide par défaut
             Next j
         End If
         ' Charge du talus H0, M0 (saisies conservées, 0 par défaut)
-        ws.Cells(r, xt).Value = IIf(IsEmpty(talus(i, 1)), 0, talus(i, 1))
-        ws.Cells(r, xt + 1).Value = IIf(IsEmpty(talus(i, 2)), 0, talus(i, 2))
+        If Not IsEmpty(talus(i, 1)) Then ws.Cells(r, xt).Value = talus(i, 1)       ' vide par défaut
+        If Not IsEmpty(talus(i, 2)) Then ws.Cells(r, xt + 1).Value = talus(i, 2)
     Next i
 
     ' Ligne TOTAL
@@ -380,6 +371,18 @@ Fin:
     Application.EnableEvents = evenements
     Application.ScreenUpdating = True
 End Sub
+
+' Somme des produits (case vide = 0) des n cases de la ligne r à partir de la colonne c1
+' par les valeurs de la colonne col (lignes l1 à l1 + n - 1, absolues) :
+' N(case 1) * $col$l1 + N(case 2) * $col$(l1 + 1) + ...
+Private Function SommeProduits(ws As Worksheet, r As Long, c1 As Long, n As Long, col As String, _
+        l1 As Long) As String
+    Dim j As Long, s As String
+    For j = 0 To n - 1
+        s = s & IIf(j > 0, "+", "") & "N(" & ws.Cells(r, c1 + j).Address(False, False) & ")*$" & col & "$" & l1 + j
+    Next j
+    SommeProduits = s
+End Function
 
 ' Ligne du titre de la matrice des micropieux (« RÉPARTITION DES CHARGES DES MURS SUR LES
 ' MICROPIEUX », colonne B) de la feuille ws ; 0 si la feuille n'en a pas (ce n'est pas
